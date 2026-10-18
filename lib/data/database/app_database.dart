@@ -30,7 +30,8 @@ class Categories extends Table {
 class Entries extends Table {
   TextColumn get id => text()();
   TextColumn get kind => text()();
-  IntColumn get amount => integer().customConstraint('NOT NULL CHECK (amount > 0)')();
+  IntColumn get amount =>
+      integer().customConstraint('NOT NULL CHECK (amount > 0)')();
   TextColumn get accountId => text().references(Accounts, #id)();
   TextColumn get targetAccountId =>
       text().nullable().references(Accounts, #id)();
@@ -47,7 +48,8 @@ class Entries extends Table {
 class Budgets extends Table {
   TextColumn get month => text()();
   TextColumn get currency => text()();
-  IntColumn get amount => integer().customConstraint('NOT NULL CHECK (amount >= 0)')();
+  IntColumn get amount =>
+      integer().customConstraint('NOT NULL CHECK (amount >= 0)')();
   @override
   Set<Column> get primaryKey => {month, currency};
 }
@@ -138,4 +140,3 @@ class AppDatabase extends _$AppDatabase {
     },
   );
 }
-

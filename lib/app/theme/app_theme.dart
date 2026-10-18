@@ -13,6 +13,7 @@ ThemeData appTheme(Brightness brightness) {
         tertiary: dark ? const Color(0xFFC5A3FF) : const Color(0xFFAD303E),
       );
   return ThemeData(
+    fontFamily: 'NotoSansSC',
     useMaterial3: true,
     colorScheme: scheme,
     scaffoldBackgroundColor: scheme.surface,
