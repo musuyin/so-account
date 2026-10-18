@@ -95,7 +95,7 @@ class AmountPad extends StatelessWidget {
         alignment: Alignment.centerRight,
         child: TextButton(
           onPressed: () => keyPress(context, '='),
-          child: const Text('= 计算结果'),
+          child: const Text('='),
         ),
       ),
     ],

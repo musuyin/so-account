@@ -126,7 +126,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
               ],
             ),
           ),
-          AmountPad(controller: amount, currency: account.currency),
+
           DropdownButtonFormField<String>(
             initialValue: accountId,
             decoration: const InputDecoration(labelText: '账户'),
@@ -191,6 +191,21 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                 );
               },
             ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('日期'),
+            subtitle: Text(dateKey(date)),
+            trailing: const Icon(Icons.calendar_today),
+            onTap: () async {
+              final value = await showDatePicker(
+                context: context,
+                initialDate: date,
+                firstDate: DateTime(1900),
+                lastDate: DateTime(2100),
+              );
+              if (value != null) setState(() => date = value);
+            },
+          ),
           if (kind == EntryKind.transfer)
             DropdownButtonFormField<String>(
               key: ValueKey('target-$accountId'),
@@ -222,21 +237,6 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                   .toList(),
               onChanged: (v) => debtId = v,
             ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('发生日期'),
-            subtitle: Text(dateKey(date)),
-            trailing: const Icon(Icons.calendar_today),
-            onTap: () async {
-              final value = await showDatePicker(
-                context: context,
-                initialDate: date,
-                firstDate: DateTime(1900),
-                lastDate: DateTime(2100),
-              );
-              if (value != null) setState(() => date = value);
-            },
-          ),
           TextField(
             controller: note,
             maxLength: 2000,
@@ -249,6 +249,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
             const Text('需要再添加一个同币种账户才能转账。'),
           if (kind.isSettlement && debts.isEmpty)
             const Text('暂无对应币种的原始借贷，请先记录借入或借出。'),
+          AmountPad(controller: amount, currency: account.currency),
         ],
       );
     },
