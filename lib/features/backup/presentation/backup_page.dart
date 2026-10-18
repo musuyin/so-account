@@ -84,7 +84,7 @@ class _BackupPageState extends ConsumerState<BackupPage> {
         children: [
           const Icon(Icons.savings_outlined, size: 60),
           const SizedBox(height: 20),
-          Text('把记录，妥善带走。', style: Theme.of(context).textTheme.headlineSmall),
+          const Text('备份与恢复'),
           const SizedBox(height: 12),
           const Text(
             '完整备份包含账户、分类、账目、预算、物品、照片和关联。文件不加密，请保存在自己的安全位置。\n\n单包限制：压缩后 50 MB、展开后 100 MB、最多 1000 张照片。恢复会替换全部数据。',

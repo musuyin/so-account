@@ -23,6 +23,9 @@ class InventoryRepository {
     String? purchasedOn,
     String note = '',
     String? photo,
+    String useType = 'durable',
+    String status = 'active',
+    String? archivedOn,
     List<String> entryIds = const [],
   }) => db.transaction(() async {
     if (name.trim().isEmpty || name.trim().length > 100) {
@@ -36,6 +39,22 @@ class InventoryRepository {
       throw const FormatException('购入价无效');
     }
     if (purchasedOn != null) ownershipDays(purchasedOn, DateTime.now());
+    if (!['durable', 'consumable'].contains(useType) ||
+        !['active', 'retired', 'depleted'].contains(status) ||
+        (status == 'retired' && useType != 'durable') ||
+        (status == 'depleted' && useType != 'consumable')) {
+      throw const FormatException('物品属性与归档状态不匹配');
+    }
+    if (status == 'active' && archivedOn != null ||
+        status != 'active' && archivedOn == null) {
+      throw const FormatException('请设置有效归档日期');
+    }
+    if (archivedOn != null) {
+      ownershipDays(archivedOn, DateTime.now());
+      if (purchasedOn != null && archivedOn.compareTo(purchasedOn) < 0) {
+        throw const FormatException('归档不能早于购入');
+      }
+    }
     if (photo != null &&
         !RegExp(r'^media/[a-zA-Z0-9_-]+\.(jpg|png|jpeg)$').hasMatch(photo)) {
       throw const FormatException('无效图片路径');
@@ -73,6 +92,9 @@ class InventoryRepository {
             purchasedOn: Value(purchasedOn),
             note: Value(note.trim()),
             photo: Value(photo),
+            useType: Value(useType),
+            status: Value(status),
+            archivedOn: Value(archivedOn),
             createdAt: old?.createdAt ?? now,
             updatedAt: now,
           ),

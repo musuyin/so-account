@@ -8,6 +8,9 @@ import '../../../core/time/business_date.dart';
 import '../../../data/database/app_database.dart';
 import '../domain/entry_kind.dart';
 import 'accounts_page.dart';
+import 'amount_pad.dart';
+import 'category_icons.dart';
+import '../../../core/money/calculator.dart';
 
 class EntryForm extends ConsumerStatefulWidget {
   const EntryForm({super.key, this.entry, this.initialDate});
@@ -92,7 +95,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                 .saveEntry(
                   id: widget.entry?.id,
                   kind: kind,
-                  amount: parseMoney(amount.text, account.currency),
+                  amount: calculateMinor(amount.text, account.currency),
                   accountId: accountId!,
                   targetAccountId: targetId,
                   categoryId: categoryId,
@@ -107,23 +110,23 @@ class _EntryFormState extends ConsumerState<EntryForm> {
           }
         },
         children: [
-          DropdownButtonFormField<EntryKind>(
-            initialValue: kind,
-            decoration: const InputDecoration(labelText: '交易类型'),
-            items: EntryKind.values
-                .map((v) => DropdownMenuItem(value: v, child: Text(v.label)))
-                .toList(),
-            onChanged: (v) => setState(() => kind = v!),
-          ),
-          TextField(
-            controller: amount,
-            autofocus: widget.entry == null,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              labelText: '金额 · ${account.currency}',
-              hintText: account.currency == 'JPY' ? '0' : '0.00',
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final value in EntryKind.values)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(value.label),
+                      selected: kind == value,
+                      onSelected: (_) => setState(() => kind = value),
+                    ),
+                  ),
+              ],
             ),
           ),
+          AmountPad(controller: amount, currency: account.currency),
           DropdownButtonFormField<String>(
             initialValue: accountId,
             decoration: const InputDecoration(labelText: '账户'),
@@ -138,16 +141,55 @@ class _EntryFormState extends ConsumerState<EntryForm> {
             onChanged: (v) => setState(() => accountId = v),
           ),
           if (kind.needsCategory)
-            DropdownButtonFormField<String>(
-              key: ValueKey('category-${kind.name}'),
-              initialValue: categoryId,
-              decoration: const InputDecoration(labelText: '分类'),
-              items: categories
-                  .map(
-                    (c) => DropdownMenuItem(value: c.id, child: Text(c.name)),
-                  )
-                  .toList(),
-              onChanged: (v) => categoryId = v,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final width =
+                    constraints.maxWidth / (constraints.maxWidth > 400 ? 6 : 4);
+                return Wrap(
+                  children: [
+                    for (final c in categories)
+                      SizedBox(
+                        width: width,
+                        child: Padding(
+                          padding: const EdgeInsets.all(3),
+                          child: InkWell(
+                            onTap: () => setState(() => categoryId = c.id),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 8,
+                                horizontal: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: categoryId == c.id
+                                    ? Theme.of(context)
+                                          .colorScheme
+                                          .primaryContainer
+                                    : null,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(categoryIcon(c.name)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    c.name,
+                                    textAlign: TextAlign.center,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           if (kind == EntryKind.transfer)
             DropdownButtonFormField<String>(

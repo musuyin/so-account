@@ -72,6 +72,7 @@ class BackupService {
           channel: a.channel,
           currency: a.currency,
           openingBalance: a.openingBalance,
+          avatar: a.avatar,
         );
       }
       for (final c in snapshot.categories) {
@@ -107,6 +108,9 @@ class BackupService {
           purchasedOn: item.purchasedOn,
           note: item.note,
           photo: item.photo,
+          useType: item.useType,
+          status: item.status,
+          archivedOn: item.archivedOn,
           entryIds: snapshot.links
               .where((l) => l.itemId == item.id)
               .map((l) => l.entryId)
@@ -236,11 +240,19 @@ class _Snapshot {
     }
 
     return _Snapshot(
-      rows('accounts', Account.fromJson),
+      rows('accounts', (r) => Account.fromJson({'avatar': '', ...r})),
       rows('categories', Category.fromJson),
       rows('entries', Entry.fromJson),
       rows('budgets', Budget.fromJson),
-      rows('items', Item.fromJson),
+      rows(
+        'items',
+        (r) => Item.fromJson({
+          'useType': 'durable',
+          'status': 'active',
+          'archivedOn': null,
+          ...r,
+        }),
+      ),
       rows('links', PurchaseLink.fromJson),
       rows('preferences', Preference.fromJson),
     );

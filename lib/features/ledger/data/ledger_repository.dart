@@ -28,11 +28,15 @@ class LedgerRepository {
     required String channel,
     required String currency,
     required int openingBalance,
+    String avatar = '',
   }) async {
     if (name.trim().isEmpty || name.trim().length > 80) {
       throw const FormatException('账户名称为 1–80 字');
     }
     fractionDigits(currency);
+    if (!['', 'wechat', 'alipay', 'bank', 'huabei'].contains(avatar)) {
+      throw const FormatException('无效账户头像');
+    }
     if (!accountKinds.contains(kind) || !accountChannels.contains(channel)) {
       throw const FormatException('无效账户类型');
     }
@@ -62,6 +66,7 @@ class LedgerRepository {
               channel: channel,
               currency: currency,
               openingBalance: Value(openingBalance),
+              avatar: Value(avatar),
             ),
           );
     });
@@ -288,7 +293,7 @@ class LedgerRepository {
         '''
     SELECT a.currency, e.kind, SUM(e.amount) AS total FROM entries e
     JOIN accounts a ON a.id = e.account_id
-    WHERE e.date >= ? AND e.date < ? AND e.kind IN ('income', 'expense')
+    WHERE e.date >= ? AND e.date < ? AND e.kind IN ('income', 'expense', 'borrow', 'lend')
     GROUP BY a.currency, e.kind
   ''',
         variables: [

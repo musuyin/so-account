@@ -1,6 +1,6 @@
-# so-account · 拾账
+# so-account · 素帐
 
-Flutter + Dart 的个人记账与物品管理应用，Android / iOS 共享代码，SQLite 本地优先，无后端、登录或云同步。当前名称“拾账”和应用标识 `dev.soaccount.so_account` 用于开发版本。
+Flutter + Dart 的个人记账与物品管理应用，Android / iOS 共享代码，SQLite 本地优先，无后端、登录或云同步。当前名称“素帐”和应用标识 `dev.soaccount.so_account` 用于开发版本。
 
 ## 已实现
 
@@ -52,4 +52,3 @@ flutter build apk --debug
 - [备份协议](docs/engineering/backup-format.md)
 - [环境设置](docs/engineering/setup.md)
 - [交付与真机验收](docs/engineering/roadmap.md)
-

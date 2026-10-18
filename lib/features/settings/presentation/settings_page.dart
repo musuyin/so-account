@@ -49,7 +49,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       builder: (data) => ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text('让记录，更合心意。', style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox.shrink(),
           const SizedBox(height: 24),
           DropdownButtonFormField<String>(
             key: ValueKey(data.preference('theme', 'system')),
@@ -177,7 +177,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               child: LinearProgressIndicator(),
             ),
           const SizedBox(height: 32),
-          const Text('拾账 0.1.0\n离线存储于本机 · 无登录、无云同步\nCSV 用于分析，不能代替完整备份。'),
+          const Text(
+            '素帐 · SoAccount 0.2.0\n离线存储于本机 · 无登录、无云同步\nCSV 用于分析，不能代替完整备份。',
+          ),
         ],
       ),
     ),

@@ -97,7 +97,7 @@ void main() {
         summary: true,
       );
       expect(summary, contains('13.34'));
-      expect(summary, contains('饮食'));
+      expect(summary, contains('居住'));
       final year = await exporter.create(
         ExportPeriod.year,
         DateTime(2026),

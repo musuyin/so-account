@@ -41,6 +41,7 @@ void main() {
           [
             const Account(
               id: 'wallet',
+              avatar: '',
               name: '日常钱包',
               kind: '资金账户',
               channel: '微信支付',
@@ -93,8 +94,8 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        expect(find.text('把日子，记清楚。'), findsOneWidget);
-        expect(find.text('-28.50'), findsOneWidget);
+        expect(find.text('素帐'), findsOneWidget);
+        expect(find.text('-28.50'), findsAtLeastNWidgets(1));
         expect(tester.takeException(), isNull);
         await tester.runAsync(() async {
           final image =

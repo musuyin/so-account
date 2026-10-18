@@ -28,8 +28,16 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('拾账', style: TextStyle(fontWeight: FontWeight.w800)),
+      title: const Text('素帐'),
       actions: [
+        DropdownButton<String>(
+          value: currency,
+          underline: const SizedBox(),
+          items: currencies
+              .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+              .toList(),
+          onChanged: (v) => setState(() => currency = v!),
+        ),
         TextButton(
           onPressed: () => setState(() {
             month = DateTime(DateTime.now().year, DateTime.now().month);
@@ -42,19 +50,13 @@ class _HomePageState extends ConsumerState<HomePage> {
     body: DataView(
       builder: (data) {
         final totals = ref.watch(monthlyProvider(monthKey(month)));
-        final rows = totals.value ?? [];
-        final income =
-            rows
-                .where((t) => t.currency == currency && t.kind == 'income')
+        int total(String kind) =>
+            (totals.value ?? [])
+                .where((t) => t.currency == currency && t.kind == kind)
                 .firstOrNull
                 ?.amount ??
             0;
-        final expense =
-            rows
-                .where((t) => t.currency == currency && t.kind == 'expense')
-                .firstOrNull
-                ?.amount ??
-            0;
+        final income = total('income'), expense = total('expense');
         final budget = data.budgets
             .where((b) => b.month == monthKey(month) && b.currency == currency)
             .firstOrNull
@@ -68,7 +70,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 )
                 .toList()
               ..sort(
-                (a, b) => b.date.compareTo(a.date) == 0
+                (a, b) => a.date == b.date
                     ? b.createdAt.compareTo(a.createdAt)
                     : b.date.compareTo(a.date),
               );
@@ -84,92 +86,96 @@ class _HomePageState extends ConsumerState<HomePage> {
                           .contains(search.toLowerCase())),
             )
             .toList();
+        final green = Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF81C995)
+            : const Color(0xFF237A43);
+        final red = Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFFF28B82)
+            : const Color(0xFFB3261E);
+        Widget metric(String label, int amount, {Color? color}) => Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: Theme.of(context).textTheme.labelMedium),
+              const SizedBox(height: 4),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  decimalMoney(amount, currency),
+                  style: TextStyle(fontWeight: FontWeight.w600, color: color),
+                ),
+              ),
+            ],
+          ),
+        );
         return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 100),
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '把日子，记清楚。',
-                    style: Theme.of(context).textTheme.headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                ),
-                DropdownButton<String>(
-                  value: currency,
-                  underline: const SizedBox(),
-                  items: currencies
-                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                      .toList(),
-                  onChanged: (v) => setState(() => currency = v!),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${month.year} 年 ${month.month} 月 · 结余',
+                      '${month.year} 年 ${month.month} 月',
                       style: Theme.of(context).textTheme.labelLarge,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      decimalMoney(income - expense, currency),
-                      style: Theme.of(context).textTheme.headlineLarge
-                          ?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
+                        metric('收入', income, color: green),
+                        metric('支出', expense, color: red),
+                        metric('借入', total('borrow')),
+                        metric('借出', total('lend')),
+                      ],
+                    ),
+                    const Divider(height: 28),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        metric('结余', income - expense),
                         Expanded(
-                          child: Text(
-                            '收入  ${decimalMoney(income, currency)}',
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.secondary,
+                          child: InkWell(
+                            onTap: () => editBudget(
+                              context,
+                              ref,
+                              monthKey(month),
+                              currency,
+                              budget,
                             ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            '支出  ${decimalMoney(expense, currency)}',
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.tertiary,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('预算  ›'),
+                                Text(
+                                  budget == null
+                                      ? '未设置'
+                                      : decimalMoney(budget, currency),
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    InkWell(
-                      onTap: () => editBudget(
-                        context,
-                        ref,
-                        monthKey(month),
-                        currency,
-                        budget,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(
-                          budget == null
-                              ? '设置本月预算  ›'
-                              : '预算 ${decimalMoney(budget, currency)} · 剩余 ${decimalMoney(budget - expense, currency)}  ›',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ),
+                    const SizedBox(height: 12),
+                    Text(
+                      '剩余 ${budget == null ? '—' : decimalMoney(budget - expense, currency)}',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: budget != null && expense > budget
+                                ? red
+                                : null,
+                          ),
                     ),
                     if (totals.isLoading) const LinearProgressIndicator(),
-                    if (totals.hasError) const Text('统计读取失败，请重新打开本页'),
+                    if (totals.hasError) const Text('统计读取失败'),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 12),
             Row(
               children: [
                 IconButton(
@@ -181,7 +187,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                   child: Text(
                     '${month.year} 年 ${month.month} 月',
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
                 IconButton(
@@ -194,27 +199,19 @@ class _HomePageState extends ConsumerState<HomePage> {
             Row(
               children: [
                 for (final label in ['一', '二', '三', '四', '五', '六', '日'])
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        label,
-                        style: Theme.of(context).textTheme.labelSmall,
-                      ),
-                    ),
-                  ),
+                  Expanded(child: Center(child: Text(label))),
               ],
             ),
-            const SizedBox(height: 8),
             LayoutBuilder(
               builder: (context, constraints) {
-                final offset = month.weekday - 1;
-                final count = DateTime(month.year, month.month + 1, 0).day;
+                final offset = month.weekday - 1,
+                    count = DateTime(month.year, month.month + 1, 0).day;
                 return Wrap(
                   children: [
                     for (var i = 0; i < ((offset + count + 6) ~/ 7) * 7; i++)
                       SizedBox(
                         width: constraints.maxWidth / 7,
-                        height: 58,
+                        height: 84,
                         child: i < offset || i >= offset + count
                             ? null
                             : Builder(
@@ -226,29 +223,55 @@ class _HomePageState extends ConsumerState<HomePage> {
                                       i - offset + 1,
                                     ),
                                   );
-                                  final daily = entries.where(
-                                    (e) => e.date == key,
+                                  int daily(String kind) => entries
+                                      .where(
+                                        (e) => e.date == key && e.kind == kind,
+                                      )
+                                      .fold<int>(0, (s, e) => s + e.amount);
+                                  final inc = daily('income'),
+                                      out = daily('expense');
+                                  Widget amount(
+                                    int value,
+                                    String sign,
+                                    Color color,
+                                  ) => Tooltip(
+                                    message:
+                                        '$key $sign${money(value, currency)}',
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 2,
+                                      ),
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          '$sign${decimalMoney(value, currency)}',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: color,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                   );
-                                  final selected = day == key;
                                   return Semantics(
                                     label: key,
-                                    selected: selected,
+                                    selected: day == key,
                                     button: true,
                                     child: InkWell(
-                                      borderRadius: BorderRadius.circular(14),
                                       onTap: () => setState(
-                                        () => day = selected ? null : key,
+                                        () => day = day == key ? null : key,
                                       ),
+                                      borderRadius: BorderRadius.circular(12),
                                       child: Container(
                                         margin: const EdgeInsets.all(2),
                                         decoration: BoxDecoration(
-                                          color: selected
+                                          color: day == key
                                               ? Theme.of(context)
                                                     .colorScheme
                                                     .primaryContainer
                                               : null,
                                           borderRadius: BorderRadius.circular(
-                                            14,
+                                            12,
                                           ),
                                           border: key == dateKey(DateTime.now())
                                               ? Border.all(
@@ -263,40 +286,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                                               MainAxisAlignment.center,
                                           children: [
                                             Text('${i - offset + 1}'),
-                                            const SizedBox(height: 4),
-                                            Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                if (daily.any(
-                                                  (e) => e.kind == 'income',
-                                                ))
-                                                  _dot(
-                                                    Theme.of(context)
-                                                        .colorScheme
-                                                        .secondary,
-                                                  ),
-                                                if (daily.any(
-                                                  (e) => e.kind == 'expense',
-                                                ))
-                                                  _dot(
-                                                    Theme.of(context)
-                                                        .colorScheme
-                                                        .tertiary,
-                                                  ),
-                                                if (daily.any(
-                                                  (e) => ![
-                                                    'income',
-                                                    'expense',
-                                                  ].contains(e.kind),
-                                                ))
-                                                  _dot(
-                                                    Theme.of(context)
-                                                        .colorScheme
-                                                        .primary,
-                                                  ),
-                                              ],
-                                            ),
+                                            const SizedBox(height: 2),
+                                            if (inc > 0)
+                                              amount(inc, '+', green),
+                                            if (out > 0) amount(out, '-', red),
                                           ],
                                         ),
                                       ),
@@ -309,7 +302,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 );
               },
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             TextField(
               decoration: const InputDecoration(
                 hintText: '搜索备注、分类或账户',
@@ -317,22 +310,23 @@ class _HomePageState extends ConsumerState<HomePage> {
               ),
               onChanged: (v) => setState(() => search = v),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
-              runSpacing: 4,
               children: [
                 FilterChip(
-                  label: Text(day == null ? '整月' : day!),
+                  label: Text(day ?? '整月'),
                   selected: day != null,
                   onSelected: (_) => setState(() => day = null),
                 ),
-                PopupMenuButton<EntryKind?>(
-                  onSelected: (v) => setState(() => kind = v),
+                PopupMenuButton<String>(
+                  onSelected: (v) => setState(
+                    () => kind = v.isEmpty ? null : EntryKind.values.byName(v),
+                  ),
                   itemBuilder: (_) => [
-                    const PopupMenuItem(value: null, child: Text('全部类型')),
+                    const PopupMenuItem(value: '', child: Text('全部类型')),
                     ...EntryKind.values.map(
-                      (v) => PopupMenuItem(value: v, child: Text(v.label)),
+                      (k) => PopupMenuItem(value: k.name, child: Text(k.label)),
                     ),
                   ],
                   child: Chip(label: Text('${kind?.label ?? '全部类型'} ▾')),
@@ -359,13 +353,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ),
               ],
             ),
-            if (kind != null)
-              TextButton(
-                onPressed: () => setState(() => kind = null),
-                child: const Text('清除类型筛选'),
-              ),
-            if (filtered.isEmpty)
-              const EmptyState('这一天，还留着空白', '点“记一笔”，把生活里的小事记下来。'),
+            if (filtered.isEmpty) const EmptyState('暂无账目', '点击“记一笔”添加。'),
             for (final entry in filtered) EntryTile(entry: entry, data: data),
           ],
         );
@@ -379,12 +367,6 @@ class _HomePageState extends ConsumerState<HomePage> {
       icon: const Icon(Icons.add),
       label: const Text('记一笔'),
     ),
-  );
-  Widget _dot(Color color) => Container(
-    width: 4,
-    height: 4,
-    margin: const EdgeInsets.symmetric(horizontal: 1),
-    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
   );
 }
 
