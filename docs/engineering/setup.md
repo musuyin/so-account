@@ -1,49 +1,57 @@
-# 环境与后续初始化
+# 环境与开发
 
-## 当前检查
+## 本次已验证环境
 
-2026-10-14 检查当前命令行 PATH，未找到 `flutter`、`dart`。这不证明电脑上完全没有安装 SDK。仓库尚无 Flutter 工程，因此未执行依赖解析、静态分析、编译或真机测试。
+2026-10-18，Windows 11：Flutter stable 3.47.7（abaf9c5237）、Dart 3.13.5、JDK 17.0.12、Android SDK platform 36 / build-tools 36.0.0。构建过程按插件要求另行安装了 platform 35、CMake 3.22.1 及 Flutter 对应 NDK。Gradle wrapper 9.3.1、Android Gradle Plugin 9.1.0、Kotlin 2.4.0 由此 Flutter 模板生成。
 
-本阶段不安装 SDK、不下载依赖、不生成业务代码。后续初始化按下列流程进行。
+Flutter 位于 `.tooling/flutter`，Android SDK 位于 `.tooling/android-sdk`，Gradle 缓存在 `.tooling/gradle`，这些目录全部忽略。没有将 Flutter / Dart 添加到全局 PATH。Flutter 本机配置记录了 Android SDK 和 `D:\Coding\Java\jdk17`；其他电脑应使用自己的路径。
 
-## Windows / Android 环境
+## 新环境
 
-- 按 [Flutter 官方安装指南](https://docs.flutter.dev/install/manual) 安装 stable SDK，并将 `bin` 加入 PATH。
-- 配置 Android Studio、Android SDK、构建工具及 Flutter 所需 JDK，以所选 Flutter 的诊断结果为准。
-- 在 Android 手机开启开发者模式和 USB 调试，连接并接受设备授权。
-- 运行 `flutter --version`、`flutter doctor -v`、`flutter doctor --android-licenses`、`flutter devices`；记录实际工具版本及诊断结果，解决 Android 相关问题。
-- Windows 可以开发 Android 和共享 Dart 代码；iOS 的构建、签名、模拟器及真机验证留到 macOS / Xcode 环境。
-
-## 初始化步骤
-
-1. 确认长期使用的组织标识和 Android application ID。产品名可以后改，但标识应在正式使用前稳定。`so_account` 是工程名，不是已确定的品牌。
-2. 在临时目录用官方 CLI 创建 Android 模板，再将所需文件合入当前仓库；不要直接覆盖现有 README、LICENSE、文档和目录骨架，也不要复制模板的计数器演示及示例测试作为产品功能。
-3. 命令形态如下，`<org_identifier>` 在执行前替换为已确认值，临时目录不能预先包含用户文件：
-
-   ```powershell
-   flutter create --platforms=android --project-name so_account --org <org_identifier> <temporary_directory>
-   ```
-
-4. 使用 SDK 生成的约束建立 `pubspec.yaml`，按 technology.md 的引入阶段增加依赖。先解析兼容版本，提交真实 `pubspec.lock`，记录 Flutter / Dart 版本。
-5. 引入 SDK 的 `flutter_lints`、移除示例页面后建立最小应用入口；这属于下一阶段的代码工作。
-6. 添加 Drift 时再配置生成器、Schema 导出与迁移；不为还不存在的表生成文件。
-7. 完成 `flutter pub get`、`flutter analyze`、已有测试、Android debug 构建及真机启动验证。
-
-## 初始化后的常用检查
+按 Flutter 官方指南安装指定 stable SDK 和 Android SDK / JDK，连接开启 USB 调试的手机并授权。然后执行：
 
 ```powershell
-flutter pub get
+flutter --version
+flutter doctor -v
+flutter doctor --android-licenses
+flutter pub get --enforce-lockfile
+dart run build_runner build
 flutter analyze
 flutter test
-flutter build apk --debug
+flutter devices
+flutter run -d <device-id>
 ```
 
-添加 Drift 定义后才执行 `dart run build_runner build`。存在设备集成测试后，使用 `flutter test integration_test -d <device_id>`；启动应用使用 `flutter run -d <device_id>`。
+本工作区可以使用 `.\.tooling\flutter\bin\flutter.bat`。若直接使用 Dart，路径为 `.tooling/flutter/bin/cache/dart-sdk/bin/dart.exe`。
 
-## iOS 准备
+```powershell
+$env:ANDROID_HOME = "$PWD\.tooling\android-sdk"
+$env:JAVA_HOME = 'D:\Coding\Java\jdk17'
+$env:GRADLE_USER_HOME = "$PWD\.tooling\gradle"
+.\.tooling\flutter\bin\flutter.bat build apk --debug
+```
 
-获得 macOS / Xcode 后，用当时已记录的 Flutter 版本生成 iOS 工程，配置 Bundle ID、签名及图片权限文案，再验证所用插件与完整备份迁移。此前只能以跨平台 API 和目录边界减少耦合，不能宣称已完成 iOS 验证。
+Android 项目关闭 Kotlin 增量编译，解决 Windows 的插件缓存位于 C 盘、工程位于 D 盘时相对路径跨盘失败。Gradle wrapper 与 jar 需要随代码提交；不是私有机器配置。
 
-## 版本控制
+## 数据库生成
 
-保留官方生成的 Gradle wrapper 等平台构建文件；提交应用锁文件与必要生成源码。忽略 SDK 缓存、构建产物、私有签名材料、本机路径、真实数据库和备份。不要把用户照片作为静态资源或测试样例提交。
+```powershell
+dart run build_runner build
+dart run drift_dev schema dump lib/data/database/app_database.dart lib/data/database/migrations
+```
+
+提交生成的 `.g.dart`、Schema 快照和依赖锁。新增 Schema 版本时同时写迁移及旧库升级测试；当前仅有首次发布 v1。
+
+## 设备与 iOS
+
+```powershell
+flutter test integration_test/persistence_test.dart -d <android-device-id>
+```
+
+设备测试添加唯一名称的合成账户和支出，关闭并重新打开数据库后检查持久化，再清理测试数据；不清空现有库。它只验证数据库连接重开，不替代 Android 应用进程重启验收。
+
+在 Mac 上安装同版 Flutter / Xcode / CocoaPods（插件需要时），执行 `flutter doctor -v`、`flutter pub get --enforce-lockfile`、`flutter build ios --simulator --debug`，再完成 iPhone 图片、文件分享和恢复验收。应用权限说明已包含相机与照片。
+
+GitHub Actions 提供 Android 分析、测试、生成一致性及 APK；另有 macOS iOS 模拟器构建。请以实际 workflow 结果为准。
+
+依据：[Flutter 安装](https://docs.flutter.dev/install/manual)、[Android 环境](https://docs.flutter.dev/platform-integration/android/setup)、[Drift 安装](https://drift.simonbinder.eu/setup/)。

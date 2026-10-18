@@ -1,28 +1,54 @@
-# so-account
+# so-account · 拾账
 
-个人记账与物品管理移动应用，采用 Flutter + Dart、SQLite 本地优先方案。先交付 Android，具备 macOS / Xcode 环境后再适配 iOS。产品名称待定，`so_account` 仅作为工程名。
+Flutter + Dart 的个人记账与物品管理应用，Android / iOS 共享代码，SQLite 本地优先，无后端、登录或云同步。当前名称“拾账”和应用标识 `dev.soaccount.so_account` 用于开发版本。
 
-## 当前状态
+## 已实现
 
-本仓库处于技术准备阶段，已建立技术方案、模块边界与可被 Git 保留的目录骨架。尚未初始化 Flutter 平台工程，没有 Dart 入口、依赖清单、数据库或业务实现，当前不能编译运行。
+- 月历主页、日筛选、备注 / 账户搜索、类型和分类筛选，按币种呈现月收入、支出、结余及预算。
+- 收入、支出、同币种转账、借入、借出、偿还借入、收回借出；新增、编辑、删除及余额联动。
+- 银行卡、微信、支付宝、现金等渠道；资金、充值、信贷、理财账户；独立币种及初始余额。
+- 自定义收支分类、分类统计、近六个月趋势及未结清往来。
+- 物品独立登记、搜索 / 分类、购入价与日期、照片 / 拍照、日均使用成本，以及购买支出的多物品关联与双向查看。
+- 全量 / 指定月 / 指定年 CSV 明细，月 / 年按分类及币种汇总；保存与系统分享。
+- 包含照片、账户和全部关联的 ZIP 完整备份，摘要与隔离校验、确认后事务替换恢复。
+- 暖白日间 / #121212 深色 / 跟随系统外观；内置开源中文字体。
 
-## 文档入口
+## 验证状态
 
-| 文档 | 内容 |
-| --- | --- |
-| [需求基线](docs/product/requirements.md) | PRD v0.1 范围、阶段与待确认事项 |
-| [技术选型](docs/engineering/technology.md) | 主要依赖、理由、引入时机与版本策略 |
-| [项目结构](docs/engineering/architecture.md) | 目录职责、依赖方向与模块协作 |
-| [数据设计原则](docs/engineering/data-design.md) | 金额、日期、关联、图片与备份约束 |
-| [环境与初始化](docs/engineering/setup.md) | Windows / Android 环境及后续初始化流程 |
-| [开发路线](docs/engineering/roadmap.md) | 阶段顺序、验收与测试重点 |
+Windows 本地已通过 `flutter analyze`、19 项自动测试和 Android debug APK 构建。测试覆盖金额与日期、真实 SQLite、余额与借贷约束、关闭重开持久化、物品关联、CSV、备份回滚、媒体清理，以及明暗主题下 390 / 320 像素和放大文字的页面。
 
-## 核心技术方案
+未连接 Android 真机；设备持久化测试入口已提供，但尚未执行。iOS 工程和权限配置已生成，本机无法执行 Xcode 构建或 iPhone 验收。GitHub Actions 配置了 Android 检查与 APK、iOS 模拟器构建；配置存在不代表远端运行已通过。
 
-Flutter / Dart、Drift / SQLite、Riverpod、go_router。按功能模块组织，模块内分 presentation、domain、data；系统能力通过 platform 封装。复杂用例按需提取，不为每次 CRUD 增加一层空转发。
+## 开发
 
-## 范围
+锁定 Flutter **3.47.7** / Dart **3.13.5**，依赖解析结果见 `pubspec.lock`。
 
-完整 MVP 包括账目 CRUD 与统计、物品 CRUD 与图片、账目和物品关联、包含图片的完整备份恢复。登录、云同步、后端、桌面与 Web 不在当前范围内。
+```powershell
+flutter pub get --enforce-lockfile
+dart run build_runner build
+flutter analyze
+flutter test
+flutter run -d <android-device-id>
+flutter build apk --debug
+```
 
-`lib/`、`test/`、`integration_test/` 和 `assets/` 内的 `.gitkeep` 只用于保留空目录。开始实现后可移除已非空目录中的占位文件。
+本次安装的本地 SDK 在 `.tooling/flutter`，未改系统 PATH。此工作区可用 `.\.tooling\flutter\bin\flutter.bat` 代替上述 `flutter`。开发工具与个人运行数据均不提交。APK 默认生成于 `build/app/outputs/flutter-apk/app-debug.apk`，仅用于开发测试，尚未配置发布签名。
+
+## 使用与边界
+
+先在“账户”添加一个账户，再从主页“记一笔”。点日期查看当天流水，点流水编辑；从支出“记物”或独立进入“物品”。在“设置”管理分类、导出 CSV、完整备份和恢复。
+
+默认人民币，支持 CNY / USD / EUR / GBP / JPY / HKD。币种分别统计，不隐含汇率，跨币种转账暂不支持。借贷本金不计收支，需记录还款才会结清。物品价格独立维护，不自动分摊整笔购买金额。每件物品当前支持一张照片。
+
+备份不加密；恢复为全量替换。压缩文件上限 50 MB、展开上限 100 MB、最多 1000 张照片。当前仅实现 Schema / 备份版本 1。大数据量和进程强杀恢复仍需真机验证。
+
+## 文档
+
+- [实施规则](docs/product/implementation-decisions.md)
+- [产品需求](docs/product/requirements.md)
+- [技术选型](docs/engineering/technology.md)
+- [目录与边界](docs/engineering/architecture.md)
+- [数据规则](docs/engineering/data-design.md)
+- [备份协议](docs/engineering/backup-format.md)
+- [环境设置](docs/engineering/setup.md)
+- [交付与真机验收](docs/engineering/roadmap.md)

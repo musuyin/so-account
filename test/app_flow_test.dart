@@ -18,7 +18,9 @@ import 'package:so_account/platform/media/media_store.dart';
 void main() {
   for (final theme in ['light', 'dark']) {
     for (final width in [390.0, 320.0]) {
-      testWidgets('phone routes render in $theme mode', (tester) async {
+      testWidgets('phone routes render in $theme mode at $width pixels', (
+        tester,
+      ) async {
         tester.view.physicalSize = Size(width, 844);
         tester.view.devicePixelRatio = 1;
         tester.platformDispatcher.textScaleFactorTestValue = width == 320
