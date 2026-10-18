@@ -17,7 +17,7 @@ import 'package:so_account/features/statistics/presentation/statistics_page.dart
 import 'package:so_account/platform/media/media_store.dart';
 
 void main() {
-  for (final theme in ['light', 'dark']) {
+  for (final theme in ['light', 'dark', 'cucumber-light', 'cucumber-dark']) {
     for (final width in [390.0, 320.0]) {
       testWidgets('phone routes render in $theme mode at $width pixels', (
         tester,
@@ -67,7 +67,16 @@ void main() {
           [],
           [],
           [],
-          [Preference(key: 'theme', value: theme)],
+          [
+            Preference(
+              key: 'theme',
+              value: theme.endsWith('dark') ? 'dark' : 'light',
+            ),
+            Preference(
+              key: 'palette',
+              value: theme.startsWith('cucumber') ? 'cucumber' : 'classic',
+            ),
+          ],
         );
         final boundary = GlobalKey();
         await tester.pumpWidget(
@@ -171,12 +180,18 @@ void main() {
         await tester.tap(find.text('记一笔').last);
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull, reason: 'entry form');
+        expect(find.text('发生日期'), findsNothing);
+        expect(
+          tester.getTopLeft(find.text('日期')).dy,
+          lessThan(tester.getTopLeft(find.text('7').first).dy),
+        );
         for (final key in ['7', '+', '2']) {
+          await tester.ensureVisible(find.text(key).first);
           await tester.tap(find.text(key).first);
           await tester.pump();
         }
-        await tester.ensureVisible(find.text('= 计算结果'));
-        await tester.tap(find.text('= 计算结果'));
+        await tester.ensureVisible(find.text('='));
+        await tester.tap(find.text('='));
         await tester.pump();
         expect(find.text('9.00'), findsOneWidget);
         await tester.tap(find.byType(BackButton).first);

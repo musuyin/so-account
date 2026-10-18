@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/providers.dart';
 import '../../../app/widgets.dart';
+import '../../../app/theme/app_theme.dart';
+import '../../../core/appearance.dart';
 import '../../../core/time/business_date.dart';
 import '../../../data/database/app_database.dart';
 import '../../../platform/files/file_delivery.dart';
@@ -49,16 +51,73 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       builder: (data) => ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const SizedBox.shrink(),
-          const SizedBox(height: 24),
+          Text('配色主题', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          for (final palette in AppPalette.values)
+            Card(
+              child: ListTile(
+                selected:
+                    AppPalette.parse(data.preference('palette', 'classic')) ==
+                    palette,
+                title: Text(palette.label),
+                subtitle: Wrap(
+                  spacing: 6,
+                  children: [
+                    for (final color in [
+                      appTheme(
+                        Brightness.light,
+                        palette: palette,
+                      ).colorScheme.surface,
+                      appTheme(
+                        Brightness.light,
+                        palette: palette,
+                      ).colorScheme.primaryContainer,
+                      appTheme(
+                        Brightness.light,
+                        palette: palette,
+                      ).colorScheme.secondaryContainer,
+                    ])
+                      Container(
+                        width: 22,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                      ),
+                  ],
+                ),
+                trailing: Icon(
+                  AppPalette.parse(data.preference('palette', 'classic')) ==
+                          palette
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_off,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                onTap: busy
+                    ? null
+                    : () => perform(context, () async {
+                        final db = ref.read(databaseProvider);
+                        await db
+                            .into(db.preferences)
+                            .insertOnConflictUpdate(
+                              PreferencesCompanion.insert(
+                                key: 'palette',
+                                value: palette.name,
+                              ),
+                            );
+                      }),
+              ),
+            ),
+          const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             key: ValueKey(data.preference('theme', 'system')),
             initialValue: data.preference('theme', 'system'),
             decoration: const InputDecoration(labelText: '外观'),
             items: const [
               DropdownMenuItem(value: 'system', child: Text('跟随系统')),
-              DropdownMenuItem(value: 'light', child: Text('暖白日间')),
-              DropdownMenuItem(value: 'dark', child: Text('经典深色')),
+              DropdownMenuItem(value: 'light', child: Text('日间模式')),
+              DropdownMenuItem(value: 'dark', child: Text('深色模式')),
             ],
             onChanged: busy
                 ? null

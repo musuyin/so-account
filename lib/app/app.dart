@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import 'providers/providers.dart';
 import 'theme/app_theme.dart';
+import '../core/appearance.dart';
 import '../features/ledger/presentation/home_page.dart';
 import '../features/ledger/presentation/accounts_page.dart';
 import '../features/inventory/presentation/inventory_page.dart';
@@ -42,11 +43,14 @@ class SoAccountApp extends ConsumerWidget {
     final mode =
         ref.watch(snapshotProvider).value?.preference('theme', 'system') ??
         'system';
+    final palette = AppPalette.parse(
+      ref.watch(snapshotProvider).value?.preference('palette', 'classic'),
+    );
     return MaterialApp.router(
       title: '素帐 · SoAccount',
       debugShowCheckedModeBanner: false,
-      theme: appTheme(Brightness.light),
-      darkTheme: appTheme(Brightness.dark),
+      theme: appTheme(Brightness.light, palette: palette),
+      darkTheme: appTheme(Brightness.dark, palette: palette),
       themeMode:
           {'light': ThemeMode.light, 'dark': ThemeMode.dark}[mode] ??
           ThemeMode.system,

@@ -7,6 +7,7 @@ import 'package:drift/native.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../data/database/app_database.dart';
+import '../../../core/appearance.dart';
 import '../../../platform/media/media_store.dart';
 import '../../inventory/data/inventory_repository.dart';
 import '../../ledger/data/ledger_repository.dart';
@@ -118,8 +119,7 @@ class BackupService {
         );
       }
       for (final pref in snapshot.preferences) {
-        if (pref.key != 'theme' ||
-            !['system', 'light', 'dark'].contains(pref.value)) {
+        if (!validAppearancePreference(pref.key, pref.value)) {
           throw const FormatException('不支持的偏好设置');
         }
       }

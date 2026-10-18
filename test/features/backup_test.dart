@@ -86,6 +86,27 @@ void main() {
     expect((await db.select(db.items).get()).single.useType, 'durable');
     expect((await db.select(db.items).get()).single.status, 'active');
   });
+  test('appearance preferences survive backup and restore', () async {
+    await db
+        .into(db.preferences)
+        .insertOnConflictUpdate(
+          PreferencesCompanion.insert(key: 'palette', value: 'cucumber'),
+        );
+    await db
+        .into(db.preferences)
+        .insertOnConflictUpdate(
+          PreferencesCompanion.insert(key: 'theme', value: 'dark'),
+        );
+    final bytes = await service.export();
+    await db.delete(db.preferences).go();
+    await service.restore(bytes);
+    final preferences = {
+      for (final pref in await db.select(db.preferences).get())
+        pref.key: pref.value,
+    };
+    expect(preferences['palette'], 'cucumber');
+    expect(preferences['theme'], 'dark');
+  });
   test(
     'portable backup restores all tables, photos and associations',
     () async {
