@@ -14,12 +14,14 @@
 | 图片 | image_picker，选择后复制到私有 media/，Android 丢失结果恢复 |
 | 文件交付 | file_picker 13.1.0 保存 / 读取系统文件，share_plus 13.3.1 分享 |
 | 备份 | archive 4.5.2 ZIP、crypto SHA-256、逻辑 JSON 快照、隔离 SQLite 验证、事务恢复 |
-| 数据库生成 | drift_dev 2.35.x、build_runner；提交 .g.dart 与 Schema v1 快照 |
+| 数据库生成 | drift_dev 2.35.x、build_runner；提交 .g.dart 与 Schema v1 / v2 快照 |
 | 测试 | flutter_test / integration_test；金额日期、SQLite、CSV、关联、恢复和页面 |
 | 自动构建 | GitHub Actions 的 Android 检查 / APK 和 macOS iOS 模拟器构建配置 |
 
-当前不使用 Freezed、代码生成 Riverpod、网络客户端或第二套持久化状态。统计采用 SQL 聚合；尚未加入图表插件，分类使用进度条和数值，趋势使用月份表。
+当前不使用 Freezed、代码生成 Riverpod、网络客户端或第二套持久化状态。统计采用 SQL 聚合；柱形、饼图和净资产曲线用 Flutter 组件及 CustomPainter 实现，未额外引入图表依赖。
 
 依赖范围使用明确兼容约束，不使用 any；应用锁文件随提交固定实际解析。Flutter 升级和 Schema 升级应独立交付。最低系统版本由所锁 Flutter 和插件的交集决定，实际 Gradle / Xcode 工程为准；本机未完成双端最低版本真机覆盖。
 
 [Flutter 架构建议](https://docs.flutter.dev/app-architecture/recommendations)、[Drift](https://drift.simonbinder.eu/setup/)、[Riverpod](https://riverpod.dev/docs/tutorials/first_app)、[go_router](https://pub.dev/packages/go_router)、[image_picker](https://pub.dev/packages/image_picker)、[archive](https://pub.dev/packages/archive)。
+
+0.2.0 的资产、图表和归档新规则以 [产品调整](../product/revision-0.2.md) 为准。

@@ -1,6 +1,6 @@
-# 数据规则与 Schema v1
+# 数据规则与 Schema v2
 
-实际表定义位于 `lib/data/database/app_database.dart`，Schema 快照位于 `lib/data/database/migrations/drift_schema_v1.json`。业务校验由相应仓库实现，SQLite 外键、唯一键和金额 CHECK 提供第二道约束。
+实际表定义位于 `lib/data/database/app_database.dart`，Schema 快照位于 `lib/data/database/migrations/drift_schema_v2.json`。业务校验由相应仓库实现，SQLite 外键、唯一键和金额 CHECK 提供第二道约束。
 
 ## 金额、币种与日期
 
@@ -37,4 +37,6 @@ Android retrieveLostData 在物品页面首次打开时处理，恢复照片交�
 
 当前采用 ZIP + manifest + 逻辑 JSON + 原图，替代早期复制数据库文件 / 多文件切换的建议。全量读事务创建快照；恢复先隔离验证、发布新图片，再通过单一 SQLite 事务替换所有逻辑行。详细限制、故障保护和测试边界见 [备份协议](backup-format.md)。
 
-Schema 与备份格式版本独立维护，目前均为 1。尚无历史正式数据库，因此未编造 v0 升级；未来变更须补历史库迁移、备份升级及失败测试。不记录金额、备注、原图或备份正文到日志；测试使用人工数据。
+Schema 与备份格式版本独立维护，目前数据库为 2、备份容器为 1。已验证 v1 数据库迁移与旧逻辑备份兼容；后续变更继续补齐迁移及失败测试。不记录金额、备注、原图或备份正文到日志；测试使用人工数据。
+
+0.2.0 的资产、图表和归档新规则以 [产品调整](../product/revision-0.2.md) 为准。

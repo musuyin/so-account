@@ -27,6 +27,12 @@ void main() {
       await old.customStatement(
         "INSERT INTO entries VALUES ('old','expense',100,'cash',NULL,'expense-0',NULL,'2026-10-01','',0,0)",
       );
+      await old.customStatement(
+        "INSERT INTO items (id,name,category,price,currency,purchased_on,note,created_at,updated_at) VALUES ('item','旧物品','数码',5000,'CNY','2026-10-01','',0,0)",
+      );
+      await old.customStatement(
+        "INSERT INTO purchase_links VALUES ('item','old')",
+      );
       await old.close();
       final next = AppDatabase(NativeDatabase(file));
       try {
@@ -34,6 +40,15 @@ void main() {
         expect(
           (await next.select(next.entries).get()).single.categoryId,
           'expense-0',
+        );
+        final item = (await next.select(next.items).get()).single;
+        expect(item.price, 5000);
+        expect(item.useType, 'durable');
+        expect(item.status, 'active');
+        expect(item.archivedOn, isNull);
+        expect(
+          (await next.select(next.purchaseLinks).get()).single.entryId,
+          'old',
         );
         final categories = await next.select(next.categories).get();
         expect(

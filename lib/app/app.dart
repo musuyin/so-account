@@ -43,7 +43,7 @@ class SoAccountApp extends ConsumerWidget {
         ref.watch(snapshotProvider).value?.preference('theme', 'system') ??
         'system';
     return MaterialApp.router(
-      title: '素帐',
+      title: '素帐 · SoAccount',
       debugShowCheckedModeBanner: false,
       theme: appTheme(Brightness.light),
       darkTheme: appTheme(Brightness.dark),
