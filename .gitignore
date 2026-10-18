@@ -63,3 +63,5 @@ app.*.map.json
 # Project-local SDK and caches
 .tooling/
 
+# Python build helper cache
+__pycache__/
