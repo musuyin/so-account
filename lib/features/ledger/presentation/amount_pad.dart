@@ -26,7 +26,16 @@ class AmountPad extends StatelessWidget {
         return;
       }
     } else if (text.length < 120) {
-      text += key;
+      if (key == '.' &&
+          (text.isEmpty || '+-×÷'.contains(text[text.length - 1]))) {
+        text += '0.';
+      } else if ('+-×÷'.contains(key) &&
+          text.isNotEmpty &&
+          '+-×÷'.contains(text[text.length - 1])) {
+        text = text.substring(0, text.length - 1) + key;
+      } else {
+        text += key;
+      }
     }
     controller.value = TextEditingValue(
       text: text,

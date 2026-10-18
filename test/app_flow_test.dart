@@ -12,6 +12,7 @@ import 'package:so_account/core/time/business_date.dart';
 import 'package:so_account/data/database/app_database.dart';
 import 'package:so_account/features/ledger/data/ledger_repository.dart';
 import 'package:so_account/features/statistics/data/statistics_repository.dart';
+import 'package:so_account/features/statistics/domain/report_range.dart';
 import 'package:so_account/features/statistics/presentation/statistics_page.dart';
 import 'package:so_account/platform/media/media_store.dart';
 
@@ -80,12 +81,43 @@ void main() {
                 (ref) =>
                     Stream.value([const MonthlyTotal('CNY', 'expense', 2850)]),
               ),
-              breakdownProvider((month, 'CNY')).overrideWith(
-                (ref) => Stream.value([const Breakdown('饮食', 'expense', 2850)]),
-              ),
-              trendProvider((month, 'CNY')).overrideWith(
-                (ref) => Stream.value([Trend(month, 'expense', 2850)]),
-              ),
+              for (final period in ReportPeriod.values)
+                reportProvider((
+                  period.name,
+                  dateKey(ReportRange.at(period, now).start),
+                  dateKey(ReportRange.at(period, now).end),
+                  'CNY',
+                )).overrideWith((ref) {
+                  final range = ReportRange.at(period, now);
+                  return Stream.value(
+                    FinanceReport(
+                      range: range,
+                      income: 10000,
+                      expense: 2850,
+                      previousIncome: 5000,
+                      previousExpense: 1000,
+                      categories: const [
+                        CategoryComparison(
+                          'food',
+                          '普通餐饮',
+                          'expense',
+                          2850,
+                          1000,
+                        ),
+                        CategoryComparison(
+                          'salary',
+                          '工资',
+                          'income',
+                          10000,
+                          5000,
+                        ),
+                      ],
+                      points: range.buckets
+                          .map((label) => ReportPoint(label, 100, 50, 20000))
+                          .toList(),
+                    ),
+                  );
+                }),
               mediaProvider.overrideWith(
                 (ref) async => MediaStore(Directory.systemTemp),
               ),
@@ -112,7 +144,43 @@ void main() {
           await tester.tap(find.text(label).last);
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull, reason: label);
+          if (width == 390) {
+            await tester.runAsync(() async {
+              final image =
+                  await (boundary.currentContext!.findRenderObject()
+                          as RenderRepaintBoundary)
+                      .toImage();
+              final bytes = await image.toByteData(
+                format: ui.ImageByteFormat.png,
+              );
+              await File('.tooling/screenshots/$label-$theme.png')
+                  .writeAsBytes(bytes!.buffer.asUint8List());
+              image.dispose();
+            });
+          }
+          if (label == '统计') {
+            for (final periodLabel in ['周', '年', '自定义', '月']) {
+              await tester.tap(find.text(periodLabel).first);
+              await tester.pumpAndSettle();
+              expect(tester.takeException(), isNull, reason: periodLabel);
+            }
+          }
         }
+        await tester.tap(find.text('账本').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('记一笔').last);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: 'entry form');
+        for (final key in ['7', '+', '2']) {
+          await tester.tap(find.text(key).first);
+          await tester.pump();
+        }
+        await tester.ensureVisible(find.text('= 计算结果'));
+        await tester.tap(find.text('= 计算结果'));
+        await tester.pump();
+        expect(find.text('9.00'), findsOneWidget);
+        await tester.tap(find.byType(BackButton).first);
+        await tester.pumpAndSettle();
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pump();
       });

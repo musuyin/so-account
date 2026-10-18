@@ -2,6 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:so_account/data/database/app_database.dart';
 import 'package:so_account/features/inventory/data/inventory_repository.dart';
+import 'package:so_account/features/inventory/domain/item_cost.dart';
 import 'package:so_account/features/ledger/data/ledger_repository.dart';
 import 'package:so_account/features/ledger/domain/entry_kind.dart';
 import 'package:so_account/features/statistics/data/csv_export.dart';
@@ -25,6 +26,55 @@ void main() {
     account = (await db.select(db.accounts).get()).single.id;
   });
   tearDown(() => db.close());
+  test(
+    'consumables archive as depleted and freeze daily cost at archive date',
+    () async {
+      final id = await inventory.save(
+        name: '茶叶',
+        category: '食物',
+        currency: 'CNY',
+        price: 1000,
+        purchasedOn: '2026-01-01',
+        useType: 'consumable',
+        status: 'depleted',
+        archivedOn: '2026-01-10',
+      );
+      final item = (await db.select(db.items).get()).firstWhere(
+        (i) => i.id == id,
+      );
+      expect(
+        dailyCost(
+          item.price,
+          item.purchasedOn,
+          item.archivedOn,
+          DateTime(2026, 10, 18),
+        ),
+        100,
+      );
+      await expectLater(
+        inventory.save(
+          name: '无效',
+          category: '日用品',
+          currency: 'CNY',
+          useType: 'consumable',
+          status: 'retired',
+          archivedOn: '2026-01-10',
+        ),
+        throwsFormatException,
+      );
+      await expectLater(
+        inventory.save(
+          name: '日期',
+          category: '日用品',
+          currency: 'CNY',
+          purchasedOn: '2026-02-01',
+          status: 'retired',
+          archivedOn: '2026-01-10',
+        ),
+        throwsFormatException,
+      );
+    },
+  );
   Future<String> entry({
     EntryKind kind = EntryKind.expense,
     String note = '',

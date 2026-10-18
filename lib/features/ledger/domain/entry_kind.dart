@@ -15,4 +15,4 @@ enum EntryKind {
 }
 
 const accountKinds = ['资金账户', '充值账户', '信贷账户', '理财账户'];
-const accountChannels = ['银行卡', '微信支付', '支付宝', '现金', '其他'];
+const accountChannels = ['银行卡', '微信支付', '支付宝', '花呗', '现金', '其他'];

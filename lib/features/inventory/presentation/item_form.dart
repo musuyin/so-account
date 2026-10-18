@@ -10,6 +10,7 @@ import '../../../core/money/money.dart';
 import '../../../core/time/business_date.dart';
 import '../../../data/database/app_database.dart';
 import '../../ledger/presentation/entry_form.dart';
+import '../domain/item_cost.dart';
 
 class ItemForm extends ConsumerStatefulWidget {
   const ItemForm({
@@ -33,6 +34,9 @@ class _ItemFormState extends ConsumerState<ItemForm> {
   late String? date = widget.item?.purchasedOn ?? widget.initialEntry?.date;
   String currency = 'CNY';
   late String? photo = widget.item?.photo ?? widget.recoveredPhoto;
+  late String useType = widget.item?.useType ?? 'durable';
+  late String status = widget.item?.status ?? 'active';
+  late String? archivedOn = widget.item?.archivedOn;
   final Set<String> links = {};
   bool initialized = false, saving = false;
   @override
@@ -94,6 +98,9 @@ class _ItemFormState extends ConsumerState<ItemForm> {
                   purchasedOn: date,
                   note: note.text,
                   photo: photo,
+                  useType: useType,
+                  status: status,
+                  archivedOn: archivedOn,
                   entryIds: links.toList(),
                 );
           });
@@ -116,6 +123,61 @@ class _ItemFormState extends ConsumerState<ItemForm> {
               hintText: '例如：数码、衣物、家居',
             ),
           ),
+          Wrap(
+            spacing: 6,
+            children: [
+              for (final c in itemCategories)
+                ActionChip(
+                  label: Text(c),
+                  onPressed: () => setState(() => category.text = c),
+                ),
+            ],
+          ),
+          DropdownButtonFormField<String>(
+            initialValue: useType,
+            decoration: const InputDecoration(labelText: '使用属性'),
+            items: const [
+              DropdownMenuItem(value: 'durable', child: Text('长期使用物')),
+              DropdownMenuItem(value: 'consumable', child: Text('消耗品')),
+            ],
+            onChanged: (v) => setState(() {
+              useType = v!;
+              if (status != 'active') {
+                status = useType == 'durable' ? 'retired' : 'depleted';
+              }
+            }),
+          ),
+          DropdownButtonFormField<String>(
+            key: ValueKey('status-$useType-$status'),
+            initialValue: status,
+            decoration: const InputDecoration(labelText: '使用状态'),
+            items: [
+              const DropdownMenuItem(value: 'active', child: Text('使用中')),
+              DropdownMenuItem(
+                value: useType == 'durable' ? 'retired' : 'depleted',
+                child: Text(useType == 'durable' ? '报废' : '用罄'),
+              ),
+            ],
+            onChanged: (v) => setState(() {
+              status = v!;
+              archivedOn = status == 'active' ? null : dateKey(DateTime.now());
+            }),
+          ),
+          if (status != 'active')
+            ListTile(
+              title: const Text('归档日期'),
+              subtitle: Text(archivedOn ?? ''),
+              trailing: const Icon(Icons.calendar_today),
+              onTap: () async {
+                final value = await showDatePicker(
+                  context: context,
+                  initialDate: parseDate(archivedOn!),
+                  firstDate: DateTime(1900),
+                  lastDate: DateTime.now(),
+                );
+                if (value != null) setState(() => archivedOn = dateKey(value));
+              },
+            ),
           DropdownButtonFormField<String>(
             initialValue: currency,
             decoration: const InputDecoration(labelText: '币种'),
@@ -157,13 +219,8 @@ class _ItemFormState extends ConsumerState<ItemForm> {
             },
           ),
           if (widget.item?.price != null && widget.item?.purchasedOn != null)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  '已陪伴 ${ownershipDays(widget.item!.purchasedOn!, DateTime.now())} 天 · 日均 $currency ${(widget.item!.price! / (currency == 'JPY' ? 1 : 100) / ownershipDays(widget.item!.purchasedOn!, DateTime.now())).toStringAsFixed(2)}',
-                ),
-              ),
+            Text(
+              '记录日均 $currency ${(dailyCost(widget.item!.price, widget.item!.purchasedOn, widget.item!.archivedOn, DateTime.now())! / (currency == 'JPY' ? 1 : 100)).toStringAsFixed(2)}${widget.item!.archivedOn == null ? '' : ' · 截止归档日'}',
             ),
           if (photo != null)
             ref

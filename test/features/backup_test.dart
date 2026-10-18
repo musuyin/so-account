@@ -55,6 +55,37 @@ void main() {
     await db.close();
     await root.delete(recursive: true);
   });
+  test('v1 backups default avatar and lifecycle fields', () async {
+    final files = decodeBackup(await service.export());
+    final json =
+        jsonDecode(utf8.decode(files['data.json']!)) as Map<String, dynamic>;
+    for (final row in json['accounts'] as List) {
+      (row as Map).remove('avatar');
+    }
+    for (final row in json['items'] as List) {
+      (row as Map).remove('useType');
+      row.remove('status');
+      row.remove('archivedOn');
+    }
+    files['data.json'] = Uint8List.fromList(utf8.encode(jsonEncode(json)));
+    final archive = ZipDecoder().decodeBytes(encodeBackup(files));
+    final manifest = jsonDecode(
+      utf8.decode(archive.findFile('manifest.json')!.content),
+    ) as Map<String, dynamic>;
+    manifest['schema'] = 1;
+    final legacy = Archive();
+    for (final file in archive.files) {
+      legacy.addFile(
+        file.name == 'manifest.json'
+            ? ArchiveFile.string('manifest.json', jsonEncode(manifest))
+            : ArchiveFile.bytes(file.name, file.content),
+      );
+    }
+    await service.restore(Uint8List.fromList(ZipEncoder().encode(legacy)));
+    expect((await db.select(db.accounts).get()).single.avatar, '');
+    expect((await db.select(db.items).get()).single.useType, 'durable');
+    expect((await db.select(db.items).get()).single.status, 'active');
+  });
   test(
     'portable backup restores all tables, photos and associations',
     () async {
