@@ -5,7 +5,16 @@ import '../../features/ledger/data/ledger_repository.dart';
 import '../../features/inventory/data/inventory_repository.dart';
 import '../../platform/media/media_store.dart';
 
-final mediaProvider = FutureProvider((ref) => MediaStore.open());
+final mediaProvider = FutureProvider((ref) async {
+  final store = await MediaStore.open();
+  final db = ref.watch(databaseProvider);
+  final items = await db.select(db.items).get();
+  // A one-day grace period protects photos belonging to an unfinished form.
+  await store.collectOrphans(
+    items.map((i) => i.photo).whereType<String>().toSet(),
+  );
+  return store;
+});
 
 final databaseProvider = Provider<AppDatabase>((ref) {
   final db = AppDatabase();
@@ -35,14 +44,16 @@ final snapshotProvider = StreamProvider((ref) {
       )
       .watch()
       .asyncMap(
-        (_) async => AppSnapshot(
-          await db.select(db.accounts).get(),
-          await db.select(db.categories).get(),
-          await db.select(db.entries).get(),
-          await db.select(db.budgets).get(),
-          await db.select(db.items).get(),
-          await db.select(db.purchaseLinks).get(),
-          await db.select(db.preferences).get(),
+        (_) => db.transaction(
+          () async => AppSnapshot(
+            await db.select(db.accounts).get(),
+            await db.select(db.categories).get(),
+            await db.select(db.entries).get(),
+            await db.select(db.budgets).get(),
+            await db.select(db.items).get(),
+            await db.select(db.purchaseLinks).get(),
+            await db.select(db.preferences).get(),
+          ),
         ),
       );
 });

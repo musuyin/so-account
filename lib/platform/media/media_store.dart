@@ -8,6 +8,28 @@ import 'package:uuid/uuid.dart';
 class MediaStore {
   MediaStore(this.root);
   final Directory root;
+  Future<void> collectOrphans(Set<String> referenced) async {
+    final directory = Directory(p.join(root.path, 'media'));
+    if (!await directory.exists()) return;
+    final cutoff = DateTime.now().subtract(const Duration(days: 1));
+    await for (final file in directory.list(followLinks: false)) {
+      if (file is! File) continue;
+      final relative = 'media/${p.basename(file.path)}';
+      if (referenced.contains(relative) ||
+          !RegExp(r'^media/[a-zA-Z0-9_-]+\.(jpg|png|jpeg)$')
+              .hasMatch(relative)) {
+        continue;
+      }
+      if ((await file.stat()).modified.isBefore(cutoff)) {
+        try {
+          await file.delete();
+        } on FileSystemException {
+          /* Retry on next launch. */
+        }
+      }
+    }
+  }
+
   static Future<MediaStore> open() async =>
       MediaStore(await getApplicationSupportDirectory());
   File resolve(String relative) {

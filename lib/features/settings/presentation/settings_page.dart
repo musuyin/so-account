@@ -11,6 +11,7 @@ import '../../../data/database/app_database.dart';
 import '../../../platform/files/file_delivery.dart';
 import '../../statistics/data/csv_export.dart';
 import 'categories_page.dart';
+import '../../backup/presentation/backup_page.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -80,6 +81,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               title: const Text('自定义收支分类'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => openForm(context, const CategoriesPage()),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.backup_outlined),
+              title: const Text('完整备份与恢复'),
+              subtitle: const Text('包括照片、账户和全部关联'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => openForm(context, const BackupPage()),
             ),
           ),
           const SizedBox(height: 24),
