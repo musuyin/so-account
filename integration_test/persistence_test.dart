@@ -54,8 +54,9 @@ void main() {
       if (accountId != null) {
         await LedgerRepository(db).deleteAccount(accountId);
       }
-      if (categoryId != null)
+      if (categoryId != null) {
         await LedgerRepository(db).deleteCategory(categoryId);
+      }
       await db.close();
     }
   });

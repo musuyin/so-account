@@ -15,7 +15,7 @@ Flutter + Dart 的个人记账与物品管理应用，Android / iOS 共享代码
 
 ## 验证状态
 
-Windows 本地已通过 `flutter analyze`、19 项自动测试和 Android debug APK 构建。测试覆盖金额与日期、真实 SQLite、余额与借贷约束、关闭重开持久化、物品关联、CSV、备份回滚、媒体清理，以及明暗主题下 390 / 320 像素和放大文字的页面。
+Windows 本地已通过 `flutter analyze`、19 项自动测试和 Android debug / release APK 构建。测试覆盖金额与日期、真实 SQLite、余额与借贷约束、关闭重开持久化、物品关联、CSV、备份回滚、媒体清理，以及明暗主题下 390 / 320 像素和放大文字的页面。
 
 未连接 Android 真机；设备持久化测试入口已提供，但尚未执行。iOS 工程和权限配置已生成，本机无法执行 Xcode 构建或 iPhone 验收。GitHub Actions 配置了 Android 检查与 APK、iOS 模拟器构建；配置存在不代表远端运行已通过。
 
@@ -32,7 +32,7 @@ flutter run -d <android-device-id>
 flutter build apk --debug
 ```
 
-本次安装的本地 SDK 在 `.tooling/flutter`，未改系统 PATH。此工作区可用 `.\.tooling\flutter\bin\flutter.bat` 代替上述 `flutter`。开发工具与个人运行数据均不提交。APK 默认生成于 `build/app/outputs/flutter-apk/app-debug.apk`，仅用于开发测试，尚未配置发布签名。
+本次安装的本地 SDK 在 `.tooling/flutter`，未改系统 PATH。此工作区可用 `.\.tooling\flutter\bin\flutter.bat` 代替上述 `flutter`。开发工具与个人运行数据均不提交。APK 位于 `build/app/outputs/flutter-apk/`：`app-debug.apk` 为调试包，`app-release.apk` 为约 72 MB 的优化测试包。两者均使用开发签名，仅用于自行安装测试，尚未配置应用商店发布签名。
 
 ## 使用与边界
 
@@ -52,3 +52,4 @@ flutter build apk --debug
 - [备份协议](docs/engineering/backup-format.md)
 - [环境设置](docs/engineering/setup.md)
 - [交付与真机验收](docs/engineering/roadmap.md)
+
