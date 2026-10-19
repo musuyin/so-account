@@ -235,6 +235,18 @@ class _AccountFormState extends ConsumerState<AccountForm> {
   );
   late String avatar = widget.account?.avatar ?? '';
   bool saving = false;
+  bool get balanceLocked =>
+      widget.account != null &&
+      (ref
+              .watch(snapshotProvider)
+              .value
+              ?.entries
+              .any(
+                (entry) =>
+                    entry.accountId == widget.account!.id ||
+                    entry.targetAccountId == widget.account!.id,
+              ) ??
+          false);
   @override
   void dispose() {
     name.dispose();
@@ -315,10 +327,11 @@ class _AccountFormState extends ConsumerState<AccountForm> {
         items: currencies
             .map((v) => DropdownMenuItem(value: v, child: Text(v)))
             .toList(),
-        onChanged: (v) => setState(() => currency = v!),
+        onChanged: balanceLocked ? null : (v) => setState(() => currency = v!),
       ),
       TextField(
         controller: opening,
+        enabled: !balanceLocked,
         keyboardType: const TextInputType.numberWithOptions(
           decimal: true,
           signed: true,

@@ -1,10 +1,36 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/native.dart';
+import 'package:so_account/features/ledger/data/ledger_repository.dart';
 import 'package:so_account/data/database/app_database.dart';
 import 'package:so_account/features/importing/domain/import_plan.dart';
 import 'package:so_account/features/importing/domain/import_table.dart';
 import 'package:so_account/features/importing/domain/missing_accounts.dart';
 
 void main() {
+  test('creating an account rejects duplicate names per currency and invalid opening balances', () async {
+    final db = AppDatabase(NativeDatabase.memory());
+    final repository = LedgerRepository(db);
+    Future<String> save({String currency = 'CNY', int balance = 0}) =>
+        repository.saveAccount(
+          name: '钱包',
+          kind: '资金账户',
+          channel: '现金',
+          currency: currency,
+          openingBalance: balance,
+        );
+    try {
+      await save();
+      await expectLater(save(), throwsFormatException);
+      await expectLater(
+        save(currency: 'USD', balance: 1000000000000),
+        throwsFormatException,
+      );
+      await save(currency: 'USD');
+      expect((await db.select(db.accounts).get()).length, 2);
+    } finally {
+      await db.close();
+    }
+  });
   test('missing accounts are grouped and transfer targets included only for transfers', () {
     final table = ImportTable.fromRows('test', [
       ['日期', '金额', '账户', '转入账户', '类型', '币种'],

@@ -33,6 +33,8 @@ void main() {
         }
 
         await settleData();
+        await tester.tap(find.text('下一步：账户与分类'));
+        await tester.pumpAndSettle();
         await tester.scrollUntilVisible(
           find.text('预览明细'),
           500,
@@ -49,6 +51,10 @@ void main() {
           await tester.pumpAndSettle();
           expect(find.text('预览明细'), findsOneWidget);
         } else {
+          await tester.tap(find.text('保存'));
+          await tester.pumpAndSettle();
+          expect(find.text('请选择账户类型、渠道和币种'), findsOneWidget);
+          await tester.enterText(nameField, '旅行现金');
           for (final entry in {
             '渠道': '现金',
             '账户类型': '资金账户',
@@ -92,6 +98,7 @@ void main() {
           );
           expect(accounts!.single.openingBalance, 10000);
           expect(accounts.single.currency, 'CNY');
+          expect(accounts.single.name, '旅行现金');
         }
         expect(
           await tester.runAsync(() => db.select(db.entries).get()),

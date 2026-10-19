@@ -262,7 +262,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ),
           const SizedBox(height: 32),
           const Text(
-            '素帐 · SoAccount 0.3.0\n离线存储于本机 · 无登录、无云同步\nCSV 用于分析，不能代替完整备份。',
+            '素帐 · SoAccount 0.4.0\n离线存储于本机 · 无登录、无云同步\nCSV 用于分析，不能代替完整备份。',
           ),
         ],
       ),

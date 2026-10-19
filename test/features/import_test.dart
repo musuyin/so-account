@@ -26,6 +26,21 @@ Uint8List workbook({bool formula = false}) {
 }
 
 void main() {
+  test('changing files resets previous mappings and defaults', () {
+    final mapping = ImportMapping();
+    mapping.defaultAccount = 'old';
+    mapping.expenseCategory = 'old-category';
+    mapping.accounts['钱包'] = 'old';
+    mapping.detect(
+      ImportTable.fromRows('new', [
+        ['日期', '金额'],
+        ['2026-01-01', '1'],
+      ]),
+    );
+    expect(mapping.accounts, isEmpty);
+    expect(mapping.defaultAccount, isNull);
+    expect(mapping.expenseCategory, isNull);
+  });
   test(
     'CSV parses BOM, quoted multiline cells, escaped quotes and semicolons',
     () {
@@ -97,6 +112,24 @@ void main() {
     categories = await db.select(db.categories).get();
   });
   tearDown(() => db.close());
+  test(
+    'account currency changed after preview rolls back the import',
+    () async {
+      await db.customStatement("UPDATE accounts SET currency = 'JPY'");
+      final entry = ImportEntry(
+        row: 2,
+        kind: EntryKind.expense,
+        amount: 100,
+        accountId: accounts.single.id,
+        date: '2026-01-01',
+        note: '',
+        categoryId: 'expense-0',
+        currency: 'CNY',
+      );
+      await expectLater(commitImport(db, [entry]), throwsFormatException);
+      expect(await db.select(db.entries).get(), isEmpty);
+    },
+  );
 
   test(
     'manual column and value mappings, errors and duplicates are previewed',

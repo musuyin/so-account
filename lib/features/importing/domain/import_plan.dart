@@ -30,6 +30,8 @@ class ImportMapping {
     accounts.clear();
     categories.clear();
     kinds.clear();
+    defaultAccount = expenseCategory = incomeCategory = null;
+    defaultKind = EntryKind.expense;
     for (final field in ImportField.values) {
       final index = table.headers.indexWhere(
         (h) => field.aliases.contains(h.toLowerCase().trim()),
@@ -74,12 +76,14 @@ class ImportEntry {
     this.categoryId,
     this.targetId,
     this.duplicate = false,
+    this.currency = 'CNY',
   });
   final int row, amount;
   final EntryKind kind;
   final String accountId, date, note;
   final String? categoryId, targetId;
   final bool duplicate;
+  final String currency;
 }
 
 class ImportResult {
@@ -238,6 +242,7 @@ List<ImportResult> previewImport(
               categoryId: categoryId,
               targetId: target?.id,
               duplicate: duplicate,
+              currency: account.currency,
             ),
             null,
           );
@@ -252,7 +257,14 @@ Future<int> commitImport(AppDatabase db, List<ImportEntry> entries) =>
     db.transaction(() async {
       if (entries.isEmpty) throw const FormatException('请至少选择一条明细');
       final ledger = LedgerRepository(db);
+      final accounts = {
+        for (final account in await db.select(db.accounts).get())
+          account.id: account,
+      };
       for (final entry in entries) {
+        if (accounts[entry.accountId]?.currency != entry.currency) {
+          throw const FormatException('账户币种已变化或账户已删除，请重新预览');
+        }
         await ledger.saveEntry(
           kind: entry.kind,
           amount: entry.amount,
