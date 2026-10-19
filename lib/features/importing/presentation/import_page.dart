@@ -196,7 +196,19 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         mapping,
         data.accounts,
       );
+      final accountDb = ref.read(databaseProvider);
       for (final source in missing) {
+        if (!mounted) return;
+        // A renamed account can also satisfy another queued source name.
+        final currentAccounts = await accountDb
+            .select(accountDb.accounts)
+            .get();
+        final stillMissing = missingImportAccounts(
+          tables[sheet],
+          mapping,
+          currentAccounts,
+        ).any((candidate) => candidate.name == source.name);
+        if (!stillMissing) continue;
         if (!mounted || !await createAccount(source)) return;
       }
       if (!mounted) return;

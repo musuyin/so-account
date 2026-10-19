@@ -18,6 +18,7 @@ void main() {
         final table = ImportTable.fromRows('test', [
           ['日期', '金额', '账户', '分类', '类型', '币种'],
           ['2026-01-01', '12.50', '旅行钱包', '居住', '支出', 'CNY'],
+          ['2026-01-02', '2.50', '旅行现金', '居住', '支出', 'CNY'],
         ]);
         await tester.pumpWidget(
           ProviderScope(
@@ -92,7 +93,7 @@ void main() {
           );
           await tester.tap(find.text('保存'));
           await settleData();
-          expect(find.text('确认导入 1 条'), findsOneWidget);
+          expect(find.text('确认导入 2 条'), findsOneWidget);
           final accounts = await tester.runAsync(
             () => db.select(db.accounts).get(),
           );
