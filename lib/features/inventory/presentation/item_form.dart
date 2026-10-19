@@ -11,6 +11,7 @@ import '../../../core/time/business_date.dart';
 import '../../../data/database/app_database.dart';
 import '../../ledger/presentation/entry_form.dart';
 import '../domain/item_cost.dart';
+import '../domain/item_categories.dart';
 
 class ItemForm extends ConsumerStatefulWidget {
   const ItemForm({
@@ -28,7 +29,10 @@ class ItemForm extends ConsumerStatefulWidget {
 
 class _ItemFormState extends ConsumerState<ItemForm> {
   late final name = TextEditingController(text: widget.item?.name);
-  late final category = TextEditingController(text: widget.item?.category);
+  late final Set<String> categories = itemTags(widget.item?.category ?? '')
+      .toSet();
+  late final quantity = TextEditingController(text: widget.item?.quantity);
+  late final unit = TextEditingController(text: widget.item?.unit);
   late final note = TextEditingController(text: widget.item?.note);
   final price = TextEditingController();
   late String? date = widget.item?.purchasedOn ?? widget.initialEntry?.date;
@@ -42,7 +46,8 @@ class _ItemFormState extends ConsumerState<ItemForm> {
   @override
   void dispose() {
     name.dispose();
-    category.dispose();
+    quantity.dispose();
+    unit.dispose();
     note.dispose();
     price.dispose();
     super.dispose();
@@ -90,7 +95,7 @@ class _ItemFormState extends ConsumerState<ItemForm> {
                 .save(
                   id: widget.item?.id,
                   name: name.text,
-                  category: category.text,
+                  category: encodeItemTags(categories),
                   currency: currency,
                   price: price.text.trim().isEmpty
                       ? null
@@ -101,6 +106,8 @@ class _ItemFormState extends ConsumerState<ItemForm> {
                   useType: useType,
                   status: status,
                   archivedOn: archivedOn,
+                  quantity: useType == 'consumable' ? quantity.text : null,
+                  unit: useType == 'consumable' ? unit.text : null,
                   entryIds: links.toList(),
                 );
           });
@@ -115,21 +122,29 @@ class _ItemFormState extends ConsumerState<ItemForm> {
             maxLength: 100,
             decoration: const InputDecoration(labelText: '物品名称'),
           ),
-          TextField(
-            controller: category,
-            maxLength: 80,
-            decoration: const InputDecoration(
-              labelText: '物品分类',
-              hintText: '例如：数码、衣物、家居',
-            ),
-          ),
+          const Text('物品种类 · 可多选'),
           Wrap(
             spacing: 6,
             children: [
-              for (final c in itemCategories)
-                ActionChip(
+              for (final c in {
+                ...configuredItemCategories(
+                  data.preferences
+                      .where((p) => p.key == 'item_categories')
+                      .firstOrNull
+                      ?.value,
+                ),
+                ...categories,
+              })
+                FilterChip(
                   label: Text(c),
-                  onPressed: () => setState(() => category.text = c),
+                  selected: categories.contains(c),
+                  onSelected: (selected) => setState(() {
+                    if (selected) {
+                      categories.add(c);
+                    } else {
+                      categories.remove(c);
+                    }
+                  }),
                 ),
             ],
           ),
@@ -142,30 +157,46 @@ class _ItemFormState extends ConsumerState<ItemForm> {
             ],
             onChanged: (v) => setState(() {
               useType = v!;
-              if (status != 'active') {
-                status = useType == 'durable' ? 'retired' : 'depleted';
-              }
             }),
           ),
+          if (useType == 'consumable') ...[
+            TextField(
+              controller: quantity,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: '数量 / 容量 · 可留空',
+                hintText: '例如：500',
+              ),
+            ),
+            TextField(
+              controller: unit,
+              maxLength: 20,
+              decoration: const InputDecoration(
+                labelText: '单位 · 可留空',
+                hintText: '例如：ml、g、包、个',
+              ),
+            ),
+          ],
           DropdownButtonFormField<String>(
             key: ValueKey('status-$useType-$status'),
             initialValue: status,
             decoration: const InputDecoration(labelText: '使用状态'),
             items: [
-              const DropdownMenuItem(value: 'active', child: Text('使用中')),
-              DropdownMenuItem(
-                value: useType == 'durable' ? 'retired' : 'depleted',
-                child: Text(useType == 'durable' ? '报废' : '用罄'),
-              ),
+              for (final entry in itemStatuses.entries)
+                DropdownMenuItem(value: entry.key, child: Text(entry.value)),
             ],
             onChanged: (v) => setState(() {
               status = v!;
-              archivedOn = status == 'active' ? null : dateKey(DateTime.now());
+              archivedOn = status == 'completed'
+                  ? dateKey(DateTime.now())
+                  : null;
             }),
           ),
-          if (status != 'active')
+          if (status == 'completed')
             ListTile(
-              title: const Text('归档日期'),
+              title: const Text('使用完日期'),
               subtitle: Text(archivedOn ?? ''),
               trailing: const Icon(Icons.calendar_today),
               onTap: () async {

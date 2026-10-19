@@ -64,6 +64,8 @@ class Items extends Table {
   TextColumn get useType => text().withDefault(const Constant('durable'))();
   TextColumn get status => text().withDefault(const Constant('active'))();
   TextColumn get archivedOn => text().nullable()();
+  TextColumn get quantity => text().nullable()();
+  TextColumn get unit => text().nullable()();
   IntColumn get price =>
       integer().nullable().customConstraint('CHECK (price >= 0)')();
   TextColumn get currency => text()();
@@ -116,7 +118,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   Future<void> seedDefaults({bool upgrade = false}) async {
     for (final (kind, names) in [
@@ -169,6 +171,13 @@ class AppDatabase extends _$AppDatabase {
           }
         }
         await seedDefaults(upgrade: true);
+      }
+      if (from < 3) {
+        await m.addColumn(items, items.quantity);
+        await m.addColumn(items, items.unit);
+        await customStatement(
+          "UPDATE items SET status = 'completed' WHERE status IN ('retired', 'depleted')",
+        );
       }
     },
     beforeOpen: (_) async {

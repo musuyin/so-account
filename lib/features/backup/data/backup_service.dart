@@ -10,6 +10,7 @@ import '../../../data/database/app_database.dart';
 import '../../../core/appearance.dart';
 import '../../../platform/media/media_store.dart';
 import '../../inventory/data/inventory_repository.dart';
+import '../../inventory/domain/item_categories.dart';
 import '../../ledger/data/ledger_repository.dart';
 import '../../ledger/domain/entry_kind.dart';
 import '../domain/backup_codec.dart';
@@ -112,6 +113,8 @@ class BackupService {
           useType: item.useType,
           status: item.status,
           archivedOn: item.archivedOn,
+          quantity: item.quantity,
+          unit: item.unit,
           entryIds: snapshot.links
               .where((l) => l.itemId == item.id)
               .map((l) => l.entryId)
@@ -119,6 +122,10 @@ class BackupService {
         );
       }
       for (final pref in snapshot.preferences) {
+        if (pref.key == 'item_categories') {
+          validateItemCategories(pref.value);
+          continue;
+        }
         if (!validAppearancePreference(pref.key, pref.value)) {
           throw const FormatException('不支持的偏好设置');
         }
@@ -248,9 +255,13 @@ class _Snapshot {
         'items',
         (r) => Item.fromJson({
           'useType': 'durable',
-          'status': 'active',
           'archivedOn': null,
+          'quantity': null,
+          'unit': null,
           ...r,
+          'status': ['retired', 'depleted'].contains(r['status'])
+              ? 'completed'
+              : (r['status'] ?? 'active'),
         }),
       ),
       rows('links', PurchaseLink.fromJson),

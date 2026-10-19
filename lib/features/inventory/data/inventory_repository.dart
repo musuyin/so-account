@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/business_date.dart';
 import '../../../data/database/app_database.dart';
+import '../domain/item_categories.dart';
 
 class InventoryRepository {
   InventoryRepository(this.db);
@@ -26,12 +27,21 @@ class InventoryRepository {
     String useType = 'durable',
     String status = 'active',
     String? archivedOn,
+    String? quantity,
+    String? unit,
     List<String> entryIds = const [],
   }) => db.transaction(() async {
     if (name.trim().isEmpty || name.trim().length > 100) {
       throw const FormatException('物品名称为 1–100 字');
     }
-    if (category.trim().length > 80 || note.length > 2000) {
+    final tags = itemTags(category)
+        .map((v) => v.trim())
+        .where((v) => v.isNotEmpty)
+        .toSet()
+        .toList();
+    if (tags.length > 100 ||
+        tags.any((v) => v.length > 80) ||
+        note.length > 2000) {
       throw const FormatException('分类或备注过长');
     }
     fractionDigits(currency);
@@ -40,14 +50,24 @@ class InventoryRepository {
     }
     if (purchasedOn != null) ownershipDays(purchasedOn, DateTime.now());
     if (!['durable', 'consumable'].contains(useType) ||
-        !['active', 'retired', 'depleted'].contains(status) ||
-        (status == 'retired' && useType != 'durable') ||
-        (status == 'depleted' && useType != 'consumable')) {
+        !itemStatuses.containsKey(status)) {
       throw const FormatException('物品属性与归档状态不匹配');
     }
-    if (status == 'active' && archivedOn != null ||
-        status != 'active' && archivedOn == null) {
+    if (status != 'completed' && archivedOn != null ||
+        status == 'completed' && archivedOn == null) {
       throw const FormatException('请设置有效归档日期');
+    }
+    quantity = quantity?.trim();
+    unit = unit?.trim();
+    if (quantity?.isEmpty ?? false) quantity = null;
+    if (unit?.isEmpty ?? false) unit = null;
+    if ((quantity != null || unit != null) && useType != 'consumable' ||
+        (unit != null && quantity == null) ||
+        (unit?.length ?? 0) > 20 ||
+        (quantity != null &&
+            (!RegExp(r'^\d{1,12}(\.\d{1,6})?$').hasMatch(quantity!) ||
+                num.parse(quantity!) <= 0))) {
+      throw const FormatException('消耗品数量须大于零，最多 6 位小数；单位最多 20 字');
     }
     if (archivedOn != null) {
       ownershipDays(archivedOn, DateTime.now());
@@ -86,7 +106,7 @@ class InventoryRepository {
           ItemsCompanion.insert(
             id: itemId,
             name: name.trim(),
-            category: Value(category.trim().isEmpty ? '未分类' : category.trim()),
+            category: Value(encodeItemTags(tags.isEmpty ? ['未分类'] : tags)),
             currency: currency,
             price: Value(price),
             purchasedOn: Value(purchasedOn),
@@ -95,6 +115,8 @@ class InventoryRepository {
             useType: Value(useType),
             status: Value(status),
             archivedOn: Value(archivedOn),
+            quantity: Value(quantity),
+            unit: Value(unit),
             createdAt: old?.createdAt ?? now,
             updatedAt: now,
           ),
@@ -114,4 +136,68 @@ class InventoryRepository {
 
   Future<void> delete(String id) =>
       (db.delete(db.items)..where((i) => i.id.equals(id))).go();
+
+  Future<void> saveCategory(String name, {String? previous}) =>
+      db.transaction(() async {
+        name = name.trim();
+        final pref = await (db.select(
+          db.preferences,
+        )..where((p) => p.key.equals('item_categories'))).getSingleOrNull();
+        final categories = configuredItemCategories(pref?.value);
+        if (name.isEmpty ||
+            name.length > 40 ||
+            (name != previous && categories.contains(name))) {
+          throw const FormatException('种类名称须为 1–40 字且不能重复');
+        }
+        if (previous == null) {
+          categories.add(name);
+        } else {
+          final index = categories.indexOf(previous);
+          if (index < 0) throw const FormatException('种类不存在');
+          categories[index] = name;
+          for (final item in await db.select(db.items).get()) {
+            final tags = itemTags(item.category);
+            if (tags.contains(previous)) {
+              await (db.update(
+                db.items,
+              )..where((i) => i.id.equals(item.id))).write(
+                ItemsCompanion(
+                  category: Value(
+                    encodeItemTags(tags.map((v) => v == previous ? name : v)),
+                  ),
+                ),
+              );
+            }
+          }
+        }
+        validateItemCategories(encodeItemTags(categories));
+        await db
+            .into(db.preferences)
+            .insertOnConflictUpdate(
+              PreferencesCompanion.insert(
+                key: 'item_categories',
+                value: encodeItemTags(categories),
+              ),
+            );
+      });
+
+  Future<void> deleteCategory(String name) => db.transaction(() async {
+    if ((await db.select(db.items).get()).any(
+      (i) => itemTags(i.category).contains(name),
+    )) {
+      throw const FormatException('此种类已有物品，无法删除');
+    }
+    final pref = await (db.select(
+      db.preferences,
+    )..where((p) => p.key.equals('item_categories'))).getSingleOrNull();
+    final categories = configuredItemCategories(pref?.value)..remove(name);
+    await db
+        .into(db.preferences)
+        .insertOnConflictUpdate(
+          PreferencesCompanion.insert(
+            key: 'item_categories',
+            value: encodeItemTags(categories),
+          ),
+        );
+  });
 }

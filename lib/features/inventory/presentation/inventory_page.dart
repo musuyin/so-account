@@ -9,6 +9,7 @@ import '../../../core/money/money.dart';
 import '../../../core/time/business_date.dart';
 import '../../../data/database/app_database.dart';
 import '../domain/item_cost.dart';
+import '../domain/item_categories.dart';
 import 'item_form.dart';
 
 class InventoryPage extends ConsumerStatefulWidget {
@@ -18,11 +19,8 @@ class InventoryPage extends ConsumerStatefulWidget {
 }
 
 class _InventoryPageState extends ConsumerState<InventoryPage> {
-  String search = '',
-      category = '',
-      useType = '',
-      status = 'active',
-      currency = 'CNY';
+  final Set<String> selectedCategories = {};
+  String search = '', useType = '', status = 'active', currency = 'CNY';
   @override
   void initState() {
     super.initState();
@@ -55,19 +53,23 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
       builder: (data) {
         final all = data.items.where((i) => i.currency == currency).toList();
         final categories = {
-          ...itemCategories,
-          ...all.map((i) => i.category),
+          ...configuredItemCategories(
+            data.preferences
+                .where((p) => p.key == 'item_categories')
+                .firstOrNull
+                ?.value,
+          ),
+          ...all.expand((i) => itemTags(i.category)),
         }.toList();
         final items =
             all
                 .where(
                   (i) =>
-                      (category.isEmpty || i.category == category) &&
+                      (selectedCategories.isEmpty ||
+                          itemTags(i.category)
+                              .any(selectedCategories.contains)) &&
                       (useType.isEmpty || i.useType == useType) &&
-                      (status == 'all' ||
-                          (status == 'active'
-                              ? i.status == 'active'
-                              : i.status != 'active')) &&
+                      (status == 'all' || i.status == status) &&
                       '${i.name} ${i.note}'.toLowerCase().contains(
                         search.toLowerCase(),
                       ),
@@ -142,7 +144,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
               children: [
                 for (final entry in {
                   'active': '使用中',
-                  'archived': '已归档',
+                  'unused': '未使用',
+                  'completed': '使用完',
                   'all': '全部状态',
                 }.entries)
                   ChoiceChip(
@@ -159,10 +162,20 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                   for (final c in ['', ...categories])
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
+                      child: FilterChip(
                         label: Text(c.isEmpty ? '全部种类' : c),
-                        selected: category == c,
-                        onSelected: (_) => setState(() => category = c),
+                        selected: c.isEmpty
+                            ? selectedCategories.isEmpty
+                            : selectedCategories.contains(c),
+                        onSelected: (selected) => setState(() {
+                          if (c.isEmpty) {
+                            selectedCategories.clear();
+                          } else if (selected) {
+                            selectedCategories.add(c);
+                          } else {
+                            selectedCategories.remove(c);
+                          }
+                        }),
                       ),
                     ),
                 ],
@@ -176,11 +189,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                   leading: ItemThumbnail(item: item),
                   title: Text(item.name),
                   subtitle: Text(
-                    '${item.category} · ${item.useType == 'durable' ? '长期使用物' : '消耗品'} · ${item.status == 'active'
-                        ? '使用中'
-                        : item.status == 'retired'
-                        ? '已报废'
-                        : '已用罄'}\n${item.price == null ? '价格未记录' : money(item.price!, currency)}${dailyCost(item.price, item.purchasedOn, item.archivedOn, DateTime.now()) == null ? '' : ' · 日均 ${(dailyCost(item.price, item.purchasedOn, item.archivedOn, DateTime.now())! / factor).toStringAsFixed(2)}'}',
+                    '${itemTags(item.category).join('、')} · ${item.useType == 'durable' ? '长期使用物' : '消耗品'} · ${itemStatuses[item.status]}${item.quantity == null ? '' : ' · ${item.quantity}${item.unit ?? ''}'}\n${item.price == null ? '价格未记录' : money(item.price!, currency)}${dailyCost(item.price, item.purchasedOn, item.archivedOn, DateTime.now()) == null ? '' : ' · 日均 ${(dailyCost(item.price, item.purchasedOn, item.archivedOn, DateTime.now())! / factor).toStringAsFixed(2)}'}',
                   ),
                   onTap: () => openForm(context, ItemForm(item: item)),
                   trailing: PopupMenuButton<String>(
@@ -209,9 +218,9 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                                 useType: item.useType,
                                 status: action == 'restore'
                                     ? 'active'
-                                    : item.useType == 'durable'
-                                    ? 'retired'
-                                    : 'depleted',
+                                    : 'completed',
+                                quantity: item.quantity,
+                                unit: item.unit,
                                 archivedOn: action == 'restore'
                                     ? null
                                     : dateKey(DateTime.now()),
@@ -225,11 +234,11 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                     },
                     itemBuilder: (_) => [
                       PopupMenuItem(
-                        value: item.status == 'active' ? 'archive' : 'restore',
+                        value: item.status != 'completed'
+                            ? 'archive'
+                            : 'restore',
                         child: Text(
-                          item.status == 'active'
-                              ? (item.useType == 'durable' ? '报废归档' : '用罄归档')
-                              : '恢复使用',
+                          item.status != 'completed' ? '使用完' : '恢复使用',
                         ),
                       ),
                       const PopupMenuItem(value: 'delete', child: Text('删除物品')),

@@ -13,6 +13,7 @@ import '../../../data/database/app_database.dart';
 import '../../../platform/files/file_delivery.dart';
 import '../../statistics/data/csv_export.dart';
 import 'categories_page.dart';
+import 'item_categories_page.dart';
 import '../../backup/presentation/backup_page.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -143,6 +144,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ),
           ),
           const SizedBox(height: 24),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.inventory_2_outlined),
+              title: const Text('自定义物品种类'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => openForm(context, const ItemCategoriesPage()),
+            ),
+          ),
           Card(
             child: ListTile(
               leading: const Icon(Icons.backup_outlined),

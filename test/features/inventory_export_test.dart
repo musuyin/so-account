@@ -27,7 +27,7 @@ void main() {
   });
   tearDown(() => db.close());
   test(
-    'consumables archive as depleted and freeze daily cost at archive date',
+    'consumables complete usage and freeze daily cost at archive date',
     () async {
       final id = await inventory.save(
         name: '茶叶',
@@ -36,7 +36,7 @@ void main() {
         price: 1000,
         purchasedOn: '2026-01-01',
         useType: 'consumable',
-        status: 'depleted',
+        status: 'completed',
         archivedOn: '2026-01-10',
       );
       final item = (await db.select(db.items).get()).firstWhere(
@@ -57,7 +57,7 @@ void main() {
           category: '日用品',
           currency: 'CNY',
           useType: 'consumable',
-          status: 'retired',
+          status: 'invalid',
           archivedOn: '2026-01-10',
         ),
         throwsFormatException,
@@ -68,7 +68,7 @@ void main() {
           category: '日用品',
           currency: 'CNY',
           purchasedOn: '2026-02-01',
-          status: 'retired',
+          status: 'invalid',
           archivedOn: '2026-01-10',
         ),
         throwsFormatException,

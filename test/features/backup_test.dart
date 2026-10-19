@@ -48,6 +48,10 @@ void main() {
       price: 100,
       purchasedOn: '2026-10-01',
       photo: 'media/photo.jpg',
+      useType: 'consumable',
+      quantity: '250',
+      unit: 'ml',
+      status: 'unused',
       entryIds: [expense],
     );
   });
@@ -66,6 +70,8 @@ void main() {
       (row as Map).remove('useType');
       row.remove('status');
       row.remove('archivedOn');
+      row.remove('quantity');
+      row.remove('unit');
     }
     files['data.json'] = Uint8List.fromList(utf8.encode(jsonEncode(json)));
     final archive = ZipDecoder().decodeBytes(encodeBackup(files));
@@ -121,6 +127,9 @@ void main() {
       final restored = (await db.select(db.items).get()).single;
       expect(restored.id, original.id);
       expect(restored.createdAt, original.createdAt);
+      expect(restored.quantity, '250');
+      expect(restored.unit, 'ml');
+      expect(restored.status, 'unused');
       expect(await MediaStore(root).resolve(restored.photo!).readAsBytes(), [
         1,
         2,

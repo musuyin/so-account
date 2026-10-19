@@ -1719,6 +1719,26 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _quantityMeta = const VerificationMeta(
+    'quantity',
+  );
+  @override
+  late final GeneratedColumn<String> quantity = GeneratedColumn<String>(
+    'quantity',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _unitMeta = const VerificationMeta('unit');
+  @override
+  late final GeneratedColumn<String> unit = GeneratedColumn<String>(
+    'unit',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _priceMeta = const VerificationMeta('price');
   @override
   late final GeneratedColumn<int> price = GeneratedColumn<int>(
@@ -1800,6 +1820,8 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
     useType,
     status,
     archivedOn,
+    quantity,
+    unit,
     price,
     currency,
     purchasedOn,
@@ -1855,6 +1877,18 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
       context.handle(
         _archivedOnMeta,
         archivedOn.isAcceptableOrUnknown(data['archived_on']!, _archivedOnMeta),
+      );
+    }
+    if (data.containsKey('quantity')) {
+      context.handle(
+        _quantityMeta,
+        quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta),
+      );
+    }
+    if (data.containsKey('unit')) {
+      context.handle(
+        _unitMeta,
+        unit.isAcceptableOrUnknown(data['unit']!, _unitMeta),
       );
     }
     if (data.containsKey('price')) {
@@ -1941,6 +1975,14 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
         DriftSqlType.string,
         data['${effectivePrefix}archived_on'],
       ),
+      quantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}quantity'],
+      ),
+      unit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}unit'],
+      ),
       price: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}price'],
@@ -1985,6 +2027,8 @@ class Item extends DataClass implements Insertable<Item> {
   final String useType;
   final String status;
   final String? archivedOn;
+  final String? quantity;
+  final String? unit;
   final int? price;
   final String currency;
   final String? purchasedOn;
@@ -1999,6 +2043,8 @@ class Item extends DataClass implements Insertable<Item> {
     required this.useType,
     required this.status,
     this.archivedOn,
+    this.quantity,
+    this.unit,
     this.price,
     required this.currency,
     this.purchasedOn,
@@ -2017,6 +2063,12 @@ class Item extends DataClass implements Insertable<Item> {
     map['status'] = Variable<String>(status);
     if (!nullToAbsent || archivedOn != null) {
       map['archived_on'] = Variable<String>(archivedOn);
+    }
+    if (!nullToAbsent || quantity != null) {
+      map['quantity'] = Variable<String>(quantity);
+    }
+    if (!nullToAbsent || unit != null) {
+      map['unit'] = Variable<String>(unit);
     }
     if (!nullToAbsent || price != null) {
       map['price'] = Variable<int>(price);
@@ -2044,6 +2096,10 @@ class Item extends DataClass implements Insertable<Item> {
       archivedOn: archivedOn == null && nullToAbsent
           ? const Value.absent()
           : Value(archivedOn),
+      quantity: quantity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(quantity),
+      unit: unit == null && nullToAbsent ? const Value.absent() : Value(unit),
       price: price == null && nullToAbsent
           ? const Value.absent()
           : Value(price),
@@ -2072,6 +2128,8 @@ class Item extends DataClass implements Insertable<Item> {
       useType: serializer.fromJson<String>(json['useType']),
       status: serializer.fromJson<String>(json['status']),
       archivedOn: serializer.fromJson<String?>(json['archivedOn']),
+      quantity: serializer.fromJson<String?>(json['quantity']),
+      unit: serializer.fromJson<String?>(json['unit']),
       price: serializer.fromJson<int?>(json['price']),
       currency: serializer.fromJson<String>(json['currency']),
       purchasedOn: serializer.fromJson<String?>(json['purchasedOn']),
@@ -2091,6 +2149,8 @@ class Item extends DataClass implements Insertable<Item> {
       'useType': serializer.toJson<String>(useType),
       'status': serializer.toJson<String>(status),
       'archivedOn': serializer.toJson<String?>(archivedOn),
+      'quantity': serializer.toJson<String?>(quantity),
+      'unit': serializer.toJson<String?>(unit),
       'price': serializer.toJson<int?>(price),
       'currency': serializer.toJson<String>(currency),
       'purchasedOn': serializer.toJson<String?>(purchasedOn),
@@ -2108,6 +2168,8 @@ class Item extends DataClass implements Insertable<Item> {
     String? useType,
     String? status,
     Value<String?> archivedOn = const Value.absent(),
+    Value<String?> quantity = const Value.absent(),
+    Value<String?> unit = const Value.absent(),
     Value<int?> price = const Value.absent(),
     String? currency,
     Value<String?> purchasedOn = const Value.absent(),
@@ -2122,6 +2184,8 @@ class Item extends DataClass implements Insertable<Item> {
     useType: useType ?? this.useType,
     status: status ?? this.status,
     archivedOn: archivedOn.present ? archivedOn.value : this.archivedOn,
+    quantity: quantity.present ? quantity.value : this.quantity,
+    unit: unit.present ? unit.value : this.unit,
     price: price.present ? price.value : this.price,
     currency: currency ?? this.currency,
     purchasedOn: purchasedOn.present ? purchasedOn.value : this.purchasedOn,
@@ -2140,6 +2204,8 @@ class Item extends DataClass implements Insertable<Item> {
       archivedOn: data.archivedOn.present
           ? data.archivedOn.value
           : this.archivedOn,
+      quantity: data.quantity.present ? data.quantity.value : this.quantity,
+      unit: data.unit.present ? data.unit.value : this.unit,
       price: data.price.present ? data.price.value : this.price,
       currency: data.currency.present ? data.currency.value : this.currency,
       purchasedOn: data.purchasedOn.present
@@ -2161,6 +2227,8 @@ class Item extends DataClass implements Insertable<Item> {
           ..write('useType: $useType, ')
           ..write('status: $status, ')
           ..write('archivedOn: $archivedOn, ')
+          ..write('quantity: $quantity, ')
+          ..write('unit: $unit, ')
           ..write('price: $price, ')
           ..write('currency: $currency, ')
           ..write('purchasedOn: $purchasedOn, ')
@@ -2180,6 +2248,8 @@ class Item extends DataClass implements Insertable<Item> {
     useType,
     status,
     archivedOn,
+    quantity,
+    unit,
     price,
     currency,
     purchasedOn,
@@ -2198,6 +2268,8 @@ class Item extends DataClass implements Insertable<Item> {
           other.useType == this.useType &&
           other.status == this.status &&
           other.archivedOn == this.archivedOn &&
+          other.quantity == this.quantity &&
+          other.unit == this.unit &&
           other.price == this.price &&
           other.currency == this.currency &&
           other.purchasedOn == this.purchasedOn &&
@@ -2214,6 +2286,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
   final Value<String> useType;
   final Value<String> status;
   final Value<String?> archivedOn;
+  final Value<String?> quantity;
+  final Value<String?> unit;
   final Value<int?> price;
   final Value<String> currency;
   final Value<String?> purchasedOn;
@@ -2229,6 +2303,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     this.useType = const Value.absent(),
     this.status = const Value.absent(),
     this.archivedOn = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.unit = const Value.absent(),
     this.price = const Value.absent(),
     this.currency = const Value.absent(),
     this.purchasedOn = const Value.absent(),
@@ -2245,6 +2321,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     this.useType = const Value.absent(),
     this.status = const Value.absent(),
     this.archivedOn = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.unit = const Value.absent(),
     this.price = const Value.absent(),
     required String currency,
     this.purchasedOn = const Value.absent(),
@@ -2265,6 +2343,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     Expression<String>? useType,
     Expression<String>? status,
     Expression<String>? archivedOn,
+    Expression<String>? quantity,
+    Expression<String>? unit,
     Expression<int>? price,
     Expression<String>? currency,
     Expression<String>? purchasedOn,
@@ -2281,6 +2361,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
       if (useType != null) 'use_type': useType,
       if (status != null) 'status': status,
       if (archivedOn != null) 'archived_on': archivedOn,
+      if (quantity != null) 'quantity': quantity,
+      if (unit != null) 'unit': unit,
       if (price != null) 'price': price,
       if (currency != null) 'currency': currency,
       if (purchasedOn != null) 'purchased_on': purchasedOn,
@@ -2299,6 +2381,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     Value<String>? useType,
     Value<String>? status,
     Value<String?>? archivedOn,
+    Value<String?>? quantity,
+    Value<String?>? unit,
     Value<int?>? price,
     Value<String>? currency,
     Value<String?>? purchasedOn,
@@ -2315,6 +2399,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
       useType: useType ?? this.useType,
       status: status ?? this.status,
       archivedOn: archivedOn ?? this.archivedOn,
+      quantity: quantity ?? this.quantity,
+      unit: unit ?? this.unit,
       price: price ?? this.price,
       currency: currency ?? this.currency,
       purchasedOn: purchasedOn ?? this.purchasedOn,
@@ -2346,6 +2432,12 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     }
     if (archivedOn.present) {
       map['archived_on'] = Variable<String>(archivedOn.value);
+    }
+    if (quantity.present) {
+      map['quantity'] = Variable<String>(quantity.value);
+    }
+    if (unit.present) {
+      map['unit'] = Variable<String>(unit.value);
     }
     if (price.present) {
       map['price'] = Variable<int>(price.value);
@@ -2383,6 +2475,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
           ..write('useType: $useType, ')
           ..write('status: $status, ')
           ..write('archivedOn: $archivedOn, ')
+          ..write('quantity: $quantity, ')
+          ..write('unit: $unit, ')
           ..write('price: $price, ')
           ..write('currency: $currency, ')
           ..write('purchasedOn: $purchasedOn, ')
@@ -4330,6 +4424,8 @@ typedef $$ItemsTableCreateCompanionBuilder = ItemsCompanion Function({
   Value<String> useType,
   Value<String> status,
   Value<String?> archivedOn,
+  Value<String?> quantity,
+  Value<String?> unit,
   Value<int?> price,
   required String currency,
   Value<String?> purchasedOn,
@@ -4346,6 +4442,8 @@ typedef $$ItemsTableUpdateCompanionBuilder = ItemsCompanion Function({
   Value<String> useType,
   Value<String> status,
   Value<String?> archivedOn,
+  Value<String?> quantity,
+  Value<String?> unit,
   Value<int?> price,
   Value<String> currency,
   Value<String?> purchasedOn,
@@ -4414,6 +4512,16 @@ class $$ItemsTableFilterComposer extends Composer<_$AppDatabase, $ItemsTable> {
 
   ColumnFilters<String> get archivedOn => $composableBuilder(
     column: $table.archivedOn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get unit => $composableBuilder(
+    column: $table.unit,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4517,6 +4625,16 @@ class $$ItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get unit => $composableBuilder(
+    column: $table.unit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get price => $composableBuilder(
     column: $table.price,
     builder: (column) => ColumnOrderings(column),
@@ -4581,6 +4699,12 @@ class $$ItemsTableAnnotationComposer
     column: $table.archivedOn,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get quantity =>
+      $composableBuilder(column: $table.quantity, builder: (column) => column);
+
+  GeneratedColumn<String> get unit =>
+      $composableBuilder(column: $table.unit, builder: (column) => column);
 
   GeneratedColumn<int> get price =>
       $composableBuilder(column: $table.price, builder: (column) => column);
@@ -4665,6 +4789,8 @@ class $$ItemsTableTableManager
                 Value<String> useType = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String?> archivedOn = const Value.absent(),
+                Value<String?> quantity = const Value.absent(),
+                Value<String?> unit = const Value.absent(),
                 Value<int?> price = const Value.absent(),
                 Value<String> currency = const Value.absent(),
                 Value<String?> purchasedOn = const Value.absent(),
@@ -4680,6 +4806,8 @@ class $$ItemsTableTableManager
                 useType: useType,
                 status: status,
                 archivedOn: archivedOn,
+                quantity: quantity,
+                unit: unit,
                 price: price,
                 currency: currency,
                 purchasedOn: purchasedOn,
@@ -4697,6 +4825,8 @@ class $$ItemsTableTableManager
                 Value<String> useType = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String?> archivedOn = const Value.absent(),
+                Value<String?> quantity = const Value.absent(),
+                Value<String?> unit = const Value.absent(),
                 Value<int?> price = const Value.absent(),
                 required String currency,
                 Value<String?> purchasedOn = const Value.absent(),
@@ -4712,6 +4842,8 @@ class $$ItemsTableTableManager
                 useType: useType,
                 status: status,
                 archivedOn: archivedOn,
+                quantity: quantity,
+                unit: unit,
                 price: price,
                 currency: currency,
                 purchasedOn: purchasedOn,
