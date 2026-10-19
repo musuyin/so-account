@@ -92,9 +92,45 @@ ThemeData appTheme(
     useMaterial3: true,
     colorScheme: colors,
     scaffoldBackgroundColor: colors.surface,
+    dividerTheme: DividerThemeData(
+      color: colors.outlineVariant.withValues(alpha: .45),
+      space: 24,
+    ),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: colors.surface,
+      elevation: 0,
+      indicatorColor: colors.secondaryContainer,
+      labelTextStyle: WidgetStatePropertyAll(
+        TextStyle(
+          fontFamily: 'NotoSansSC',
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: colors.onSurfaceVariant,
+        ),
+      ),
+    ),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      elevation: 0,
+      highlightElevation: 0,
+      focusElevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: colors.primaryContainer,
+      foregroundColor: colors.onPrimaryContainer,
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
+    chipTheme: ChipThemeData(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      side: BorderSide(color: colors.outlineVariant.withValues(alpha: .5)),
+      selectedColor: colors.primaryContainer,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+    ),
     appBarTheme: AppBarTheme(
       backgroundColor: colors.surface,
       scrolledUnderElevation: 0,
+      centerTitle: false,
     ),
     cardTheme: CardThemeData(
       elevation: 0,
@@ -107,13 +143,28 @@ ThemeData appTheme(
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
+      fillColor: dark
+          ? colors.surfaceContainerLow
+          : Colors.white.withValues(alpha: .75),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide.none,
       ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: colors.primary, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: colors.error),
+      ),
     ),
     filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(minimumSize: const Size(48, 50)),
+      style: FilledButton.styleFrom(
+        minimumSize: const Size(48, 50),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
     ),
   );
 }

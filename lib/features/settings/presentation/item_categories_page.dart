@@ -64,12 +64,15 @@ class ItemCategoriesPage extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           const Text('使用属性固定为长期使用物、消耗品；种类可自定义并多选。'),
-          for (final category in configuredItemCategories(
-            data.preferences
-                .where((p) => p.key == 'item_categories')
-                .firstOrNull
-                ?.value,
-          ))
+          for (final category in {
+            ...data.items.expand((i) => itemTags(i.category)),
+            ...configuredItemCategories(
+              data.preferences
+                  .where((p) => p.key == 'item_categories')
+                  .firstOrNull
+                  ?.value,
+            ),
+          })
             ListTile(
               title: Text(category),
               onTap: () => edit(context, ref, category),

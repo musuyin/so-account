@@ -170,6 +170,27 @@ class _HomePageState extends ConsumerState<HomePage> {
                                 : null,
                           ),
                     ),
+                    if (budget != null && budget > 0) ...[
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: LinearProgressIndicator(
+                          value: (expense / budget).clamp(0, 1),
+                          minHeight: 6,
+                          color: expense > budget
+                              ? red
+                              : Theme.of(context).colorScheme.primary,
+                          semanticsLabel: '预算使用',
+                          semanticsValue:
+                              '已使用 ${(expense / budget * 100).toStringAsFixed(0)}%',
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '预算已用 ${(expense / budget * 100).toStringAsFixed(0)}%',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                     if (totals.isLoading) const LinearProgressIndicator(),
                     if (totals.hasError) const Text('统计读取失败'),
                   ],
@@ -303,12 +324,10 @@ class _HomePageState extends ConsumerState<HomePage> {
               },
             ),
             const SizedBox(height: 12),
-            TextField(
-              decoration: const InputDecoration(
-                hintText: '搜索备注、分类或账户',
-                prefixIcon: Icon(Icons.search),
-              ),
-              onChanged: (v) => setState(() => search = v),
+            ClearableSearch(
+              value: search,
+              hint: '搜索备注、分类或账户',
+              onChanged: (value) => setState(() => search = value),
             ),
             const SizedBox(height: 8),
             Wrap(

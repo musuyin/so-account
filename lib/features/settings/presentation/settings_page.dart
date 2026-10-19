@@ -136,6 +136,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   }),
           ),
           const SizedBox(height: 16),
+          Text('分类管理', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
           Card(
             child: ListTile(
               leading: const Icon(Icons.category_outlined),
@@ -153,6 +155,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               onTap: () => openForm(context, const ItemCategoriesPage()),
             ),
           ),
+          const SizedBox(height: 24),
+          Text('数据与备份', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
           Card(
             child: ListTile(
               leading: const Icon(Icons.backup_outlined),

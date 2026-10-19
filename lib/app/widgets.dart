@@ -66,13 +66,15 @@ Future<bool> perform(
     return true;
   } catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e is FormatException ? e.message.toString() : '操作失败，请重试',
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              e is FormatException ? e.message.toString() : '操作失败，请重试',
+            ),
           ),
-        ),
-      );
+        );
     }
     return false;
   }
@@ -113,21 +115,46 @@ class FormFrame extends StatelessWidget {
   final VoidCallback onSave;
   final bool saving;
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(title)),
-    body: SafeArea(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640),
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              ...children.expand((w) => [w, const SizedBox(height: 16)]),
-              FilledButton(
-                onPressed: saving ? null : onSave,
-                child: Text(saving ? '保存中…' : '保存'),
+  Widget build(BuildContext context) => PopScope(
+    canPop: !saving,
+    child: Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                ...children.expand((w) => [w, const SizedBox(height: 16)]),
+              ],
+            ),
+          ),
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+          child: Center(
+            heightFactor: 1,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: saving ? null : onSave,
+                  icon: saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.check),
+                  label: Text(saving ? '保存中…' : '保存'),
+                ),
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -137,3 +164,53 @@ class FormFrame extends StatelessWidget {
 
 Future<void> openForm(BuildContext context, Widget page) =>
     Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => page));
+
+class ClearableSearch extends StatefulWidget {
+  const ClearableSearch({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    required this.hint,
+  });
+  final String value, hint;
+  final ValueChanged<String> onChanged;
+  @override
+  State<ClearableSearch> createState() => _ClearableSearchState();
+}
+
+class _ClearableSearchState extends State<ClearableSearch> {
+  late final controller = TextEditingController(text: widget.value);
+  @override
+  void didUpdateWidget(covariant ClearableSearch oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (controller.text != widget.value) {
+      controller.value = TextEditingValue(
+        text: widget.value,
+        selection: TextSelection.collapsed(offset: widget.value.length),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => TextField(
+    controller: controller,
+    onChanged: widget.onChanged,
+    decoration: InputDecoration(
+      hintText: widget.hint,
+      prefixIcon: const Icon(Icons.search),
+      suffixIcon: widget.value.isEmpty
+          ? null
+          : IconButton(
+              tooltip: '清除搜索',
+              onPressed: () => widget.onChanged(''),
+              icon: const Icon(Icons.close),
+            ),
+    ),
+  );
+}

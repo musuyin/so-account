@@ -152,6 +152,12 @@ class InventoryRepository {
         if (previous == null) {
           categories.add(name);
         } else {
+          if (!categories.contains(previous) &&
+              (await db.select(db.items).get()).any(
+                (i) => itemTags(i.category).contains(previous),
+              )) {
+            categories.add(previous);
+          }
           final index = categories.indexOf(previous);
           if (index < 0) throw const FormatException('种类不存在');
           categories[index] = name;

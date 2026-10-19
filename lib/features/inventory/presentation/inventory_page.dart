@@ -20,7 +20,11 @@ class InventoryPage extends ConsumerStatefulWidget {
 
 class _InventoryPageState extends ConsumerState<InventoryPage> {
   final Set<String> selectedCategories = {};
-  String search = '', useType = '', status = 'active', currency = 'CNY';
+  String search = '',
+      useType = '',
+      status = 'all',
+      currency = 'CNY',
+      sort = 'recent';
   @override
   void initState() {
     super.initState();
@@ -70,12 +74,18 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                               .any(selectedCategories.contains)) &&
                       (useType.isEmpty || i.useType == useType) &&
                       (status == 'all' || i.status == status) &&
-                      '${i.name} ${i.note}'.toLowerCase().contains(
-                        search.toLowerCase(),
-                      ),
+                      '${i.name} ${i.note} ${itemTags(i.category).join(' ')} ${i.unit ?? ''}'
+                          .toLowerCase()
+                          .contains(search.toLowerCase()),
                 )
                 .toList()
-              ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+              ..sort(
+                (a, b) => switch (sort) {
+                  'name' => a.name.compareTo(b.name),
+                  'price' => (b.price ?? -1).compareTo(a.price ?? -1),
+                  _ => b.createdAt.compareTo(a.createdAt),
+                },
+              );
         final total = all.fold<int>(0, (s, i) => s + (i.price ?? 0));
         final costs = all
             .map(
@@ -116,12 +126,30 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
-              decoration: const InputDecoration(
-                hintText: '搜索物品或备注',
-                prefixIcon: Icon(Icons.search),
-              ),
-              onChanged: (v) => setState(() => search = v),
+            ClearableSearch(
+              value: search,
+              hint: '搜索名称、种类或备注',
+              onChanged: (value) => setState(() => search = value),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${items.length} 件物品',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                ),
+                DropdownButton<String>(
+                  value: sort,
+                  underline: const SizedBox.shrink(),
+                  items: const [
+                    DropdownMenuItem(value: 'recent', child: Text('最近添加')),
+                    DropdownMenuItem(value: 'name', child: Text('按名称')),
+                    DropdownMenuItem(value: 'price', child: Text('价格从高到低')),
+                  ],
+                  onChanged: (v) => setState(() => sort = v!),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Wrap(
@@ -181,7 +209,22 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                 ],
               ),
             ),
-            if (items.isEmpty) const EmptyState('暂无物品', '点击“记录物品”添加。'),
+            if (items.isEmpty) ...[
+              EmptyState(
+                all.isEmpty ? '暂无物品' : '没有匹配的物品',
+                all.isEmpty ? '点击“记录物品”添加。' : '可清除筛选，查看其他物品。',
+              ),
+              if (all.isNotEmpty)
+                TextButton(
+                  onPressed: () => setState(() {
+                    search = '';
+                    useType = '';
+                    status = 'all';
+                    selectedCategories.clear();
+                  }),
+                  child: const Text('清除筛选'),
+                ),
+            ],
             for (final item in items)
               Card(
                 child: ListTile(
