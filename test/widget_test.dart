@@ -9,6 +9,14 @@ import 'package:so_account/data/database/app_database.dart';
 import 'package:so_account/app/theme/app_theme.dart';
 
 void main() {
+  test('all day palettes use the same neutral background', () {
+    for (final palette in AppPalette.values) {
+      expect(
+        appTheme(Brightness.light, palette: palette).scaffoldBackgroundColor,
+        const Color(0xFFF5F5F5),
+      );
+    }
+  });
   testWidgets('palette selection persists and updates the running app', (
     tester,
   ) async {

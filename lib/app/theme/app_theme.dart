@@ -38,7 +38,7 @@ ThemeData appTheme(
             ? const Color(0xFFC5A3FF)
             : const Color(0xFFAD303E),
       );
-  final colors = summer
+  final paletteColors = summer
       ? scheme.copyWith(
           primaryContainer: dark
               ? const Color(0xFF2C4828)
@@ -54,6 +54,39 @@ ThemeData appTheme(
               : const Color(0xFF393209),
         )
       : scheme;
+  final colors = dark
+      ? paletteColors
+      : paletteColors.copyWith(
+          surface: const Color(0xFFF5F5F5),
+          primary: Color.lerp(paletteColors.primary, Colors.white, .08),
+          secondary: Color.lerp(paletteColors.secondary, Colors.white, .08),
+          tertiary: Color.lerp(paletteColors.tertiary, Colors.white, .08),
+          primaryContainer: Color.lerp(
+            paletteColors.primaryContainer,
+            Colors.white,
+            .3,
+          ),
+          secondaryContainer: Color.lerp(
+            paletteColors.secondaryContainer,
+            Colors.white,
+            .3,
+          ),
+          surfaceContainer: Color.lerp(
+            paletteColors.surfaceContainer,
+            Colors.white,
+            .4,
+          ),
+          surfaceContainerLow: Color.lerp(
+            paletteColors.surfaceContainerLow,
+            Colors.white,
+            .4,
+          ),
+          surfaceContainerHighest: Color.lerp(
+            paletteColors.surfaceContainerHighest,
+            Colors.white,
+            .4,
+          ),
+        );
   return ThemeData(
     fontFamily: 'NotoSansSC',
     useMaterial3: true,
@@ -66,10 +99,10 @@ ThemeData appTheme(
     cardTheme: CardThemeData(
       elevation: 0,
       color: summer
-          ? (dark ? const Color(0xFF20271F) : const Color(0xFFEDF3DF))
+          ? (dark ? const Color(0xFF20271F) : const Color(0xFFF1F5E8))
           : dark
           ? const Color(0xFF202024)
-          : const Color(0xFFFFEEDF),
+          : const Color(0xFFFFF4EA),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
     ),
     inputDecorationTheme: InputDecorationTheme(
