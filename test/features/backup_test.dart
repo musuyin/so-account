@@ -96,6 +96,14 @@ void main() {
     await db
         .into(db.preferences)
         .insertOnConflictUpdate(
+          PreferencesCompanion.insert(
+            key: 'item_categories',
+            value: '["自定义种类"]',
+          ),
+        );
+    await db
+        .into(db.preferences)
+        .insertOnConflictUpdate(
           PreferencesCompanion.insert(key: 'palette', value: 'cucumber'),
         );
     await db
@@ -112,6 +120,7 @@ void main() {
     };
     expect(preferences['palette'], 'cucumber');
     expect(preferences['theme'], 'dark');
+    expect(preferences['item_categories'], '["自定义种类"]');
   });
   test(
     'portable backup restores all tables, photos and associations',

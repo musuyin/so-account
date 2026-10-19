@@ -14,6 +14,7 @@ import '../../../platform/files/file_delivery.dart';
 import '../../statistics/data/csv_export.dart';
 import 'categories_page.dart';
 import 'item_categories_page.dart';
+import '../../importing/presentation/import_page.dart';
 import '../../backup/presentation/backup_page.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -162,6 +163,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ),
           ),
           const SizedBox(height: 24),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.file_upload_outlined),
+              title: const Text('导入交易明细'),
+              subtitle: const Text('Excel / CSV · 关联列名并逐条选择'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => openForm(context, const ImportPage()),
+            ),
+          ),
+          const SizedBox(height: 24),
           Text('导出 CSV', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
           const Text('明细或分类汇总，币种分别统计，可保存或分享给其他应用。'),
@@ -246,7 +257,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ),
           const SizedBox(height: 32),
           const Text(
-            '素帐 · SoAccount 0.2.0\n离线存储于本机 · 无登录、无云同步\nCSV 用于分析，不能代替完整备份。',
+            '素帐 · SoAccount 0.3.0\n离线存储于本机 · 无登录、无云同步\nCSV 用于分析，不能代替完整备份。',
           ),
         ],
       ),
