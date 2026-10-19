@@ -21,7 +21,7 @@ class LedgerRepository {
           .watch();
   Stream<List<Budget>> watchBudgets() => db.select(db.budgets).watch();
 
-  Future<void> saveAccount({
+  Future<String> saveAccount({
     String? id,
     required String name,
     required String kind,
@@ -40,7 +40,21 @@ class LedgerRepository {
     if (!accountKinds.contains(kind) || !accountChannels.contains(channel)) {
       throw const FormatException('无效账户类型');
     }
-    await db.transaction(() async {
+    if (openingBalance.abs() > 999999999999) {
+      throw const FormatException('初始余额超出上限');
+    }
+    return db.transaction(() async {
+      if (id == null) {
+        final duplicate =
+            await (db.select(db.accounts)..where(
+                  (a) =>
+                      a.name.equals(name.trim()) & a.currency.equals(currency),
+                ))
+                .get();
+        if (duplicate.isNotEmpty) {
+          throw const FormatException('此币种已有同名账户，请使用已有账户或修改名称');
+        }
+      }
       if (id != null) {
         final old = await (db.select(
           db.accounts,
@@ -56,11 +70,12 @@ class LedgerRepository {
           throw const FormatException('已有流水的账户不能修改币种或初始余额');
         }
       }
+      final accountId = id ?? _uuid.v4();
       await db
           .into(db.accounts)
           .insertOnConflictUpdate(
             AccountsCompanion.insert(
-              id: id ?? _uuid.v4(),
+              id: accountId,
               name: name.trim(),
               kind: kind,
               channel: channel,
@@ -69,6 +84,7 @@ class LedgerRepository {
               avatar: Value(avatar),
             ),
           );
+      return accountId;
     });
   }
 

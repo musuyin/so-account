@@ -6,10 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/providers/providers.dart';
 import '../../../app/widgets.dart';
 import '../../../core/money/money.dart';
+import '../../../data/database/app_database.dart';
 import '../../../platform/files/file_delivery.dart';
 import '../../ledger/domain/entry_kind.dart';
+import '../../ledger/presentation/accounts_page.dart';
 import '../domain/import_table.dart';
 import '../domain/import_plan.dart';
+import '../domain/missing_accounts.dart';
 
 class ImportPage extends ConsumerStatefulWidget {
   const ImportPage({super.key, this.initialTables});
@@ -26,6 +29,84 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   final selected = <int>{};
   bool busy = false;
   int? imported;
+  final Map<String, Account> createdAccounts = {};
+
+  Future<bool> createAccount(MissingImportAccount? source) async {
+    if (source != null && source.currencies.length > 1) {
+      throw const FormatException('同一来源账户包含多个币种，请先拆分账户列或按币种分批导入');
+    }
+    final savedId = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => AccountForm(
+          initialName: source?.name,
+          importContext: source == null
+              ? '创建本批明细使用的默认账户。'
+              : '来源账户：${source.name} · ${source.rows.length} 条明细${source.currencies.isEmpty ? '' : ' · 文件币种 ${source.currencies.single}'}${source.firstDate == null ? '' : '\n最早交易：${source.firstDate}'}',
+        ),
+      ),
+    );
+    if (savedId == null || !mounted) return false;
+    final db = ref.read(databaseProvider);
+    final account = await (db.select(
+      db.accounts,
+    )..where((a) => a.id.equals(savedId))).getSingle();
+    if (!mounted) return false;
+    setState(() {
+      createdAccounts[account.id] = account;
+      if (source == null) {
+        mapping.defaultAccount = account.id;
+      } else {
+        mapping.accounts[source.name] = account.id;
+      }
+    });
+    return true;
+  }
+
+  Future<void> preview(AppSnapshot data) async {
+    setState(() => busy = true);
+    await perform(context, () async {
+      if (!mapping.columns.containsKey(ImportField.date) ||
+          !mapping.columns.containsKey(ImportField.amount)) {
+        throw const FormatException('请先关联日期和金额列');
+      }
+      if (mapping.columns.values.toSet().length != mapping.columns.length) {
+        throw const FormatException('每一列只能关联一个字段');
+      }
+      final missing = missingImportAccounts(
+        tables[sheet],
+        mapping,
+        data.accounts,
+      );
+      for (final source in missing) {
+        if (!mounted || !await createAccount(source)) return;
+      }
+      if (!mounted) return;
+      final db = ref.read(databaseProvider);
+      final accounts = await db.select(db.accounts).get();
+      // Refresh data after account forms; imported records may have changed in another route.
+      final categories = await db.select(db.categories).get();
+      final entries = await db.select(db.entries).get();
+      if (!mounted) return;
+      final plan = previewImport(
+        tables[sheet],
+        mapping,
+        accounts,
+        categories,
+        entries,
+      );
+      setState(() {
+        results = plan;
+        selected.clear();
+        selected.addAll(
+          plan
+              .where((r) => r.entry != null && !r.entry!.duplicate)
+              .map((r) => r.row),
+        );
+      });
+    });
+    if (mounted) setState(() => busy = false);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -79,7 +160,19 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('导入交易明细')),
     body: DataView(
-      builder: (data) {
+      builder: (snapshot) {
+        final data = AppSnapshot(
+          {
+            for (final a in snapshot.accounts) a.id: a,
+            ...createdAccounts,
+          }.values.toList(),
+          snapshot.categories,
+          snapshot.entries,
+          snapshot.budgets,
+          snapshot.items,
+          snapshot.links,
+          snapshot.preferences,
+        );
         if (imported != null) {
           return Center(
             child: Column(
@@ -278,6 +371,18 @@ class _ImportPageState extends ConsumerState<ImportPage> {
               },
               (value) => mapping.defaultAccount = value.isEmpty ? null : value,
             ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: busy
+                    ? null
+                    : () => perform(context, () async {
+                        await createAccount(null);
+                      }),
+                icon: const Icon(Icons.add),
+                label: const Text('创建默认账户'),
+              ),
+            ),
             for (final kind in ['expense', 'income'])
               select(
                 '默认${kind == 'expense' ? '支出' : '收入'}分类',
@@ -315,25 +420,46 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                 },
               ),
             for (final value in accountValues.take(100))
-              select(
-                '账户内容：$value',
-                mapping.accounts[value] ??
-                    data.accounts
-                        .where((a) => a.name == value)
-                        .singleOrNull
-                        ?.id,
-                {
-                  '': '请关联',
-                  for (final account in data.accounts)
-                    account.id: '${account.name} · ${account.currency}',
-                },
-                (target) {
-                  if (target.isEmpty) {
-                    mapping.accounts.remove(value);
-                  } else {
-                    mapping.accounts[value] = target;
-                  }
-                },
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  select(
+                    '账户内容：$value',
+                    mapping.accounts[value] ??
+                        data.accounts
+                            .where((a) => a.name == value)
+                            .singleOrNull
+                            ?.id,
+                    {
+                      '': '请关联',
+                      for (final account in data.accounts)
+                        account.id: '${account.name} · ${account.currency}',
+                    },
+                    (target) {
+                      if (target.isEmpty) {
+                        mapping.accounts.remove(value);
+                      } else {
+                        mapping.accounts[value] = target;
+                      }
+                    },
+                  ),
+                  if (!data.accounts.any((a) => a.name == value) &&
+                      !mapping.accounts.containsKey(value))
+                    TextButton.icon(
+                      onPressed: busy
+                          ? null
+                          : () => perform(context, () async {
+                              final source = missingImportAccounts(
+                                table,
+                                mapping,
+                                data.accounts,
+                              ).where((m) => m.name == value).firstOrNull;
+                              if (source != null) await createAccount(source);
+                            }),
+                      icon: const Icon(Icons.add_card),
+                      label: Text('创建“$value”'),
+                    ),
+                ],
               ),
             for (final kind in ['expense', 'income'])
               for (final value in categoryValues.take(100))
@@ -366,30 +492,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
             ].any((n) => n > 100))
               const Text('每组最多显示 100 个内容映射；其余按名称匹配，无法匹配的行将在预览中报错。'),
             FilledButton(
-              onPressed: busy
-                  ? null
-                  : () async {
-                      await perform(context, () async {
-                        final preview = previewImport(
-                          table,
-                          mapping,
-                          data.accounts,
-                          data.categories,
-                          data.entries,
-                        );
-                        setState(() {
-                          results = preview;
-                          selected.clear();
-                          selected.addAll(
-                            preview
-                                .where(
-                                  (r) => r.entry != null && !r.entry!.duplicate,
-                                )
-                                .map((r) => r.row),
-                          );
-                        });
-                      });
-                    },
+              onPressed: busy ? null : () => preview(data),
               child: const Text('预览明细'),
             ),
             TextButton(

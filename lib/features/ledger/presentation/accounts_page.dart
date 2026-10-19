@@ -203,19 +203,35 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
 }
 
 class AccountForm extends ConsumerStatefulWidget {
-  const AccountForm({super.key, this.account});
+  const AccountForm({
+    super.key,
+    this.account,
+    this.initialName,
+    this.importContext,
+  });
   final Account? account;
+  final String? initialName;
+  final String? importContext;
   @override
   ConsumerState<AccountForm> createState() => _AccountFormState();
 }
 
 class _AccountFormState extends ConsumerState<AccountForm> {
-  late final name = TextEditingController(text: widget.account?.name);
-  late String currency = widget.account?.currency ?? 'CNY';
-  late String kind = widget.account?.kind ?? accountKinds.first;
-  late String channel = widget.account?.channel ?? accountChannels.first;
+  late final name = TextEditingController(
+    text: widget.account?.name ?? widget.initialName,
+  );
+  late String? currency =
+      widget.account?.currency ?? (widget.importContext == null ? 'CNY' : null);
+  late String? kind =
+      widget.account?.kind ??
+      (widget.importContext == null ? accountKinds.first : null);
+  late String? channel =
+      widget.account?.channel ??
+      (widget.importContext == null ? accountChannels.first : null);
   late final opening = TextEditingController(
-    text: decimalMoney(widget.account?.openingBalance ?? 0, currency),
+    text: widget.importContext == null
+        ? decimalMoney(widget.account?.openingBalance ?? 0, currency ?? 'CNY')
+        : '',
   );
   late String avatar = widget.account?.avatar ?? '';
   bool saving = false;
@@ -232,26 +248,38 @@ class _AccountFormState extends ConsumerState<AccountForm> {
     saving: saving,
     onSave: () async {
       setState(() => saving = true);
-      final ok = await perform(
-        context,
-        () => ref
+      String? savedId;
+      final ok = await perform(context, () async {
+        if (kind == null || channel == null || currency == null) {
+          throw const FormatException('请选择账户类型、渠道和币种');
+        }
+        savedId = await ref
             .read(ledgerProvider)
             .saveAccount(
               id: widget.account?.id,
               name: name.text,
-              kind: kind,
-              channel: channel,
-              currency: currency,
-              openingBalance: parseMoney(opening.text, currency, signed: true),
+              kind: kind!,
+              channel: channel!,
+              currency: currency!,
+              openingBalance: parseMoney(opening.text, currency!, signed: true),
               avatar: avatar,
-            ),
-      );
+            );
+      });
       if (mounted && context.mounted) {
         setState(() => saving = false);
-        if (ok) Navigator.pop(context);
+        if (ok) Navigator.pop(context, savedId);
       }
     },
     children: [
+      if (widget.importContext != null)
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              '${widget.importContext}\n请填写本批最早交易之前的余额，而非当前余额。保存后账户即创建，取消导入会保留该账户。',
+            ),
+          ),
+        ),
       TextField(
         controller: name,
         maxLength: 80,
@@ -297,7 +325,7 @@ class _AccountFormState extends ConsumerState<AccountForm> {
         ),
         decoration: const InputDecoration(
           labelText: '初始余额',
-          helperText: '欠款可输入负数；已有流水后不能改变初始余额和币种。',
+          helperText: '必填；无余额请填 0，欠款填负数。已有流水后不能改变初始余额和币种。',
         ),
       ),
     ],
