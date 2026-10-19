@@ -35,7 +35,15 @@ jobs:
         run: |
           dart run build_runner build
           git diff --exit-code -- lib/data/database/app_database.g.dart
-      - run: flutter build apk --debug
+      - name: Build Android with dependency retries
+        run: python3 tool/build_android.py
+      - name: Upload Android build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build-logs
+          path: .tooling/ci-logs/*.log
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
           name: android-debug-apk

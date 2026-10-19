@@ -10,6 +10,15 @@ pluginManagement {
 
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
+    resolutionStrategy {
+        eachPlugin {
+            // Resolve AGP's implementation directly; avoid an extra marker POM lookup.
+            if (requested.id.id == "com.android.application") {
+                useModule("com.android.tools.build:gradle:${requested.version}")
+            }
+        }
+    }
+
     repositories {
         google()
         mavenCentral()
