@@ -90,6 +90,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('确认导入 1 条'), findsOneWidget);
     expect(find.textContaining('错误 1 条'), findsOneWidget);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 260);
+    await tester.pump();
+    expect(tester.getBottomRight(find.text('确认导入 1 条')).dy, lessThan(540));
+    tester.view.resetViewInsets();
+    await tester.pumpAndSettle();
     await screenshot('import-review');
     await tester.tap(find.widgetWithText(ChoiceChip, '错误'));
     await tester.pumpAndSettle();

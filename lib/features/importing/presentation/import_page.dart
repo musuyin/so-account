@@ -82,8 +82,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     if (mounted) setState(() => busy = false);
   }
 
-  Widget footer(AppSnapshot data) => SafeArea(
-    top: false,
+  Widget footer(AppSnapshot data) => KeyboardActionBar(
     child: Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
       child: Column(

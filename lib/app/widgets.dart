@@ -132,8 +132,7 @@ class FormFrame extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        top: false,
+      bottomNavigationBar: KeyboardActionBar(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
           child: Center(
@@ -164,6 +163,16 @@ class FormFrame extends StatelessWidget {
 
 Future<void> openForm(BuildContext context, Widget page) =>
     Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => page));
+
+class KeyboardActionBar extends StatelessWidget {
+  const KeyboardActionBar({super.key, required this.child});
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+    child: SafeArea(top: false, child: child),
+  );
+}
 
 class ClearableSearch extends StatefulWidget {
   const ClearableSearch({

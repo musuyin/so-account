@@ -31,6 +31,10 @@ void main() {
         ),
       );
       expect(tester.getBottomRight(find.text('保存')).dy, lessThan(640));
+      tester.view.viewInsets = const FakeViewPadding(bottom: 260);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.pump();
+      expect(tester.getBottomRight(find.text('保存')).dy, lessThan(380));
       await tester.tap(find.text('保存'));
       expect(saves, 1);
       expect(tester.takeException(), isNull);
