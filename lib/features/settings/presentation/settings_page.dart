@@ -16,6 +16,7 @@ import 'categories_page.dart';
 import 'item_categories_page.dart';
 import '../../importing/presentation/import_page.dart';
 import '../../backup/presentation/backup_page.dart';
+import '../../updates/presentation/update_page.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -53,6 +54,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       builder: (data) => ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.system_update_outlined),
+              title: const Text('应用更新'),
+              subtitle: const Text('检查新版本 · GitHub Release'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => openForm(context, const UpdatePage()),
+            ),
+          ),
+          const SizedBox(height: 16),
           Text('配色主题', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           for (final palette in AppPalette.values)
@@ -262,7 +273,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ),
           const SizedBox(height: 32),
           const Text(
-            '素帐 · SoAccount 0.4.0\n离线存储于本机 · 无登录、无云同步\nCSV 用于分析，不能代替完整备份。',
+            '素帐 · SoAccount\n账本存储于本机 · 检查更新会连接 GitHub\nCSV 用于分析，不能代替完整备份。',
           ),
         ],
       ),

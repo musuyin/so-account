@@ -11,6 +11,7 @@ import '../features/ledger/presentation/accounts_page.dart';
 import '../features/inventory/presentation/inventory_page.dart';
 import '../features/settings/presentation/settings_page.dart';
 import '../features/statistics/presentation/statistics_page.dart';
+import '../features/updates/presentation/update_page.dart';
 
 final routerProvider = Provider((ref) {
   final router = GoRouter(
@@ -73,7 +74,7 @@ class AppShell extends StatelessWidget {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 900),
-          child: child,
+          child: UpdateNotice(child: child),
         ),
       ),
     ),
