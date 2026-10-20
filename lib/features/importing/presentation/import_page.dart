@@ -1,4 +1,3 @@
-import 'dart:isolate';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -271,11 +270,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   Future<void> pick() async {
     setState(() => busy = true);
     await perform(context, () async {
-      final file = await FileDelivery().pickImport();
+      final file = await ref.read(fileDeliveryProvider).pickImport();
       if (file == null) return;
-      final decoded = await Isolate.run(
-        () => readImportTables(file.name, file.bytes),
-      );
+      final decoded = await readImportTablesInBackground(file.name, file.bytes);
       if (!mounted) return;
       setState(() {
         tables = decoded;

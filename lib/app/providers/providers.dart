@@ -4,6 +4,9 @@ import '../../data/database/app_database.dart';
 import '../../features/ledger/data/ledger_repository.dart';
 import '../../features/inventory/data/inventory_repository.dart';
 import '../../platform/media/media_store.dart';
+import '../../platform/files/file_delivery.dart';
+
+final fileDeliveryProvider = Provider<FileDelivery>((ref) => FileDelivery());
 
 final mediaProvider = FutureProvider((ref) async {
   final store = await MediaStore.open();

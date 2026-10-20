@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -6,6 +7,12 @@ import 'package:xml/xml.dart';
 
 const maxImportBytes = 10 * 1024 * 1024;
 const maxImportRows = 10000;
+
+// Keep this closure outside widget methods so only file data crosses isolates.
+Future<List<ImportTable>> readImportTablesInBackground(
+  String filename,
+  Uint8List bytes,
+) => Isolate.run(() => readImportTables(filename, bytes));
 
 class ImportTable {
   ImportTable(this.name, this.headers, this.rows);
