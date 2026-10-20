@@ -31,6 +31,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   final selected = <int>{};
   bool busy = false;
   int? imported;
+  String? fileError;
   int setupStep = 0;
   String previewFilter = 'all', previewSearch = '';
   final Map<String, Account> createdAccounts = {};
@@ -268,8 +269,11 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   );
 
   Future<void> pick() async {
-    setState(() => busy = true);
-    await perform(context, () async {
+    setState(() {
+      busy = true;
+      fileError = null;
+    });
+    try {
       final file = await ref.read(fileDeliveryProvider).pickImport();
       if (file == null) return;
       final decoded = await readImportTablesInBackground(file.name, file.bytes);
@@ -282,8 +286,17 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         imported = null;
         setupStep = 0;
       });
-    });
-    if (mounted) setState(() => busy = false);
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => fileError = error is FormatException
+              ? error.message.toString()
+              : '文件解析失败（${error.runtimeType}），请用 Excel/WPS 重新保存后重试',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
   }
 
   @override
@@ -325,521 +338,561 @@ class _ImportPageState extends ConsumerState<ImportPage> {
               ref.watch(snapshotProvider).value != null
           ? footer(mergeAccounts(ref.watch(snapshotProvider).value!))
           : null,
-      body: DataView(
-        builder: (snapshot) {
-          final data = mergeAccounts(snapshot);
-          if (imported != null) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('已导入 $imported 条明细'),
-                  const SizedBox(height: 12),
-                  const Icon(Icons.check_circle_outline, size: 48),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('完成'),
-                  ),
-                ],
-              ),
-            );
-          }
-          if (tables.isEmpty) {
-            return Padding(
-              padding: const EdgeInsets.all(20),
-              child: ListView(
-                children: [
-                  const Text('逐条追加交易记录，已有数据会保留。'),
-                  const SizedBox(height: 12),
-                  const Text(
-                    '支持 UTF-8 CSV 和 Excel .xlsx。首行为列名，每行一条明细；最多 10 MB、10000 条。可导入收入、支出、转账、借入、借出。',
-                  ),
-                  const SizedBox(height: 20),
-                  FilledButton.icon(
-                    onPressed: busy ? null : pick,
-                    icon: const Icon(Icons.upload_file),
-                    label: Text(busy ? '读取中…' : '选择文件'),
-                  ),
-                  TextButton.icon(
-                    onPressed: busy
-                        ? null
-                        : () => perform(context, () async {
-                            final template = csvDocument([
-                              ['日期', '类型', '金额', '账户', '分类', '备注'],
-                              [
-                                '2026-01-01',
-                                '支出',
-                                '12.50',
-                                '我的现金账户',
-                                '普通餐饮',
-                                '示例：请替换后导入',
-                              ],
-                            ]);
-                            await FileDelivery().save(
-                              'SoAccount-导入模板.csv',
-                              Uint8List.fromList(utf8.encode(template)),
-                            );
-                          }),
-                    icon: const Icon(Icons.download_outlined),
-                    label: const Text('保存 CSV 模板'),
-                  ),
-                ],
-              ),
-            );
-          }
-          final table = tables[sheet];
-          final plan = results;
-          if (plan != null) {
-            final visible = plan
-                .where(
-                  (r) =>
-                      (switch (previewFilter) {
-                        'errors' => r.error != null,
-                        'duplicates' => r.entry?.duplicate ?? false,
-                        'selected' => selected.contains(r.row),
-                        _ => true,
-                      }) &&
-                      (previewSearch.isEmpty ||
-                          '${r.row} ${r.error ?? ''} ${r.entry?.date ?? ''} ${r.entry?.note ?? ''}'
-                              .toLowerCase()
-                              .contains(previewSearch.toLowerCase())),
-                )
-                .toList();
-            final totals = <String, int>{};
-            for (final row in plan.where((r) => selected.contains(r.row))) {
-              final entry = row.entry!;
-              final key = '${entry.currency} · ${entry.kind.label}';
-              totals[key] = (totals[key] ?? 0) + entry.amount;
-            }
-            return Column(
-              children: [
-                stepHeader(),
-                Expanded(
-                  child: ListView.builder(
-                    key: const ValueKey('review'),
-                    padding: const EdgeInsets.all(16),
-                    itemCount: visible.length + 1,
-                    itemBuilder: (context, index) {
-                      if (index == 0) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '预览与选择',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            Text(
-                              '共 ${plan.length} 条 · 错误 ${plan.where((r) => r.error != null).length} 条 · 疑似重复 ${plan.where((r) => r.entry?.duplicate ?? false).length} 条',
-                            ),
-                            const Text('错误记录无法勾选；疑似重复默认不勾选，可核对后手动选择。'),
-                            const SizedBox(height: 12),
-                            ClearableSearch(
-                              value: previewSearch,
-                              hint: '搜索行号、日期或备注',
-                              onChanged: (v) =>
-                                  setState(() => previewSearch = v),
-                            ),
-                            Wrap(
-                              spacing: 8,
-                              children: [
-                                for (final entry in {
-                                  'all': '全部',
-                                  'selected': '已选',
-                                  'errors': '错误',
-                                  'duplicates': '重复',
-                                }.entries)
-                                  ChoiceChip(
-                                    label: Text(entry.value),
-                                    selected: previewFilter == entry.key,
-                                    onSelected: (_) => setState(
-                                      () => previewFilter = entry.key,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            ExpansionTile(
-                              tilePadding: EdgeInsets.zero,
-                              title: const Text('选中金额汇总 · 币种分开'),
-                              children: [
-                                for (final entry in totals.entries)
-                                  ListTile(
-                                    dense: true,
-                                    title: Text(entry.key),
-                                    trailing: Text(
-                                      decimalMoney(
-                                        entry.value,
-                                        entry.key.split(' · ').first,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            Wrap(
-                              spacing: 8,
-                              children: [
-                                TextButton(
-                                  onPressed: busy
-                                      ? null
-                                      : () => setState(() => results = null),
-                                  child: const Text('返回修改关联'),
-                                ),
-                                TextButton(
-                                  onPressed: busy
-                                      ? null
-                                      : () => setState(() {
-                                          selected.clear();
-                                          selected.addAll(
-                                            plan
-                                                .where(
-                                                  (r) =>
-                                                      r.entry != null &&
-                                                      !r.entry!.duplicate,
-                                                )
-                                                .map((r) => r.row),
-                                          );
-                                        }),
-                                  child: const Text('选择有效且不重复的记录'),
-                                ),
-                                TextButton(
-                                  onPressed: busy
-                                      ? null
-                                      : () => setState(selected.clear),
-                                  child: const Text('清空选择'),
-                                ),
-                              ],
-                            ),
-                            if (visible.isEmpty)
-                              const EmptyState('没有匹配的明细', '可以清空搜索或切换筛选。'),
-                            const SizedBox(height: 16),
-                          ],
-                        );
-                      }
-                      final result = visible[index - 1], entry = result.entry;
-                      String accountName(String id) =>
-                          data.accounts
-                              .where((a) => a.id == id)
-                              .firstOrNull
-                              ?.name ??
-                          '账户已删除';
-                      return CheckboxListTile(
-                        value: selected.contains(result.row),
-                        onChanged: busy || entry == null
-                            ? null
-                            : (value) => setState(() {
-                                if (value!) {
-                                  selected.add(result.row);
-                                } else {
-                                  selected.remove(result.row);
-                                }
-                              }),
-                        title: Text(
-                          entry == null
-                              ? '第 ${result.row} 行：${result.error}'
-                              : '第 ${result.row} 行 · ${entry.date} · ${entry.kind.label} · ${money(entry.amount, entry.currency)}',
-                        ),
-                        subtitle: entry == null
-                            ? null
-                            : Text(
-                                '${accountName(entry.accountId)}${entry.targetId == null ? '' : ' → ${accountName(entry.targetId!)}'} · ${data.category(entry.categoryId)}${entry.note.isEmpty ? '' : ' · ${entry.note}'}${entry.duplicate ? ' · 疑似重复' : ''}',
-                              ),
-                      );
-                    },
-                  ),
+      body: Column(
+        children: [
+          if (fileError != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Semantics(
+                liveRegion: true,
+                child: Text(
+                  '$fileError${tables.isEmpty ? '' : '\n新文件未载入，仍保留原工作表及映射。'}',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
-              ],
-            );
-          }
-          Set<String> values(ImportField field) => table.rows
-              .map((r) => mapping.value(r, field))
-              .where((v) => v.isNotEmpty)
-              .toSet();
-          final kindValues = values(ImportField.kind);
-          final categoryValues = values(ImportField.category);
-          final accountValues = {
-            ...values(ImportField.account),
-            for (final row in table.rows)
-              if ((mapping.value(row, ImportField.kind).isEmpty
-                          ? mapping.defaultKind
-                          : detectedKind(
-                              mapping.kinds[mapping.value(
-                                    row,
-                                    ImportField.kind,
-                                  )] ??
-                                  mapping.value(row, ImportField.kind),
-                            )) ==
-                      EntryKind.transfer &&
-                  mapping.value(row, ImportField.target).isNotEmpty)
-                mapping.value(row, ImportField.target),
-          };
-          final activeKinds = table.rows
-              .map((row) {
-                final value = mapping.value(row, ImportField.kind);
-                return value.isEmpty
-                    ? mapping.defaultKind
-                    : detectedKind(mapping.kinds[value] ?? value);
-              })
-              .whereType<EntryKind>()
-              .map((k) => k.name)
-              .toSet();
-          return Column(
-            children: [
-              stepHeader(),
-              Expanded(
-                child: ListView(
-                  key: ValueKey('setup-$setupStep'),
-                  padding: const EdgeInsets.all(20),
-                  children: [
-                    if (setupStep == 0) ...[
-                      const Text('关联列名', style: TextStyle(fontSize: 20)),
-                      Text(
-                        '${table.name} · ${table.rows.length} 条明细。识别结果仅为建议，请核对后继续。',
-                      ),
-                      const SizedBox(height: 12),
-                      select(
-                        '工作表',
-                        '$sheet',
-                        {
-                          for (var i = 0; i < tables.length; i++)
-                            '$i': tables[i].name,
-                        },
-                        (value) {
-                          sheet = int.parse(value);
-                          mapping.detect(tables[sheet]);
-                        },
-                      ),
-                      for (final field in ImportField.values)
-                        select(
-                          '${field.label}${[ImportField.date, ImportField.amount].contains(field) ? ' · 必选列' : ''}',
-                          mapping.columns[field]?.toString(),
-                          {
-                            '': '不关联此列',
-                            for (var i = 0; i < table.headers.length; i++)
-                              '$i': '${i + 1}. ${table.headers[i]}',
-                          },
-                          (value) {
-                            if (value.isEmpty) {
-                              mapping.columns.remove(field);
-                            } else {
-                              mapping.columns[field] = int.parse(value);
-                            }
-                          },
+              ),
+            ),
+          Expanded(
+            child: DataView(
+              builder: (snapshot) {
+                final data = mergeAccounts(snapshot);
+                if (imported != null) {
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('已导入 $imported 条明细'),
+                        const SizedBox(height: 12),
+                        const Icon(Icons.check_circle_outline, size: 48),
+                        const SizedBox(height: 16),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('完成'),
                         ),
-                      const SizedBox(height: 8),
-                      const Text('文件内容示例'),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: DataTable(
-                          columns: [
-                            for (final header in table.headers)
-                              DataColumn(label: Text(header)),
-                          ],
-                          rows: [
-                            for (final row in table.rows.take(3))
-                              DataRow(
-                                cells: [
-                                  for (var i = 0; i < table.headers.length; i++)
-                                    DataCell(
-                                      Text(i < row.length ? row[i] : ''),
-                                    ),
-                                ],
-                              ),
-                          ],
+                      ],
+                    ),
+                  );
+                }
+                if (tables.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: ListView(
+                      children: [
+                        const Text('逐条追加交易记录，已有数据会保留。'),
+                        const SizedBox(height: 12),
+                        const Text(
+                          '支持 UTF-8 CSV、Excel .xls / .xlsx。首行为列名，每行一条明细；最多 10 MB、10000 条。可导入收入、支出、转账、借入、借出。',
                         ),
-                      ),
-                    ],
-                    if (setupStep == 1) ...[
-                      const Text('账户与分类', style: TextStyle(fontSize: 20)),
-                      if (missingImportAccounts(
-                        table,
-                        mapping,
-                        data.accounts,
-                      ).isNotEmpty)
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Text(
-                              '有 ${missingImportAccounts(table, mapping, data.accounts).length} 个来源账户待关联。可先关联已有账户，点击预览时将逐个创建缺失账户。',
-                            ),
-                          ),
+                        const SizedBox(height: 20),
+                        FilledButton.icon(
+                          onPressed: busy ? null : pick,
+                          icon: const Icon(Icons.upload_file),
+                          label: Text(busy ? '读取中…' : '选择文件'),
                         ),
-                      const Text(
-                        '账户和分类按名称匹配；名称不同时可手动指定。空白单元格使用默认值。负金额按绝对值记录，收支以交易类型为准。',
-                      ),
-                      const SizedBox(height: 12),
-                      select(
-                        '默认交易类型',
-                        mapping.defaultKind.name,
-                        {
-                          for (final kind in EntryKind.values.where(
-                            (k) => !k.isSettlement,
-                          ))
-                            kind.name: kind.label,
-                        },
-                        (value) => mapping.defaultKind = EntryKind.values
-                            .byName(value),
-                      ),
-                      select(
-                        '默认账户',
-                        mapping.defaultAccount,
-                        {
-                          '': '请选择',
-                          for (final account in data.accounts)
-                            account.id: '${account.name} · ${account.currency}',
-                        },
-                        (value) => mapping.defaultAccount = value.isEmpty
-                            ? null
-                            : value,
-                      ),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton.icon(
+                        TextButton.icon(
                           onPressed: busy
                               ? null
                               : () => perform(context, () async {
-                                  await createAccount(null);
+                                  final template = csvDocument([
+                                    ['日期', '类型', '金额', '账户', '分类', '备注'],
+                                    [
+                                      '2026-01-01',
+                                      '支出',
+                                      '12.50',
+                                      '我的现金账户',
+                                      '普通餐饮',
+                                      '示例：请替换后导入',
+                                    ],
+                                  ]);
+                                  await FileDelivery().save(
+                                    'SoAccount-导入模板.csv',
+                                    Uint8List.fromList(utf8.encode(template)),
+                                  );
                                 }),
-                          icon: const Icon(Icons.add),
-                          label: const Text('创建默认账户'),
+                          icon: const Icon(Icons.download_outlined),
+                          label: const Text('保存 CSV 模板'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                final table = tables[sheet];
+                final plan = results;
+                if (plan != null) {
+                  final visible = plan
+                      .where(
+                        (r) =>
+                            (switch (previewFilter) {
+                              'errors' => r.error != null,
+                              'duplicates' => r.entry?.duplicate ?? false,
+                              'selected' => selected.contains(r.row),
+                              _ => true,
+                            }) &&
+                            (previewSearch.isEmpty ||
+                                '${r.row} ${r.error ?? ''} ${r.entry?.date ?? ''} ${r.entry?.note ?? ''}'
+                                    .toLowerCase()
+                                    .contains(previewSearch.toLowerCase())),
+                      )
+                      .toList();
+                  final totals = <String, int>{};
+                  for (final row in plan.where(
+                    (r) => selected.contains(r.row),
+                  )) {
+                    final entry = row.entry!;
+                    final key = '${entry.currency} · ${entry.kind.label}';
+                    totals[key] = (totals[key] ?? 0) + entry.amount;
+                  }
+                  return Column(
+                    children: [
+                      stepHeader(),
+                      Expanded(
+                        child: ListView.builder(
+                          key: const ValueKey('review'),
+                          padding: const EdgeInsets.all(16),
+                          itemCount: visible.length + 1,
+                          itemBuilder: (context, index) {
+                            if (index == 0) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '预览与选择',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge,
+                                  ),
+                                  Text(
+                                    '共 ${plan.length} 条 · 错误 ${plan.where((r) => r.error != null).length} 条 · 疑似重复 ${plan.where((r) => r.entry?.duplicate ?? false).length} 条',
+                                  ),
+                                  const Text('错误记录无法勾选；疑似重复默认不勾选，可核对后手动选择。'),
+                                  const SizedBox(height: 12),
+                                  ClearableSearch(
+                                    value: previewSearch,
+                                    hint: '搜索行号、日期或备注',
+                                    onChanged: (v) =>
+                                        setState(() => previewSearch = v),
+                                  ),
+                                  Wrap(
+                                    spacing: 8,
+                                    children: [
+                                      for (final entry in {
+                                        'all': '全部',
+                                        'selected': '已选',
+                                        'errors': '错误',
+                                        'duplicates': '重复',
+                                      }.entries)
+                                        ChoiceChip(
+                                          label: Text(entry.value),
+                                          selected: previewFilter == entry.key,
+                                          onSelected: (_) => setState(
+                                            () => previewFilter = entry.key,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  ExpansionTile(
+                                    tilePadding: EdgeInsets.zero,
+                                    title: const Text('选中金额汇总 · 币种分开'),
+                                    children: [
+                                      for (final entry in totals.entries)
+                                        ListTile(
+                                          dense: true,
+                                          title: Text(entry.key),
+                                          trailing: Text(
+                                            decimalMoney(
+                                              entry.value,
+                                              entry.key.split(' · ').first,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  Wrap(
+                                    spacing: 8,
+                                    children: [
+                                      TextButton(
+                                        onPressed: busy
+                                            ? null
+                                            : () => setState(
+                                                () => results = null,
+                                              ),
+                                        child: const Text('返回修改关联'),
+                                      ),
+                                      TextButton(
+                                        onPressed: busy
+                                            ? null
+                                            : () => setState(() {
+                                                selected.clear();
+                                                selected.addAll(
+                                                  plan
+                                                      .where(
+                                                        (r) =>
+                                                            r.entry != null &&
+                                                            !r.entry!.duplicate,
+                                                      )
+                                                      .map((r) => r.row),
+                                                );
+                                              }),
+                                        child: const Text('选择有效且不重复的记录'),
+                                      ),
+                                      TextButton(
+                                        onPressed: busy
+                                            ? null
+                                            : () => setState(selected.clear),
+                                        child: const Text('清空选择'),
+                                      ),
+                                    ],
+                                  ),
+                                  if (visible.isEmpty)
+                                    const EmptyState('没有匹配的明细', '可以清空搜索或切换筛选。'),
+                                  const SizedBox(height: 16),
+                                ],
+                              );
+                            }
+                            final result = visible[index - 1],
+                                entry = result.entry;
+                            String accountName(String id) =>
+                                data.accounts
+                                    .where((a) => a.id == id)
+                                    .firstOrNull
+                                    ?.name ??
+                                '账户已删除';
+                            return CheckboxListTile(
+                              value: selected.contains(result.row),
+                              onChanged: busy || entry == null
+                                  ? null
+                                  : (value) => setState(() {
+                                      if (value!) {
+                                        selected.add(result.row);
+                                      } else {
+                                        selected.remove(result.row);
+                                      }
+                                    }),
+                              title: Text(
+                                entry == null
+                                    ? '第 ${result.row} 行：${result.error}'
+                                    : '第 ${result.row} 行 · ${entry.date} · ${entry.kind.label} · ${money(entry.amount, entry.currency)}',
+                              ),
+                              subtitle: entry == null
+                                  ? null
+                                  : Text(
+                                      '${accountName(entry.accountId)}${entry.targetId == null ? '' : ' → ${accountName(entry.targetId!)}'} · ${data.category(entry.categoryId)}${entry.note.isEmpty ? '' : ' · ${entry.note}'}${entry.duplicate ? ' · 疑似重复' : ''}',
+                                    ),
+                            );
+                          },
                         ),
                       ),
-                      for (final kind in [
-                        'expense',
-                        'income',
-                      ].where(activeKinds.contains))
-                        select(
-                          '默认${kind == 'expense' ? '支出' : '收入'}分类',
-                          kind == 'expense'
-                              ? mapping.expenseCategory
-                              : mapping.incomeCategory,
-                          {
-                            '': '请选择',
-                            for (final category in data.categories.where(
-                              (c) => c.kind == kind,
-                            ))
-                              category.id: category.name,
-                          },
-                          (value) {
-                            if (kind == 'expense') {
-                              mapping.expenseCategory = value.isEmpty
-                                  ? null
-                                  : value;
-                            } else {
-                              mapping.incomeCategory = value.isEmpty
-                                  ? null
-                                  : value;
-                            }
-                          },
-                        ),
-                      for (final value in kindValues.take(100))
-                        select(
-                          '类型内容：$value',
-                          mapping.kinds[value] ?? detectedKind(value)?.name,
-                          {
-                            '': '请关联',
-                            for (final kind in EntryKind.values.where(
-                              (k) => !k.isSettlement,
-                            ))
-                              kind.name: kind.label,
-                          },
-                          (target) {
-                            mapping.kinds[value] = target;
-                          },
-                        ),
-                      for (final value in accountValues.take(100))
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                    ],
+                  );
+                }
+                Set<String> values(ImportField field) => table.rows
+                    .map((r) => mapping.value(r, field))
+                    .where((v) => v.isNotEmpty)
+                    .toSet();
+                final kindValues = values(ImportField.kind);
+                final categoryValues = values(ImportField.category);
+                final accountValues = {
+                  ...values(ImportField.account),
+                  for (final row in table.rows)
+                    if ((mapping.value(row, ImportField.kind).isEmpty
+                                ? mapping.defaultKind
+                                : detectedKind(
+                                    mapping.kinds[mapping.value(
+                                          row,
+                                          ImportField.kind,
+                                        )] ??
+                                        mapping.value(row, ImportField.kind),
+                                  )) ==
+                            EntryKind.transfer &&
+                        mapping.value(row, ImportField.target).isNotEmpty)
+                      mapping.value(row, ImportField.target),
+                };
+                final activeKinds = table.rows
+                    .map((row) {
+                      final value = mapping.value(row, ImportField.kind);
+                      return value.isEmpty
+                          ? mapping.defaultKind
+                          : detectedKind(mapping.kinds[value] ?? value);
+                    })
+                    .whereType<EntryKind>()
+                    .map((k) => k.name)
+                    .toSet();
+                return Column(
+                  children: [
+                    stepHeader(),
+                    Expanded(
+                      child: ListView(
+                        key: ValueKey('setup-$setupStep'),
+                        padding: const EdgeInsets.all(20),
+                        children: [
+                          if (setupStep == 0) ...[
+                            const Text('关联列名', style: TextStyle(fontSize: 20)),
+                            Text(
+                              '${table.name} · ${table.rows.length} 条明细。识别结果仅为建议，请核对后继续。',
+                            ),
+                            const SizedBox(height: 12),
                             select(
-                              '账户内容：$value',
-                              mapping.accounts[value] ??
-                                  data.accounts
-                                      .where((a) => a.name == value)
-                                      .singleOrNull
-                                      ?.id,
+                              '工作表',
+                              '$sheet',
                               {
-                                '': '请关联',
+                                for (var i = 0; i < tables.length; i++)
+                                  '$i': tables[i].name,
+                              },
+                              (value) {
+                                sheet = int.parse(value);
+                                mapping.detect(tables[sheet]);
+                              },
+                            ),
+                            for (final field in ImportField.values)
+                              select(
+                                '${field.label}${[ImportField.date, ImportField.amount].contains(field) ? ' · 必选列' : ''}',
+                                mapping.columns[field]?.toString(),
+                                {
+                                  '': '不关联此列',
+                                  for (var i = 0; i < table.headers.length; i++)
+                                    '$i': '${i + 1}. ${table.headers[i]}',
+                                },
+                                (value) {
+                                  if (value.isEmpty) {
+                                    mapping.columns.remove(field);
+                                  } else {
+                                    mapping.columns[field] = int.parse(value);
+                                  }
+                                },
+                              ),
+                            const SizedBox(height: 8),
+                            const Text('文件内容示例'),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: DataTable(
+                                columns: [
+                                  for (final header in table.headers)
+                                    DataColumn(label: Text(header)),
+                                ],
+                                rows: [
+                                  for (final row in table.rows.take(3))
+                                    DataRow(
+                                      cells: [
+                                        for (
+                                          var i = 0;
+                                          i < table.headers.length;
+                                          i++
+                                        )
+                                          DataCell(
+                                            Text(i < row.length ? row[i] : ''),
+                                          ),
+                                      ],
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          if (setupStep == 1) ...[
+                            const Text('账户与分类', style: TextStyle(fontSize: 20)),
+                            if (missingImportAccounts(
+                              table,
+                              mapping,
+                              data.accounts,
+                            ).isNotEmpty)
+                              Card(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Text(
+                                    '有 ${missingImportAccounts(table, mapping, data.accounts).length} 个来源账户待关联。可先关联已有账户，点击预览时将逐个创建缺失账户。',
+                                  ),
+                                ),
+                              ),
+                            const Text(
+                              '账户和分类按名称匹配；名称不同时可手动指定。空白单元格使用默认值。负金额按绝对值记录，收支以交易类型为准。',
+                            ),
+                            const SizedBox(height: 12),
+                            select(
+                              '默认交易类型',
+                              mapping.defaultKind.name,
+                              {
+                                for (final kind in EntryKind.values.where(
+                                  (k) => !k.isSettlement,
+                                ))
+                                  kind.name: kind.label,
+                              },
+                              (value) => mapping.defaultKind = EntryKind.values
+                                  .byName(value),
+                            ),
+                            select(
+                              '默认账户',
+                              mapping.defaultAccount,
+                              {
+                                '': '请选择',
                                 for (final account in data.accounts)
                                   account.id:
                                       '${account.name} · ${account.currency}',
                               },
-                              (target) {
-                                if (target.isEmpty) {
-                                  mapping.accounts.remove(value);
-                                } else {
-                                  mapping.accounts[value] = target;
-                                }
-                              },
+                              (value) => mapping.defaultAccount = value.isEmpty
+                                  ? null
+                                  : value,
                             ),
-                            if (!data.accounts.any((a) => a.name == value) &&
-                                !mapping.accounts.containsKey(value))
-                              TextButton.icon(
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton.icon(
                                 onPressed: busy
                                     ? null
                                     : () => perform(context, () async {
-                                        final source =
-                                            missingImportAccounts(
-                                                  table,
-                                                  mapping,
-                                                  data.accounts,
-                                                )
-                                                .where((m) => m.name == value)
-                                                .firstOrNull;
-                                        if (source != null) {
-                                          await createAccount(source);
-                                        }
+                                        await createAccount(null);
                                       }),
-                                icon: const Icon(Icons.add_card),
-                                label: Text('创建“$value”'),
+                                icon: const Icon(Icons.add),
+                                label: const Text('创建默认账户'),
+                              ),
+                            ),
+                            for (final kind in [
+                              'expense',
+                              'income',
+                            ].where(activeKinds.contains))
+                              select(
+                                '默认${kind == 'expense' ? '支出' : '收入'}分类',
+                                kind == 'expense'
+                                    ? mapping.expenseCategory
+                                    : mapping.incomeCategory,
+                                {
+                                  '': '请选择',
+                                  for (final category in data.categories.where(
+                                    (c) => c.kind == kind,
+                                  ))
+                                    category.id: category.name,
+                                },
+                                (value) {
+                                  if (kind == 'expense') {
+                                    mapping.expenseCategory = value.isEmpty
+                                        ? null
+                                        : value;
+                                  } else {
+                                    mapping.incomeCategory = value.isEmpty
+                                        ? null
+                                        : value;
+                                  }
+                                },
+                              ),
+                            for (final value in kindValues.take(100))
+                              select(
+                                '类型内容：$value',
+                                mapping.kinds[value] ??
+                                    detectedKind(value)?.name,
+                                {
+                                  '': '请关联',
+                                  for (final kind in EntryKind.values.where(
+                                    (k) => !k.isSettlement,
+                                  ))
+                                    kind.name: kind.label,
+                                },
+                                (target) {
+                                  mapping.kinds[value] = target;
+                                },
+                              ),
+                            for (final value in accountValues.take(100))
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  select(
+                                    '账户内容：$value',
+                                    mapping.accounts[value] ??
+                                        data.accounts
+                                            .where((a) => a.name == value)
+                                            .singleOrNull
+                                            ?.id,
+                                    {
+                                      '': '请关联',
+                                      for (final account in data.accounts)
+                                        account.id:
+                                            '${account.name} · ${account.currency}',
+                                    },
+                                    (target) {
+                                      if (target.isEmpty) {
+                                        mapping.accounts.remove(value);
+                                      } else {
+                                        mapping.accounts[value] = target;
+                                      }
+                                    },
+                                  ),
+                                  if (!data.accounts.any(
+                                        (a) => a.name == value,
+                                      ) &&
+                                      !mapping.accounts.containsKey(value))
+                                    TextButton.icon(
+                                      onPressed: busy
+                                          ? null
+                                          : () => perform(context, () async {
+                                              final source =
+                                                  missingImportAccounts(
+                                                        table,
+                                                        mapping,
+                                                        data.accounts,
+                                                      )
+                                                      .where(
+                                                        (m) => m.name == value,
+                                                      )
+                                                      .firstOrNull;
+                                              if (source != null) {
+                                                await createAccount(source);
+                                              }
+                                            }),
+                                      icon: const Icon(Icons.add_card),
+                                      label: Text('创建“$value”'),
+                                    ),
+                                ],
+                              ),
+                            for (final kind in [
+                              'expense',
+                              'income',
+                            ].where(activeKinds.contains))
+                              for (final value in categoryValues.take(100))
+                                select(
+                                  '${kind == 'expense' ? '支出' : '收入'}分类内容：$value',
+                                  mapping.categories['$kind:$value'] ??
+                                      data.categories
+                                          .where(
+                                            (c) =>
+                                                c.name == value &&
+                                                c.kind == kind,
+                                          )
+                                          .firstOrNull
+                                          ?.id,
+                                  {
+                                    '': '按名称匹配 / 暂不关联',
+                                    for (final category
+                                        in data.categories.where(
+                                          (c) => c.kind == kind,
+                                        ))
+                                      category.id: category.name,
+                                  },
+                                  (target) {
+                                    if (target.isEmpty) {
+                                      mapping.categories.remove('$kind:$value');
+                                    } else {
+                                      mapping.categories['$kind:$value'] =
+                                          target;
+                                    }
+                                  },
+                                ),
+                            if ([
+                              kindValues.length,
+                              accountValues.length,
+                              categoryValues.length,
+                            ].any((n) => n > 100))
+                              const Text(
+                                '每组最多显示 100 个内容映射；其余按名称匹配，无法匹配的行将在预览中报错。',
                               ),
                           ],
-                        ),
-                      for (final kind in [
-                        'expense',
-                        'income',
-                      ].where(activeKinds.contains))
-                        for (final value in categoryValues.take(100))
-                          select(
-                            '${kind == 'expense' ? '支出' : '收入'}分类内容：$value',
-                            mapping.categories['$kind:$value'] ??
-                                data.categories
-                                    .where(
-                                      (c) => c.name == value && c.kind == kind,
-                                    )
-                                    .firstOrNull
-                                    ?.id,
-                            {
-                              '': '按名称匹配 / 暂不关联',
-                              for (final category in data.categories.where(
-                                (c) => c.kind == kind,
-                              ))
-                                category.id: category.name,
-                            },
-                            (target) {
-                              if (target.isEmpty) {
-                                mapping.categories.remove('$kind:$value');
-                              } else {
-                                mapping.categories['$kind:$value'] = target;
-                              }
-                            },
+                          TextButton(
+                            onPressed: busy ? null : pick,
+                            child: const Text('重新选择文件'),
                           ),
-                      if ([
-                        kindValues.length,
-                        accountValues.length,
-                        categoryValues.length,
-                      ].any((n) => n > 100))
-                        const Text('每组最多显示 100 个内容映射；其余按名称匹配，无法匹配的行将在预览中报错。'),
-                    ],
-                    TextButton(
-                      onPressed: busy ? null : pick,
-                      child: const Text('重新选择文件'),
+                        ],
+                      ),
                     ),
                   ],
-                ),
-              ),
-            ],
-          );
-        },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     ),
   );

@@ -2,26 +2,48 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 class FileDelivery {
+  FileDelivery({Future<PlatformFile?> Function()? selectImport})
+    : _selectImport = selectImport ?? _pickImport;
+  final Future<PlatformFile?> Function() _selectImport;
+
+  static Future<PlatformFile?> _pickImport() => FilePicker.pickFile(
+    type: FileType.custom,
+    allowedExtensions: ['csv', 'xlsx', 'xls'],
+  );
+
   Future<({String name, Uint8List bytes})?> pickImport() async {
-    final result = await FilePicker.pickFile(
-      type: FileType.custom,
-      allowedExtensions: ['csv', 'xlsx'],
-    );
-    if (result == null) return null;
-    final bytes = BytesBuilder(copy: false);
-    await for (final chunk in result.readAsByteStream()) {
-      if (bytes.length + chunk.length > 10 * 1024 * 1024) {
+    try {
+      final result = await _selectImport();
+      if (result == null) return null;
+      if ((result.lengthSync() ?? 0) > 10 * 1024 * 1024) {
         throw const FormatException('导入文件不能超过 10 MB');
       }
-      bytes.add(chunk);
+      final bytes = BytesBuilder(copy: false);
+      await for (final chunk in result.readAsByteStream()) {
+        if (bytes.length + chunk.length > 10 * 1024 * 1024) {
+          throw const FormatException('导入文件不能超过 10 MB');
+        }
+        bytes.add(chunk);
+      }
+      if (bytes.isEmpty) throw const FormatException('文件内容为空，请重新选择');
+      return (name: result.name, bytes: bytes.takeBytes());
+    } on FormatException {
+      rethrow;
+    } on PlatformException catch (e) {
+      throw FormatException('文件选择或读取失败（${e.code}）。请确认文件已下载到本机、可正常打开，再重新选择');
+    } on FileSystemException catch (e) {
+      throw FormatException(
+        '无法读取文件（系统错误 ${e.osError?.errorCode ?? '未知'}）。请将文件保存到本机后重试',
+      );
+    } catch (e) {
+      throw FormatException('文件读取失败（${e.runtimeType}），请重新选择本机文件后重试');
     }
-    return (name: result.name, bytes: bytes.takeBytes());
   }
 
   Future<bool> save(String name, Uint8List bytes) async {

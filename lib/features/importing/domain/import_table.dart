@@ -5,6 +5,9 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
 
+import 'xls_reader.dart';
+import 'text_excel_reader.dart';
+
 const maxImportBytes = 10 * 1024 * 1024;
 const maxImportRows = 10000;
 
@@ -24,6 +27,9 @@ class ImportTable {
         input.length > maxImportRows + 1 ||
         input.first.length > 100) {
       throw const FormatException('需要表头和明细，最多 10000 条、100 列');
+    }
+    if (input.first.any((value) => value.length > 10000)) {
+      throw const FormatException('列名最多 10000 字');
     }
     final headers = [
       for (var i = 0; i < input.first.length; i++)
@@ -47,9 +53,15 @@ List<ImportTable> readImportTables(String filename, Uint8List bytes) {
   if (bytes.length > maxImportBytes) {
     throw const FormatException('文件不能超过 10 MB');
   }
+  if (bytes.isEmpty) throw const FormatException('文件内容为空，请重新选择');
   try {
     if (filename.toLowerCase().endsWith('.csv')) {
-      var text = utf8.decode(bytes).replaceFirst(RegExp(r'^\uFEFF'), '');
+      final String text;
+      try {
+        text = utf8.decode(bytes).replaceFirst(RegExp(r'^\uFEFF'), '');
+      } on FormatException {
+        throw const FormatException('CSV 不是有效的 UTF-8 编码，请另存为 UTF-8 CSV 后导入');
+      }
       // Explicit UTF-8 avoids silently corrupting account and category names.
       final separators = {',': 0, ';': 0};
       var inHeaderQuote = false;
@@ -108,8 +120,20 @@ List<ImportTable> readImportTables(String filename, Uint8List bytes) {
       }
       return [ImportTable.fromRows(filename, rows)];
     }
-    if (!filename.toLowerCase().endsWith('.xlsx')) {
-      throw const FormatException('请选择 CSV 或 Excel .xlsx，旧版 .xls 请另存为 .xlsx');
+    if (!RegExp(r'\.xlsx?$', caseSensitive: false).hasMatch(filename)) {
+      throw const FormatException('请选择 CSV、Excel .xls 或 .xlsx 文件');
+    }
+    // Trust the container signature: several exporters give XLSX an .xls suffix.
+    if (bytes.length < 4 ||
+        bytes[0] != 0x50 ||
+        bytes[1] != 0x4b ||
+        bytes[2] != 3 ||
+        bytes[3] != 4) {
+      final sheets = readTextExcelRows(bytes) ?? readXlsRows(bytes);
+      return [
+        for (final sheet in sheets)
+          ImportTable.fromRows(sheet.name, sheet.rows),
+      ];
     }
     final directory = ZipDirectory()..read(InputMemoryStream(bytes));
     if (directory.fileHeaders.length > 2000 ||
@@ -204,6 +228,8 @@ List<ImportTable> readImportTables(String filename, Uint8List bytes) {
   } on FormatException {
     rethrow;
   } catch (_) {
-    throw const FormatException('文件无法读取；CSV 请使用 UTF-8 编码，Excel 请使用标准 .xlsx');
+    throw const FormatException(
+      '文件结构损坏或不是有效的 CSV/XLS/XLSX，请用 Excel/WPS 重新保存后导入',
+    );
   }
 }

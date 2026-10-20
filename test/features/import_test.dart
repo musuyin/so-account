@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -69,6 +70,10 @@ void main() {
       final table = readImportTables('a.xlsx', workbook()).single;
       expect(table.name, '明细');
       expect(table.headers, ['日期', '金额']);
+      expect(readImportTables('导出.xls', workbook()).single.headers, [
+        '日期',
+        '金额',
+      ]);
       expect(importDate(table.rows.single.first), '2026-01-01');
       expect(
         () => readImportTables('a.xlsx', workbook(formula: true)),
@@ -112,6 +117,28 @@ void main() {
     categories = await db.select(db.categories).get();
   });
   tearDown(() => db.close());
+  test(
+    'real XLS maps, previews and commits exact dates and money to SQLite',
+    () async {
+      final table = readImportTables(
+        '账单.xls',
+        File('test/fixtures/import/ledger.xls').readAsBytesSync(),
+      ).first;
+      final mapping = ImportMapping()..detect(table);
+      mapping.defaultAccount = accounts.single.id;
+      final preview = previewImport(table, mapping, accounts, categories, []);
+      expect(preview.map((r) => r.error), everyElement(isNull));
+      expect(preview.map((r) => r.entry!.amount), [1250, 999]);
+      expect(preview.first.entry!.date, '2026-10-20');
+      expect(await commitImport(db, preview.map((r) => r.entry!).toList()), 2);
+      final entries = await db.select(db.entries).get();
+      expect(entries.map((e) => e.note), contains('午餐 🥒'));
+      expect(
+        (await LedgerRepository(db).watchBalances().first)[accounts.single.id],
+        -251,
+      );
+    },
+  );
   test(
     'account currency changed after preview rolls back the import',
     () async {
