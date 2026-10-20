@@ -44,5 +44,6 @@ if __name__ == '__main__':
     flutter = shutil.which('flutter')
     if flutter is None:
         raise SystemExit('flutter must be on PATH')
-    raise SystemExit(build([flutter, 'build', 'apk', '--debug', '--verbose'],
+    mode = '--release' if '--release' in sys.argv[1:] else '--debug'
+    raise SystemExit(build([flutter, 'build', 'apk', mode, '--verbose'],
                           '.tooling/ci-logs'))
