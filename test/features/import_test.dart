@@ -8,6 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:so_account/data/database/app_database.dart';
 import 'package:so_account/features/importing/domain/import_table.dart';
 import 'package:so_account/features/importing/domain/import_plan.dart';
+import 'package:so_account/features/importing/domain/import_template.dart';
+import 'package:so_account/features/statistics/data/csv_export.dart';
 import 'package:so_account/features/ledger/data/ledger_repository.dart';
 import 'package:so_account/features/ledger/domain/entry_kind.dart';
 
@@ -27,6 +29,9 @@ Uint8List workbook({bool formula = false}) {
 }
 
 void main() {
+  late AppDatabase db;
+  late List<Account> accounts;
+  late List<Category> categories;
   test('changing files resets previous mappings and defaults', () {
     final mapping = ImportMapping();
     mapping.defaultAccount = 'old';
@@ -42,6 +47,36 @@ void main() {
     expect(mapping.defaultAccount, isNull);
     expect(mapping.expenseCategory, isNull);
   });
+  test(
+    'downloadable CSV templates round-trip into valid import previews',
+    () async {
+      for (final name in ['我的现金账户', '我的银行卡']) {
+        await LedgerRepository(db).saveAccount(
+          name: name,
+          kind: '资金账户',
+          channel: '现金',
+          currency: 'CNY',
+          openingBalance: 10000,
+        );
+      }
+      for (final rows in [importTemplateRows(), transferTemplateRows()]) {
+        final table = readImportTables(
+          'template.csv',
+          bytes(csvDocument(rows)),
+        ).single;
+        final mapping = ImportMapping()..detect(table);
+        final plan = previewImport(
+          table,
+          mapping,
+          await db.select(db.accounts).get(),
+          await db.select(db.categories).get(),
+          [],
+        );
+        expect(plan.map((r) => r.error), everyElement(isNull));
+        expect(plan.every((r) => r.entry!.amount > 0), isTrue);
+      }
+    },
+  );
   test(
     'CSV parses BOM, quoted multiline cells, escaped quotes and semicolons',
     () {
@@ -101,9 +136,6 @@ void main() {
     expect(() => previewImport(table, map, [], [], []), throwsFormatException);
   });
 
-  late AppDatabase db;
-  late List<Account> accounts;
-  late List<Category> categories;
   setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
     await LedgerRepository(db).saveAccount(
