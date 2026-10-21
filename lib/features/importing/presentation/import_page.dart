@@ -8,13 +8,13 @@ import '../../../app/providers/providers.dart';
 import '../../../app/widgets.dart';
 import '../../../core/money/money.dart';
 import '../../../data/database/app_database.dart';
-import '../../../platform/files/file_delivery.dart';
 import '../../ledger/domain/entry_kind.dart';
 import '../../ledger/presentation/accounts_page.dart';
 import '../../statistics/data/csv_export.dart';
 import '../domain/import_table.dart';
 import '../domain/import_plan.dart';
 import '../domain/missing_accounts.dart';
+import '../domain/import_template.dart';
 
 class ImportPage extends ConsumerStatefulWidget {
   const ImportPage({super.key, this.initialTables});
@@ -61,6 +61,14 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         mapping.columns.values.toSet().length != mapping.columns.length) {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('请关联日期和金额，每列只能关联一个字段')));
+      return;
+    }
+    if (tables[sheet].rows.any(
+          (row) => mapping.kindFor(row) == EntryKind.transfer,
+        ) &&
+        !mapping.columns.containsKey(ImportField.target)) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('转账需要目标账户列，请先关联“目标账户”')));
       return;
     }
     setState(() => setupStep = 1);
@@ -159,7 +167,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
           initialName: source?.name,
           importContext: source == null
               ? '创建本批明细使用的默认账户。'
-              : '来源账户：${source.name} · ${source.rows.length} 条明细${source.currencies.isEmpty ? '' : ' · 文件币种 ${source.currencies.single}'}${source.firstDate == null ? '' : '\n最早交易：${source.firstDate}'}',
+              : '来源账户：${source.name} · ${source.rows.length} 条明细\n用途：${source.roles.join('、')}${source.currencies.isEmpty ? '' : '\n文件币种 ${source.currencies.single}'}${source.firstDate == null ? '' : '\n最早交易：${source.firstDate}'}',
         ),
       ),
     );
@@ -392,21 +400,17 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                           onPressed: busy
                               ? null
                               : () => perform(context, () async {
-                                  final template = csvDocument([
-                                    ['日期', '类型', '金额', '账户', '分类', '备注'],
-                                    [
-                                      '2026-01-01',
-                                      '支出',
-                                      '12.50',
-                                      '我的现金账户',
-                                      '普通餐饮',
-                                      '示例：请替换后导入',
-                                    ],
-                                  ]);
-                                  await FileDelivery().save(
-                                    'SoAccount-导入模板.csv',
-                                    Uint8List.fromList(utf8.encode(template)),
+                                  final template = csvDocument(
+                                    importTemplateRows(),
                                   );
+                                  await ref
+                                      .read(fileDeliveryProvider)
+                                      .save(
+                                        'SoAccount-导入模板.csv',
+                                        Uint8List.fromList(
+                                          utf8.encode(template),
+                                        ),
+                                      );
                                 }),
                           icon: const Icon(Icons.download_outlined),
                           label: const Text('保存 CSV 模板'),
@@ -575,7 +579,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                               subtitle: entry == null
                                   ? null
                                   : Text(
-                                      '${accountName(entry.accountId)}${entry.targetId == null ? '' : ' → ${accountName(entry.targetId!)}'} · ${data.category(entry.categoryId)}${entry.note.isEmpty ? '' : ' · ${entry.note}'}${entry.duplicate ? ' · 疑似重复' : ''}',
+                                      '${accountName(entry.accountId)}${entry.targetId == null ? '' : ' → ${accountName(entry.targetId!)}'}${entry.kind.needsCategory ? ' · ${data.category(entry.categoryId)}' : ''}${entry.note.isEmpty ? '' : ' · ${entry.note}'}${entry.duplicate ? ' · 疑似重复' : ''}',
                                     ),
                             );
                           },
@@ -590,29 +594,10 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                     .toSet();
                 final kindValues = values(ImportField.kind);
                 final categoryValues = values(ImportField.category);
-                final accountValues = {
-                  ...values(ImportField.account),
-                  for (final row in table.rows)
-                    if ((mapping.value(row, ImportField.kind).isEmpty
-                                ? mapping.defaultKind
-                                : detectedKind(
-                                    mapping.kinds[mapping.value(
-                                          row,
-                                          ImportField.kind,
-                                        )] ??
-                                        mapping.value(row, ImportField.kind),
-                                  )) ==
-                            EntryKind.transfer &&
-                        mapping.value(row, ImportField.target).isNotEmpty)
-                      mapping.value(row, ImportField.target),
-                };
+                final accountSources = importAccountSources(table, mapping);
+                final accountValues = accountSources.map((a) => a.name).toSet();
                 final activeKinds = table.rows
-                    .map((row) {
-                      final value = mapping.value(row, ImportField.kind);
-                      return value.isEmpty
-                          ? mapping.defaultKind
-                          : detectedKind(mapping.kinds[value] ?? value);
-                    })
+                    .map(mapping.kindFor)
                     .whereType<EntryKind>()
                     .map((k) => k.name)
                     .toSet();
@@ -628,6 +613,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                             const Text('关联列名', style: TextStyle(fontSize: 20)),
                             Text(
                               '${table.name} · ${table.rows.length} 条明细。识别结果仅为建议，请核对后继续。',
+                            ),
+                            const Text(
+                              '收入/支出使用“收支账户”；转账使用“源账户 → 目标账户”。原来的“账户”列也可作为转账源账户。',
                             ),
                             const SizedBox(height: 12),
                             select(
@@ -702,7 +690,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                 ),
                               ),
                             const Text(
-                              '账户和分类按名称匹配；名称不同时可手动指定。空白单元格使用默认值。负金额按绝对值记录，收支以交易类型为准。',
+                              '账户和分类按名称匹配，可手动关联。转账必须提供目标账户且与源账户不同、币种相同；源账户为空时使用明确选择的默认账户。负金额按绝对值记录，方向以交易类型为准。',
                             ),
                             const SizedBox(height: 12),
                             select(
@@ -790,6 +778,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  Text(
+                                    '${accountSources.firstWhere((s) => s.name == value).roles.join('、')} · ${accountSources.firstWhere((s) => s.name == value).rows.length} 条明细',
+                                  ),
                                   select(
                                     '账户内容：$value',
                                     mapping.accounts[value] ??
