@@ -8,6 +8,7 @@ class MissingImportAccount {
   final String name;
   final Set<String> currencies = {};
   final Set<int> rows = {};
+  final Set<String> roles = {};
   String? firstDate;
 }
 
@@ -16,24 +17,41 @@ List<MissingImportAccount> missingImportAccounts(
   ImportMapping mapping,
   List<Account> accounts,
 ) {
+  return importAccountSources(table, mapping).where((source) {
+    final mapped = mapping.accounts[source.name];
+    if (mapped != null && accounts.any((a) => a.id == mapped)) return false;
+    return !accounts.any(
+      (a) =>
+          a.name == source.name &&
+          (source.currencies.length != 1 ||
+              source.currencies.contains(a.currency)),
+    );
+  }).toList();
+}
+
+List<MissingImportAccount> importAccountSources(
+  ImportTable table,
+  ImportMapping mapping,
+) {
   final sources = <String, MissingImportAccount>{};
   for (var i = 0; i < table.rows.length; i++) {
     final row = table.rows[i];
-    final kindValue = mapping.value(row, ImportField.kind);
-    final kind = kindValue.isEmpty
-        ? mapping.defaultKind
-        : detectedKind(mapping.kinds[kindValue] ?? kindValue);
-    for (final field in [
-      ImportField.account,
-      if (kind == EntryKind.transfer) ImportField.target,
+    final kind = mapping.kindFor(row);
+    for (final (name, role) in [
+      (
+        mapping.sourceAccountValue(row, kind),
+        kind == EntryKind.transfer ? '转账源账户' : '收支账户',
+      ),
+      if (kind == EntryKind.transfer)
+        (mapping.value(row, ImportField.target), '转账目标账户'),
     ]) {
-      final name = mapping.value(row, field);
       if (name.isEmpty) continue;
       final source = sources.putIfAbsent(
         name,
         () => MissingImportAccount(name),
       );
       source.rows.add(i + 2);
+      source.roles.add(role);
       final currency = mapping.value(row, ImportField.currency).toUpperCase();
       if (currency.isNotEmpty) source.currencies.add(currency);
       try {
@@ -46,14 +64,5 @@ List<MissingImportAccount> missingImportAccounts(
       }
     }
   }
-  return sources.values.where((source) {
-    final mapped = mapping.accounts[source.name];
-    if (mapped != null && accounts.any((a) => a.id == mapped)) return false;
-    return !accounts.any(
-      (a) =>
-          a.name == source.name &&
-          (source.currencies.length != 1 ||
-              source.currencies.contains(a.currency)),
-    );
-  }).toList();
+  return sources.values.toList();
 }

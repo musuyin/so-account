@@ -7,10 +7,24 @@ import 'import_table.dart';
 
 enum ImportField {
   date('日期', ['日期', '交易时间', '发生日期', 'date']),
-  kind('交易类型', ['类型', '交易类型', '收支', '收/支', 'type']),
+  kind('交易类型', ['收支类型', '交易类型', '类型', '收支', '收/支', 'type']),
   amount('金额', ['金额', '交易金额', 'amount']),
-  account('账户', ['账户', '支付方式', 'account']),
-  target('转入账户', ['转入账户', '目标账户']),
+  account('收支账户', ['账户', '收支账户', '支付方式', 'account']),
+  source('源账户', [
+    '源账户',
+    '转出账户',
+    '来源账户',
+    'source_account',
+    'source account',
+    'from_account',
+  ]),
+  target('目标账户', [
+    '目标账户',
+    '转入账户',
+    'target_account',
+    'target account',
+    'to_account',
+  ]),
   category('分类', ['分类', '类别', '交易分类', 'category']),
   currency('币种', ['币种', 'currency']),
   note('备注', ['备注', '说明', '商品', 'note']);
@@ -33,9 +47,13 @@ class ImportMapping {
     defaultAccount = expenseCategory = incomeCategory = null;
     defaultKind = EntryKind.expense;
     for (final field in ImportField.values) {
-      final index = table.headers.indexWhere(
-        (h) => field.aliases.contains(h.toLowerCase().trim()),
-      );
+      int index = -1;
+      for (final alias in field.aliases) {
+        index = table.headers.indexWhere(
+          (h) => h.toLowerCase().trim() == alias,
+        );
+        if (index >= 0) break;
+      }
       if (index >= 0) columns[field] = index;
     }
   }
@@ -43,6 +61,21 @@ class ImportMapping {
   String value(List<String> row, ImportField field) {
     final index = columns[field];
     return index == null || index >= row.length ? '' : row[index].trim();
+  }
+
+  EntryKind? kindFor(List<String> row) {
+    final source = value(row, ImportField.kind);
+    return source.isEmpty ? defaultKind : detectedKind(kinds[source] ?? source);
+  }
+
+  // Original templates use one account column for ordinary income/expense.
+  // Transfers prefer their explicit source; legacy account-as-source still works.
+  String sourceAccountValue(List<String> row, EntryKind? kind) {
+    final ordinary = value(row, ImportField.account);
+    final source = value(row, ImportField.source);
+    return kind == EntryKind.transfer
+        ? (source.isNotEmpty ? source : ordinary)
+        : (ordinary.isNotEmpty ? ordinary : source);
   }
 }
 
@@ -62,7 +95,11 @@ String importDate(String value) {
 }
 
 EntryKind? detectedKind(String value) => EntryKind.values
-    .where((k) => k.label == value || k.name == value.toLowerCase())
+    .where(
+      (k) =>
+          k.label == value.replaceAll('帐', '账').trim() ||
+          k.name == value.toLowerCase().trim(),
+    )
     .firstOrNull;
 
 class ImportEntry {
@@ -142,10 +179,7 @@ List<ImportResult> previewImport(
       (() {
         try {
           final row = table.rows[i];
-          final kindValue = mapping.value(row, ImportField.kind);
-          final kind = kindValue.isEmpty
-              ? mapping.defaultKind
-              : detectedKind(mapping.kinds[kindValue] ?? kindValue);
+          final kind = mapping.kindFor(row);
           if (kind == null || kind.isSettlement) {
             throw const FormatException('请映射交易类型；借贷还款请使用完整备份恢复');
           }
@@ -157,14 +191,18 @@ List<ImportResult> previewImport(
                 .where((a) => id != null ? a.id == id : a.name == value)
                 .toList();
             if (matches.length != 1) {
-              throw FormatException('请关联${target ? '转入账户' : '账户'}：$value');
+              throw FormatException(
+                '请关联${target
+                    ? '目标账户'
+                    : kind == EntryKind.transfer
+                    ? '源账户'
+                    : '收支账户'}：$value',
+              );
             }
             return matches.single;
           }
 
-          final account = resolveAccount(
-            mapping.value(row, ImportField.account),
-          );
+          final account = resolveAccount(mapping.sourceAccountValue(row, kind));
           final currency = mapping
               .value(row, ImportField.currency)
               .toUpperCase();
@@ -206,6 +244,14 @@ List<ImportResult> previewImport(
             }
             categoryId = matches.single.id;
           }
+          if (kind == EntryKind.transfer &&
+              !mapping.columns.containsKey(ImportField.target)) {
+            throw const FormatException('转账需要目标账户列，请先关联列名');
+          }
+          if (kind == EntryKind.transfer &&
+              mapping.value(row, ImportField.target).isEmpty) {
+            throw const FormatException('转账缺少目标账户，请填写后导入');
+          }
           final target = kind == EntryKind.transfer
               ? resolveAccount(
                   mapping.value(row, ImportField.target),
@@ -215,7 +261,7 @@ List<ImportResult> previewImport(
           if (target != null &&
               (target.id == account.id ||
                   target.currency != account.currency)) {
-            throw const FormatException('转入账户须为另一个同币种账户');
+            throw const FormatException('目标账户须为另一个同币种账户');
           }
           final date = importDate(mapping.value(row, ImportField.date));
           final note = mapping.value(row, ImportField.note);
