@@ -5,6 +5,7 @@ import 'package:so_account/data/database/app_database.dart';
 import 'package:so_account/features/importing/domain/import_plan.dart';
 import 'package:so_account/features/importing/domain/import_table.dart';
 import 'package:so_account/features/importing/domain/missing_accounts.dart';
+import 'package:so_account/features/importing/domain/import_template.dart';
 import 'package:so_account/features/ledger/data/ledger_repository.dart';
 import 'package:so_account/features/ledger/domain/entry_kind.dart';
 import 'package:so_account/features/statistics/data/statistics_repository.dart';
@@ -163,6 +164,193 @@ void main() {
     categories = await db.select(db.categories).get();
   });
   tearDown(() => db.close());
+  ImportTable transferTable({String kind = '转账', String fee = '1'}) =>
+      ImportTable.fromRows('转账', [
+        transferTemplateHeaders,
+        ['2026-10-21', kind, '银行', '钱包', '100', fee, '示例', '', '', '', '', ''],
+      ]);
+  test('real transfer header structure detects both roles and fee; repayment requires explicit mapping', () {
+    final table = transferTable(kind: '还款');
+    final mapping = ImportMapping()..detect(table);
+    expect(mapping.columns[ImportField.source], 2);
+    expect(mapping.columns[ImportField.target], 3);
+    expect(mapping.columns[ImportField.fee], 5);
+    expect(mapping.kindFor(table.rows.single), isNull);
+    mapping.kinds['还款'] = 'transfer';
+    expect(mapping.kindFor(table.rows.single), EntryKind.transfer);
+    expect(missingImportAccounts(table, mapping, []).map((a) => a.roles), [
+      {'转账源账户'},
+      {'转账目标账户'},
+    ]);
+  });
+  test('transfer plus fee commits atomically with correct balances and expense statistics', () async {
+    final table = transferTable();
+    final mapping = ImportMapping()..detect(table);
+    final result = previewImport(
+      table,
+      mapping,
+      accounts,
+      categories,
+      [],
+    ).single;
+    expect(result.error, isNull);
+    expect(result.entry!.fee!.amount, 100);
+    expect(await commitImport(db, [result.entry!]), 1);
+    final entries = await db.select(db.entries).get();
+    expect(entries.length, 2);
+    expect(entries.singleWhere((e) => e.kind == 'transfer').amount, 10000);
+    expect(entries.singleWhere((e) => e.kind == 'expense').amount, 100);
+    final balances = await ledger.watchBalances().first;
+    expect(balances[bank], 89900);
+    expect(balances[wallet], 20000);
+    final report = await StatisticsRepository(
+      db,
+    ).load(ReportRange.at(ReportPeriod.month, DateTime(2026, 10, 21)), 'CNY');
+    expect(report.expense, 100);
+    expect(report.income, 0);
+    expect(
+      previewImport(
+        table,
+        mapping,
+        accounts,
+        categories,
+        entries,
+      ).single.entry!.duplicate,
+      isTrue,
+    );
+  });
+  test('invalid fees fail visibly without corrupting subsequent duplicate detection', () {
+    for (final fee in ['-1', 'oops', '1.001', '10000000000']) {
+      final table = transferTable(fee: fee);
+      final mapping = ImportMapping()..detect(table);
+      expect(
+        previewImport(table, mapping, accounts, categories, []).single.error,
+        contains('手续费'),
+      );
+    }
+    final table = transferTable();
+    final mapping = ImportMapping()..detect(table);
+    mapping.feeCategory = 'missing';
+    expect(
+      previewImport(table, mapping, accounts, categories, []).single.error,
+      contains('手续费支出分类'),
+    );
+    expect(
+      previewImport(table, mapping, accounts, [], []).single.error,
+      contains('手续费支出分类'),
+    );
+    final zero = transferTable(fee: '0');
+    mapping.detect(zero);
+    expect(
+      previewImport(zero, mapping, accounts, [], []).single.entry!.fee,
+      isNull,
+    );
+  });
+  for (final missingFee in [true, false]) {
+    test(
+      'partial import adds only missing ${missingFee ? 'fee' : 'transfer'}',
+      () async {
+        final table = transferTable();
+        final mapping = ImportMapping()..detect(table);
+        final original = previewImport(
+          table,
+          mapping,
+          accounts,
+          categories,
+          [],
+        ).single.entry!;
+        final part = missingFee
+            ? ImportEntry(
+                row: original.row,
+                kind: original.kind,
+                amount: original.amount,
+                accountId: original.accountId,
+                date: original.date,
+                note: original.note,
+                targetId: original.targetId,
+              )
+            : original.fee!;
+        await commitImport(db, [part]);
+        final remaining = previewImport(
+          table,
+          mapping,
+          accounts,
+          categories,
+          await db.select(db.entries).get(),
+        ).single.entry!;
+        expect(remaining.duplicate, isFalse);
+        expect(remaining.suspectedDuplicate, isTrue);
+        expect(
+          remaining.recordsToImport.single.kind,
+          missingFee ? EntryKind.expense : EntryKind.transfer,
+        );
+        await commitImport(db, [remaining]);
+        expect((await db.select(db.entries).get()).length, 2);
+        expect((await ledger.watchBalances().first)[bank], 89900);
+      },
+    );
+  }
+  test(
+    'deleted fee category after preview rolls back transfer and fee',
+    () async {
+      final table = transferTable();
+      final mapping = ImportMapping()..detect(table);
+      final entry = previewImport(
+        table,
+        mapping,
+        accounts,
+        categories,
+        [],
+      ).single.entry!;
+      await ledger.deleteCategory(entry.fee!.categoryId!);
+      await expectLater(commitImport(db, [entry]), throwsFormatException);
+      expect(await db.select(db.entries).get(), isEmpty);
+    },
+  );
+  test('distinct notes retain distinct fees; invalid fee does not poison duplicates', () async {
+    final table = ImportTable.fromRows('转账', [
+      transferTemplateHeaders,
+      [
+        '2026-10-21',
+        '转账',
+        '银行',
+        '钱包',
+        '100',
+        '-1',
+        'first',
+        '',
+        '',
+        '',
+        '',
+        '',
+      ],
+      ['2026-10-21', '转账', '银行', '钱包', '100', '1', 'first', '', '', '', '', ''],
+      [
+        '2026-10-21',
+        '转账',
+        '银行',
+        '钱包',
+        '100',
+        '1',
+        'second',
+        '',
+        '',
+        '',
+        '',
+        '',
+      ],
+    ]);
+    final mapping = ImportMapping()..detect(table);
+    final plan = previewImport(table, mapping, accounts, categories, []);
+    expect(plan.first.error, contains('手续费'));
+    expect(plan.skip(1).map((r) => r.entry!.suspectedDuplicate), [
+      false,
+      false,
+    ]);
+    await commitImport(db, plan.skip(1).map((r) => r.entry!).toList());
+    expect((await db.select(db.entries).get()).length, 4);
+    expect((await ledger.watchBalances().first)[bank], 79800);
+  });
   test('mixed original template imports one transfer and reconciles balances and statistics', () async {
     final table = ImportTable.fromRows('账单', [
       [...statementHeaders, '源账户', '目标账户'],

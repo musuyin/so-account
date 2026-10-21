@@ -187,7 +187,7 @@ void main() {
     },
   );
   testWidgets(
-    'downloadable template preserves original fields and adds both account roles',
+    'separate downloadable templates preserve statement and transfer structures',
     (tester) async {
       final delivery = SavedTemplate();
       await tester.pumpWidget(
@@ -202,16 +202,30 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('保存 CSV 模板'));
+      await tester.tap(find.text('保存收支 CSV 模板'));
       await tester.pumpAndSettle();
       final table = readImportTables('模板.csv', delivery.bytes!).single;
-      expect(table.headers.length, 25);
+      expect(table.headers.length, 23);
       expect(table.headers.take(6), ['日期', '收支类型', '金额', '类别', '二级分类', '账户']);
-      expect(table.headers.skip(23), ['源账户', '目标账户']);
-      expect(table.rows.map((r) => r[1]), ['支出', '收入', '转账']);
-      expect(table.rows.last[23], isNotEmpty);
-      expect(table.rows.last[24], isNotEmpty);
-      expect(table.rows.last[23], isNot(table.rows.last[24]));
+      expect(table.rows.map((r) => r[1]), ['支出', '收入']);
+      await tester.tap(find.text('保存转账 CSV 模板'));
+      await tester.pumpAndSettle();
+      final transfers = readImportTables('转账.csv', delivery.bytes!).single;
+      expect(transfers.headers, [
+        '日期',
+        '类型',
+        '转出账户',
+        '转入账户',
+        '金额',
+        '手续费',
+        '备注',
+        '附件1',
+        '附件2',
+        '附件3',
+        '附件4',
+        '附件5',
+      ]);
+      expect(transfers.rows.single[2], isNot(transfers.rows.single[3]));
     },
   );
 }

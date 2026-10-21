@@ -1,4 +1,4 @@
-// Keep the original statement columns in order; append explicit transfer roles.
+// Preserve each source export separately instead of mixing account roles.
 const importTemplateHeaders = [
   '日期',
   '收支类型',
@@ -23,8 +23,21 @@ const importTemplateHeaders = [
   '附件3',
   '附件4',
   '附件5',
-  '源账户',
-  '目标账户',
+];
+
+const transferTemplateHeaders = [
+  '日期',
+  '类型',
+  '转出账户',
+  '转入账户',
+  '金额',
+  '手续费',
+  '备注',
+  '附件1',
+  '附件2',
+  '附件3',
+  '附件4',
+  '附件5',
 ];
 
 List<List<String>> importTemplateRows() => [
@@ -46,14 +59,24 @@ List<List<String>> importTemplateRows() => [
       '账户': '我的银行卡',
       '备注': '示例收入：请替换后导入',
     },
-    {
-      '日期': '2026-01-03',
-      '收支类型': '转账',
-      '金额': '100.00',
-      '源账户': '我的银行卡',
-      '目标账户': '我的现金账户',
-      '备注': '示例转账：一行同时包含源账户和目标账户',
-    },
   ])
     [for (final header in importTemplateHeaders) values[header] ?? ''],
+];
+
+List<List<String>> transferTemplateRows() => [
+  transferTemplateHeaders,
+  [
+    '2026-01-03',
+    '转账',
+    '我的银行卡',
+    '我的现金账户',
+    '100.00',
+    '1.00',
+    '示例：转出 101，转入 100，手续费支出 1；请替换后导入',
+    '',
+    '',
+    '',
+    '',
+    '',
+  ],
 ];

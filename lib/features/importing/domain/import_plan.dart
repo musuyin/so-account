@@ -25,6 +25,7 @@ enum ImportField {
     'target account',
     'to_account',
   ]),
+  fee('手续费', ['手续费', '转账手续费', 'fee']),
   category('分类', ['分类', '类别', '交易分类', 'category']),
   currency('币种', ['币种', 'currency']),
   note('备注', ['备注', '说明', '商品', 'note']);
@@ -37,14 +38,14 @@ enum ImportField {
 class ImportMapping {
   final Map<ImportField, int> columns = {};
   final Map<String, String> accounts = {}, categories = {}, kinds = {};
-  String? defaultAccount, expenseCategory, incomeCategory;
+  String? defaultAccount, expenseCategory, incomeCategory, feeCategory;
   EntryKind defaultKind = EntryKind.expense;
   void detect(ImportTable table) {
     columns.clear();
     accounts.clear();
     categories.clear();
     kinds.clear();
-    defaultAccount = expenseCategory = incomeCategory = null;
+    defaultAccount = expenseCategory = incomeCategory = feeCategory = null;
     defaultKind = EntryKind.expense;
     for (final field in ImportField.values) {
       int index = -1;
@@ -67,6 +68,26 @@ class ImportMapping {
     final source = value(row, ImportField.kind);
     return source.isEmpty ? defaultKind : detectedKind(kinds[source] ?? source);
   }
+
+  bool get hasTransferAccounts =>
+      columns.containsKey(ImportField.source) &&
+      columns.containsKey(ImportField.target);
+
+  bool hasFees(ImportTable table) => table.rows.any((row) {
+    final text = value(row, ImportField.fee);
+    return text.isNotEmpty && double.tryParse(text) != 0;
+  });
+
+  String? resolvedFeeCategory(List<Category> categories) =>
+      feeCategory ??
+      categories
+          .where((c) => c.kind == 'expense' && c.name == '手续费')
+          .firstOrNull
+          ?.id ??
+      categories
+          .where((c) => c.kind == 'expense' && c.name == '其他损耗')
+          .firstOrNull
+          ?.id;
 
   // Original templates use one account column for ordinary income/expense.
   // Transfers prefer their explicit source; legacy account-as-source still works.
@@ -112,15 +133,28 @@ class ImportEntry {
     required this.note,
     this.categoryId,
     this.targetId,
-    this.duplicate = false,
+    bool duplicate = false,
     this.currency = 'CNY',
-  });
+    this.fee,
+  }) : principalDuplicate = duplicate;
   final int row, amount;
   final EntryKind kind;
   final String accountId, date, note;
   final String? categoryId, targetId;
-  final bool duplicate;
+  final bool principalDuplicate;
   final String currency;
+  final ImportEntry? fee;
+
+  bool get duplicate => principalDuplicate && (fee?.duplicate ?? true);
+  bool get suspectedDuplicate =>
+      principalDuplicate || (fee?.duplicate ?? false);
+
+  // A partially imported row adds only its missing component. Explicitly
+  // selecting a wholly duplicate row retains the existing override behavior.
+  Iterable<ImportEntry> get recordsToImport sync* {
+    if (!principalDuplicate || duplicate) yield this;
+    if (fee != null && (!fee!.duplicate || duplicate)) yield fee!;
+  }
 }
 
 class ImportResult {
@@ -180,8 +214,11 @@ List<ImportResult> previewImport(
         try {
           final row = table.rows[i];
           final kind = mapping.kindFor(row);
-          if (kind == null || kind.isSettlement) {
-            throw const FormatException('请映射交易类型；借贷还款请使用完整备份恢复');
+          if (kind == null) {
+            throw const FormatException('请关联交易类型；信贷账户还款可明确选择“转账”');
+          }
+          if (kind.isSettlement) {
+            throw const FormatException('借贷还款需关联原借款，请在账本中记录或使用完整备份恢复');
           }
           Account resolveAccount(String value, {bool target = false}) {
             final id = value.isEmpty
@@ -266,6 +303,35 @@ List<ImportResult> previewImport(
           final date = importDate(mapping.value(row, ImportField.date));
           final note = mapping.value(row, ImportField.note);
           if (note.length > 2000) throw const FormatException('备注不能超过 2000 字');
+          final rawFee = mapping.value(row, ImportField.fee);
+          int fee;
+          try {
+            fee = rawFee.isEmpty ? 0 : parseMoney(rawFee, account.currency);
+          } on FormatException {
+            throw const FormatException('手续费须为有效的非负金额，且符合账户币种精度');
+          }
+          if (fee < 0 || fee > 999999999999) {
+            throw const FormatException('手续费须为非负金额且不超出上限');
+          }
+          if (fee > 0 && kind != EntryKind.transfer) {
+            throw const FormatException('手续费列仅适用于转账，请将收支手续费另记一行');
+          }
+          final feeCategory = mapping.resolvedFeeCategory(categories);
+          if (fee > 0 &&
+              !categories.any(
+                (c) => c.id == feeCategory && c.kind == 'expense',
+              )) {
+            throw const FormatException('请选择手续费支出分类');
+          }
+          var feeNote = fee == 0
+              ? ''
+              : '转账手续费（${account.name} → ${target!.name}；转账 ${money(amount, account.currency)}）${note.isEmpty ? '' : '\n$note'}';
+          if (feeNote.length > 2000) {
+            var end = 2000;
+            final unit = feeNote.codeUnitAt(end - 1);
+            if (unit >= 0xd800 && unit <= 0xdbff) end--;
+            feeNote = feeNote.substring(0, end);
+          }
           final signature = _signature(
             kind.name,
             amount,
@@ -276,6 +342,19 @@ List<ImportResult> previewImport(
             target?.id,
           );
           final duplicate = !seen.add(signature);
+          final feeDuplicate =
+              fee > 0 &&
+              !seen.add(
+                _signature(
+                  EntryKind.expense.name,
+                  fee,
+                  account.id,
+                  date,
+                  feeNote,
+                  feeCategory,
+                  null,
+                ),
+              );
           return ImportResult(
             i + 2,
             ImportEntry(
@@ -289,6 +368,19 @@ List<ImportResult> previewImport(
               targetId: target?.id,
               duplicate: duplicate,
               currency: account.currency,
+              fee: fee == 0
+                  ? null
+                  : ImportEntry(
+                      row: i + 2,
+                      kind: EntryKind.expense,
+                      amount: fee,
+                      accountId: account.id,
+                      date: date,
+                      note: feeNote,
+                      categoryId: feeCategory,
+                      duplicate: feeDuplicate,
+                      currency: account.currency,
+                    ),
             ),
             null,
           );
@@ -307,7 +399,7 @@ Future<int> commitImport(AppDatabase db, List<ImportEntry> entries) =>
         for (final account in await db.select(db.accounts).get())
           account.id: account,
       };
-      for (final entry in entries) {
+      for (final entry in entries.expand((e) => e.recordsToImport)) {
         if (accounts[entry.accountId]?.currency != entry.currency) {
           throw const FormatException('账户币种已变化或账户已删除，请重新预览');
         }

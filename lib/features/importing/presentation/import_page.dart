@@ -34,6 +34,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   String? fileError;
   int setupStep = 0;
   String previewFilter = 'all', previewSearch = '';
+  bool showExtraColumns = false;
   final Map<String, Account> createdAccounts = {};
 
   AppSnapshot mergeAccounts(AppSnapshot data) {
@@ -198,6 +199,14 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       if (mapping.columns.values.toSet().length != mapping.columns.length) {
         throw const FormatException('每一列只能关联一个字段');
       }
+      if (mapping.hasTransferAccounts &&
+          tables[sheet].rows.any(
+            (row) =>
+                mapping.value(row, ImportField.kind) == '还款' &&
+                mapping.kindFor(row) == null,
+          )) {
+        throw const FormatException('请先确认“还款”的含义：信贷账户还款选择“转账”；向他人还款需在账本关联原借款');
+      }
       final missing = missingImportAccounts(
         tables[sheet],
         mapping,
@@ -239,7 +248,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         selected.clear();
         selected.addAll(
           plan
-              .where((r) => r.entry != null && !r.entry!.duplicate)
+              .where((r) => r.entry != null && !r.entry!.suspectedDuplicate)
               .map((r) => r.row),
         );
       });
@@ -306,6 +315,24 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       if (mounted) setState(() => busy = false);
     }
   }
+
+  Widget templateButton({bool transfer = false}) => TextButton.icon(
+    onPressed: busy
+        ? null
+        : () => perform(context, () async {
+            final template = csvDocument(
+              transfer ? transferTemplateRows() : importTemplateRows(),
+            );
+            await ref
+                .read(fileDeliveryProvider)
+                .save(
+                  'SoAccount-${transfer ? '转账' : '收支'}导入模板.csv',
+                  Uint8List.fromList(utf8.encode(template)),
+                );
+          }),
+    icon: const Icon(Icons.download_outlined),
+    label: Text(transfer ? '保存转账 CSV 模板' : '保存收支 CSV 模板'),
+  );
 
   @override
   Widget build(BuildContext context) => PopScope(
@@ -396,25 +423,8 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                           icon: const Icon(Icons.upload_file),
                           label: Text(busy ? '读取中…' : '选择文件'),
                         ),
-                        TextButton.icon(
-                          onPressed: busy
-                              ? null
-                              : () => perform(context, () async {
-                                  final template = csvDocument(
-                                    importTemplateRows(),
-                                  );
-                                  await ref
-                                      .read(fileDeliveryProvider)
-                                      .save(
-                                        'SoAccount-导入模板.csv',
-                                        Uint8List.fromList(
-                                          utf8.encode(template),
-                                        ),
-                                      );
-                                }),
-                          icon: const Icon(Icons.download_outlined),
-                          label: const Text('保存 CSV 模板'),
-                        ),
+                        templateButton(),
+                        templateButton(transfer: true),
                       ],
                     ),
                   );
@@ -427,7 +437,8 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                         (r) =>
                             (switch (previewFilter) {
                               'errors' => r.error != null,
-                              'duplicates' => r.entry?.duplicate ?? false,
+                              'duplicates' =>
+                                r.entry?.suspectedDuplicate ?? false,
                               'selected' => selected.contains(r.row),
                               _ => true,
                             }) &&
@@ -442,8 +453,10 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                     (r) => selected.contains(r.row),
                   )) {
                     final entry = row.entry!;
-                    final key = '${entry.currency} · ${entry.kind.label}';
-                    totals[key] = (totals[key] ?? 0) + entry.amount;
+                    for (final record in entry.recordsToImport) {
+                      final key = '${record.currency} · ${record.kind.label}';
+                      totals[key] = (totals[key] ?? 0) + record.amount;
+                    }
                   }
                   return Column(
                     children: [
@@ -465,9 +478,13 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                         .titleLarge,
                                   ),
                                   Text(
-                                    '共 ${plan.length} 条 · 错误 ${plan.where((r) => r.error != null).length} 条 · 疑似重复 ${plan.where((r) => r.entry?.duplicate ?? false).length} 条',
+                                    '共 ${plan.length} 条 · 错误 ${plan.where((r) => r.error != null).length} 条 · 疑似重复 ${plan.where((r) => r.entry?.suspectedDuplicate ?? false).length} 条',
                                   ),
                                   const Text('错误记录无法勾选；疑似重复默认不勾选，可核对后手动选择。'),
+                                  if (plan.any((r) => r.entry?.fee != null))
+                                    const Text(
+                                      '一行转账连同手续费一起选择；手续费另记支出，从转出账户扣除。部分已导入的记录仅补齐缺失部分。',
+                                    ),
                                   const SizedBox(height: 12),
                                   ClearableSearch(
                                     value: previewSearch,
@@ -531,7 +548,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                                       .where(
                                                         (r) =>
                                                             r.entry != null &&
-                                                            !r.entry!.duplicate,
+                                                            !r
+                                                                .entry!
+                                                                .suspectedDuplicate,
                                                       )
                                                       .map((r) => r.row),
                                                 );
@@ -579,7 +598,13 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                               subtitle: entry == null
                                   ? null
                                   : Text(
-                                      '${accountName(entry.accountId)}${entry.targetId == null ? '' : ' → ${accountName(entry.targetId!)}'}${entry.kind.needsCategory ? ' · ${data.category(entry.categoryId)}' : ''}${entry.note.isEmpty ? '' : ' · ${entry.note}'}${entry.duplicate ? ' · 疑似重复' : ''}',
+                                      '${accountName(entry.accountId)}${entry.targetId == null ? '' : ' → ${accountName(entry.targetId!)}'}${entry.kind.needsCategory ? ' · ${data.category(entry.categoryId)}' : ''}${entry.fee == null ? '' : ' · 手续费 ${money(entry.fee!.amount, entry.currency)}（${data.category(entry.fee!.categoryId)}）'}${entry.note.isEmpty ? '' : ' · ${entry.note}'}${entry.duplicate
+                                          ? ' · 疑似重复'
+                                          : entry.principalDuplicate
+                                          ? ' · 转账已存在，仅补手续费'
+                                          : entry.fee?.duplicate == true
+                                          ? ' · 手续费已存在，仅补转账'
+                                          : ''}',
                                     ),
                             );
                           },
@@ -630,7 +655,22 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                 mapping.detect(tables[sheet]);
                               },
                             ),
-                            for (final field in ImportField.values)
+                            if (mapping.hasTransferAccounts)
+                              const Padding(
+                                padding: EdgeInsets.only(bottom: 12),
+                                child: Text(
+                                  '已识别转账格式：转出账户 → 转入账户，一行一笔。手续费从转出账户另扣，单独计入支出。',
+                                ),
+                              ),
+                            for (final field in ImportField.values.where(
+                              (f) =>
+                                  showExtraColumns ||
+                                  mapping.columns.containsKey(f) ||
+                                  [
+                                    ImportField.date,
+                                    ImportField.amount,
+                                  ].contains(f),
+                            ))
                               select(
                                 '${field.label}${[ImportField.date, ImportField.amount].contains(field) ? ' · 必选列' : ''}',
                                 mapping.columns[field]?.toString(),
@@ -647,6 +687,17 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                   }
                                 },
                               ),
+                            TextButton(
+                              onPressed: busy
+                                  ? null
+                                  : () => setState(
+                                      () =>
+                                          showExtraColumns = !showExtraColumns,
+                                    ),
+                              child: Text(
+                                showExtraColumns ? '收起未关联字段' : '关联其他字段',
+                              ),
+                            ),
                             const SizedBox(height: 8),
                             const Text('文件内容示例'),
                             SingleChildScrollView(
@@ -693,43 +744,70 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                               '账户和分类按名称匹配，可手动关联。转账必须提供目标账户且与源账户不同、币种相同；源账户为空时使用明确选择的默认账户。负金额按绝对值记录，方向以交易类型为准。',
                             ),
                             const SizedBox(height: 12),
-                            select(
-                              '默认交易类型',
-                              mapping.defaultKind.name,
-                              {
-                                for (final kind in EntryKind.values.where(
-                                  (k) => !k.isSettlement,
-                                ))
-                                  kind.name: kind.label,
-                              },
-                              (value) => mapping.defaultKind = EntryKind.values
-                                  .byName(value),
-                            ),
-                            select(
-                              '默认账户',
-                              mapping.defaultAccount,
-                              {
-                                '': '请选择',
-                                for (final account in data.accounts)
-                                  account.id:
-                                      '${account.name} · ${account.currency}',
-                              },
-                              (value) => mapping.defaultAccount = value.isEmpty
-                                  ? null
-                                  : value,
-                            ),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: TextButton.icon(
-                                onPressed: busy
-                                    ? null
-                                    : () => perform(context, () async {
-                                        await createAccount(null);
-                                      }),
-                                icon: const Icon(Icons.add),
-                                label: const Text('创建默认账户'),
+                            if (table.rows.any(
+                              (row) =>
+                                  mapping.value(row, ImportField.kind).isEmpty,
+                            ))
+                              select(
+                                '默认交易类型',
+                                mapping.defaultKind.name,
+                                {
+                                  for (final kind in EntryKind.values.where(
+                                    (k) => !k.isSettlement,
+                                  ))
+                                    kind.name: kind.label,
+                                },
+                                (value) => mapping.defaultKind = EntryKind
+                                    .values
+                                    .byName(value),
                               ),
-                            ),
+                            if (table.rows.any(
+                              (row) => mapping
+                                  .sourceAccountValue(row, mapping.kindFor(row))
+                                  .isEmpty,
+                            )) ...[
+                              select(
+                                '默认账户',
+                                mapping.defaultAccount,
+                                {
+                                  '': '请选择',
+                                  for (final account in data.accounts)
+                                    account.id:
+                                        '${account.name} · ${account.currency}',
+                                },
+                                (value) => mapping.defaultAccount =
+                                    value.isEmpty ? null : value,
+                              ),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: TextButton.icon(
+                                  onPressed: busy
+                                      ? null
+                                      : () => perform(context, () async {
+                                          await createAccount(null);
+                                        }),
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('创建默认账户'),
+                                ),
+                              ),
+                            ],
+                            if (mapping.hasFees(table)) ...[
+                              const Text('手续费：金额为转入金额，手续费额外从转出账户扣除；请选择支出分类。'),
+                              select(
+                                '手续费支出分类',
+                                mapping.resolvedFeeCategory(data.categories),
+                                {
+                                  '': '请选择',
+                                  for (final category in data.categories.where(
+                                    (c) => c.kind == 'expense',
+                                  ))
+                                    category.id: category.name,
+                                },
+                                (value) => mapping.feeCategory = value.isEmpty
+                                    ? null
+                                    : value,
+                              ),
+                            ],
                             for (final kind in [
                               'expense',
                               'income',
@@ -759,21 +837,31 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                 },
                               ),
                             for (final value in kindValues.take(100))
-                              select(
-                                '类型内容：$value',
-                                mapping.kinds[value] ??
-                                    detectedKind(value)?.name,
-                                {
-                                  '': '请关联',
-                                  for (final kind in EntryKind.values.where(
-                                    (k) => !k.isSettlement,
-                                  ))
-                                    kind.name: kind.label,
-                                },
-                                (target) {
-                                  mapping.kinds[value] = target;
-                                },
-                              ),
+                              if (value == '还款' &&
+                                  mapping.hasTransferAccounts) ...[
+                                const Text(
+                                  '“还款”含义确认：花呗、信用卡等账户还款按转账处理；向他人偿还借款需在账本关联原借款。',
+                                ),
+                                select('类型内容：还款', mapping.kinds[value], {
+                                  '': '请确认还款含义',
+                                  'transfer': '信贷账户还款（转账）',
+                                }, (target) => mapping.kinds[value] = target),
+                              ] else
+                                select(
+                                  '类型内容：$value',
+                                  mapping.kinds[value] ??
+                                      detectedKind(value)?.name,
+                                  {
+                                    '': '请关联',
+                                    for (final kind in EntryKind.values.where(
+                                      (k) => !k.isSettlement,
+                                    ))
+                                      kind.name: kind.label,
+                                  },
+                                  (target) {
+                                    mapping.kinds[value] = target;
+                                  },
+                                ),
                             for (final value in accountValues.take(100))
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
