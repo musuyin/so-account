@@ -81,7 +81,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   (kind == null || e.kind == kind!.name) &&
                   (category == null || e.categoryId == category) &&
                   (search.isEmpty ||
-                      '${e.note} ${data.category(e.categoryId)} ${data.account(e.accountId).name}'
+                      '${e.note} ${e.counterparty} ${data.category(e.categoryId)} ${data.account(e.accountId).name}'
                           .toLowerCase()
                           .contains(search.toLowerCase())),
             )
@@ -326,7 +326,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             const SizedBox(height: 12),
             ClearableSearch(
               value: search,
-              hint: '搜索备注、分类或账户',
+              hint: '搜索备注、往来人、分类或账户',
               onChanged: (value) => setState(() => search = value),
             ),
             const SizedBox(height: 8),
@@ -411,7 +411,7 @@ class EntryTile extends ConsumerWidget {
               kind.needsCategory ? data.category(entry.categoryId) : kind.label,
             ),
             subtitle: Text(
-              '${entry.date} · ${account.name}${entry.targetAccountId == null ? '' : ' → ${data.account(entry.targetAccountId!).name}'}${entry.note.isEmpty ? '' : '\n${entry.note}'}',
+              '${entry.date} · ${account.name}${entry.targetAccountId == null ? '' : ' → ${data.account(entry.targetAccountId!).name}'}${entry.counterparty.isEmpty ? '' : ' · ${entry.counterparty}'}${entry.note.isEmpty ? '' : '\n${entry.note}'}',
             ),
             trailing: Text(
               '${kind.direction > 0 ? '+' : '-'}${decimalMoney(entry.amount, account.currency)}',

@@ -55,6 +55,7 @@ void main() {
             Entry(
               id: 'lunch',
               kind: 'expense',
+              counterparty: '',
               amount: 2850,
               accountId: 'wallet',
               date: dateKey(now),

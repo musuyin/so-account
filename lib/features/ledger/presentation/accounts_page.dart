@@ -8,6 +8,7 @@ import '../../../data/database/app_database.dart';
 import '../domain/entry_kind.dart';
 import '../domain/asset_summary.dart';
 import 'account_avatar.dart';
+import 'people_debts_page.dart';
 
 class AccountsPage extends ConsumerStatefulWidget {
   const AccountsPage({super.key});
@@ -22,6 +23,11 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     appBar: AppBar(
       title: const Text('账户'),
       actions: [
+        IconButton(
+          tooltip: '人员往来',
+          onPressed: () => openForm(context, const PeopleDebtsPage()),
+          icon: const Icon(Icons.people_outline),
+        ),
         IconButton(
           tooltip: '新增账户',
           onPressed: () => openForm(context, const AccountForm()),
@@ -113,6 +119,15 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
               ),
             ),
             if (accounts.isEmpty) const EmptyState('暂无账户', '添加账户后开始记账。'),
+            ListTile(
+              leading: const Icon(Icons.people_outline),
+              title: const Text('人员往来'),
+              subtitle: Text(
+                '待收回 ${money(receivable, currency)} · 待偿还 ${money(payable, currency)}',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => openForm(context, const PeopleDebtsPage()),
+            ),
             for (final kind in accountKinds)
               if (accounts.any((a) => a.kind == kind))
                 Card(

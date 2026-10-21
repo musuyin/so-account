@@ -68,7 +68,7 @@ class CsvExport {
       LEFT JOIN categories c ON c.id=e.category_id $clause ORDER BY e.date,e.created_at
     ''', variables: variables).get();
     return csvDocument([
-      ['ID', '日期', '类型', '币种', '金额', '账户', '转入账户', '分类', '关联借贷ID', '备注'],
+      ['ID', '日期', '类型', '币种', '金额', '账户', '转入账户', '分类', '关联借贷ID', '备注', '往来人'],
       for (final r in rows)
         [
           r.read<String>('id'),
@@ -81,6 +81,7 @@ class CsvExport {
           r.readNullable<String>('category_name'),
           r.readNullable<String>('debt_id'),
           r.read<String>('note'),
+          r.read<String>('counterparty'),
         ],
     ]);
   }

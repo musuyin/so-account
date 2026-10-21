@@ -805,6 +805,18 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
       'REFERENCES entries (id)',
     ),
   );
+  static const VerificationMeta _counterpartyMeta = const VerificationMeta(
+    'counterparty',
+  );
+  @override
+  late final GeneratedColumn<String> counterparty = GeneratedColumn<String>(
+    'counterparty',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _dateMeta = const VerificationMeta('date');
   @override
   late final GeneratedColumn<String> date = GeneratedColumn<String>(
@@ -855,6 +867,7 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
     targetAccountId,
     categoryId,
     debtId,
+    counterparty,
     date,
     note,
     createdAt,
@@ -920,6 +933,15 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
       context.handle(
         _debtIdMeta,
         debtId.isAcceptableOrUnknown(data['debt_id']!, _debtIdMeta),
+      );
+    }
+    if (data.containsKey('counterparty')) {
+      context.handle(
+        _counterpartyMeta,
+        counterparty.isAcceptableOrUnknown(
+          data['counterparty']!,
+          _counterpartyMeta,
+        ),
       );
     }
     if (data.containsKey('date')) {
@@ -989,6 +1011,10 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
         DriftSqlType.string,
         data['${effectivePrefix}debt_id'],
       ),
+      counterparty: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}counterparty'],
+      )!,
       date: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}date'],
@@ -1022,6 +1048,7 @@ class Entry extends DataClass implements Insertable<Entry> {
   final String? targetAccountId;
   final String? categoryId;
   final String? debtId;
+  final String counterparty;
   final String date;
   final String note;
   final int createdAt;
@@ -1034,6 +1061,7 @@ class Entry extends DataClass implements Insertable<Entry> {
     this.targetAccountId,
     this.categoryId,
     this.debtId,
+    required this.counterparty,
     required this.date,
     required this.note,
     required this.createdAt,
@@ -1055,6 +1083,7 @@ class Entry extends DataClass implements Insertable<Entry> {
     if (!nullToAbsent || debtId != null) {
       map['debt_id'] = Variable<String>(debtId);
     }
+    map['counterparty'] = Variable<String>(counterparty);
     map['date'] = Variable<String>(date);
     map['note'] = Variable<String>(note);
     map['created_at'] = Variable<int>(createdAt);
@@ -1077,6 +1106,7 @@ class Entry extends DataClass implements Insertable<Entry> {
       debtId: debtId == null && nullToAbsent
           ? const Value.absent()
           : Value(debtId),
+      counterparty: Value(counterparty),
       date: Value(date),
       note: Value(note),
       createdAt: Value(createdAt),
@@ -1097,6 +1127,7 @@ class Entry extends DataClass implements Insertable<Entry> {
       targetAccountId: serializer.fromJson<String?>(json['targetAccountId']),
       categoryId: serializer.fromJson<String?>(json['categoryId']),
       debtId: serializer.fromJson<String?>(json['debtId']),
+      counterparty: serializer.fromJson<String>(json['counterparty']),
       date: serializer.fromJson<String>(json['date']),
       note: serializer.fromJson<String>(json['note']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
@@ -1114,6 +1145,7 @@ class Entry extends DataClass implements Insertable<Entry> {
       'targetAccountId': serializer.toJson<String?>(targetAccountId),
       'categoryId': serializer.toJson<String?>(categoryId),
       'debtId': serializer.toJson<String?>(debtId),
+      'counterparty': serializer.toJson<String>(counterparty),
       'date': serializer.toJson<String>(date),
       'note': serializer.toJson<String>(note),
       'createdAt': serializer.toJson<int>(createdAt),
@@ -1129,6 +1161,7 @@ class Entry extends DataClass implements Insertable<Entry> {
     Value<String?> targetAccountId = const Value.absent(),
     Value<String?> categoryId = const Value.absent(),
     Value<String?> debtId = const Value.absent(),
+    String? counterparty,
     String? date,
     String? note,
     int? createdAt,
@@ -1143,6 +1176,7 @@ class Entry extends DataClass implements Insertable<Entry> {
         : this.targetAccountId,
     categoryId: categoryId.present ? categoryId.value : this.categoryId,
     debtId: debtId.present ? debtId.value : this.debtId,
+    counterparty: counterparty ?? this.counterparty,
     date: date ?? this.date,
     note: note ?? this.note,
     createdAt: createdAt ?? this.createdAt,
@@ -1161,6 +1195,9 @@ class Entry extends DataClass implements Insertable<Entry> {
           ? data.categoryId.value
           : this.categoryId,
       debtId: data.debtId.present ? data.debtId.value : this.debtId,
+      counterparty: data.counterparty.present
+          ? data.counterparty.value
+          : this.counterparty,
       date: data.date.present ? data.date.value : this.date,
       note: data.note.present ? data.note.value : this.note,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -1178,6 +1215,7 @@ class Entry extends DataClass implements Insertable<Entry> {
           ..write('targetAccountId: $targetAccountId, ')
           ..write('categoryId: $categoryId, ')
           ..write('debtId: $debtId, ')
+          ..write('counterparty: $counterparty, ')
           ..write('date: $date, ')
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
@@ -1195,6 +1233,7 @@ class Entry extends DataClass implements Insertable<Entry> {
     targetAccountId,
     categoryId,
     debtId,
+    counterparty,
     date,
     note,
     createdAt,
@@ -1211,6 +1250,7 @@ class Entry extends DataClass implements Insertable<Entry> {
           other.targetAccountId == this.targetAccountId &&
           other.categoryId == this.categoryId &&
           other.debtId == this.debtId &&
+          other.counterparty == this.counterparty &&
           other.date == this.date &&
           other.note == this.note &&
           other.createdAt == this.createdAt &&
@@ -1225,6 +1265,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
   final Value<String?> targetAccountId;
   final Value<String?> categoryId;
   final Value<String?> debtId;
+  final Value<String> counterparty;
   final Value<String> date;
   final Value<String> note;
   final Value<int> createdAt;
@@ -1238,6 +1279,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     this.targetAccountId = const Value.absent(),
     this.categoryId = const Value.absent(),
     this.debtId = const Value.absent(),
+    this.counterparty = const Value.absent(),
     this.date = const Value.absent(),
     this.note = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -1252,6 +1294,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     this.targetAccountId = const Value.absent(),
     this.categoryId = const Value.absent(),
     this.debtId = const Value.absent(),
+    this.counterparty = const Value.absent(),
     required String date,
     this.note = const Value.absent(),
     required int createdAt,
@@ -1272,6 +1315,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     Expression<String>? targetAccountId,
     Expression<String>? categoryId,
     Expression<String>? debtId,
+    Expression<String>? counterparty,
     Expression<String>? date,
     Expression<String>? note,
     Expression<int>? createdAt,
@@ -1286,6 +1330,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
       if (targetAccountId != null) 'target_account_id': targetAccountId,
       if (categoryId != null) 'category_id': categoryId,
       if (debtId != null) 'debt_id': debtId,
+      if (counterparty != null) 'counterparty': counterparty,
       if (date != null) 'date': date,
       if (note != null) 'note': note,
       if (createdAt != null) 'created_at': createdAt,
@@ -1302,6 +1347,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     Value<String?>? targetAccountId,
     Value<String?>? categoryId,
     Value<String?>? debtId,
+    Value<String>? counterparty,
     Value<String>? date,
     Value<String>? note,
     Value<int>? createdAt,
@@ -1316,6 +1362,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
       targetAccountId: targetAccountId ?? this.targetAccountId,
       categoryId: categoryId ?? this.categoryId,
       debtId: debtId ?? this.debtId,
+      counterparty: counterparty ?? this.counterparty,
       date: date ?? this.date,
       note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,
@@ -1348,6 +1395,9 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     if (debtId.present) {
       map['debt_id'] = Variable<String>(debtId.value);
     }
+    if (counterparty.present) {
+      map['counterparty'] = Variable<String>(counterparty.value);
+    }
     if (date.present) {
       map['date'] = Variable<String>(date.value);
     }
@@ -1376,6 +1426,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
           ..write('targetAccountId: $targetAccountId, ')
           ..write('categoryId: $categoryId, ')
           ..write('debtId: $debtId, ')
+          ..write('counterparty: $counterparty, ')
           ..write('date: $date, ')
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
@@ -3472,6 +3523,7 @@ typedef $$EntriesTableCreateCompanionBuilder = EntriesCompanion Function({
   Value<String?> targetAccountId,
   Value<String?> categoryId,
   Value<String?> debtId,
+  Value<String> counterparty,
   required String date,
   Value<String> note,
   required int createdAt,
@@ -3486,6 +3538,7 @@ typedef $$EntriesTableUpdateCompanionBuilder = EntriesCompanion Function({
   Value<String?> targetAccountId,
   Value<String?> categoryId,
   Value<String?> debtId,
+  Value<String> counterparty,
   Value<String> date,
   Value<String> note,
   Value<int> createdAt,
@@ -3605,6 +3658,11 @@ class $$EntriesTableFilterComposer
 
   ColumnFilters<int> get amount => $composableBuilder(
     column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get counterparty => $composableBuilder(
+    column: $table.counterparty,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3770,6 +3828,11 @@ class $$EntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get counterparty => $composableBuilder(
+    column: $table.counterparty,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get date => $composableBuilder(
     column: $table.date,
     builder: (column) => ColumnOrderings(column),
@@ -3900,6 +3963,11 @@ class $$EntriesTableAnnotationComposer
 
   GeneratedColumn<int> get amount =>
       $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get counterparty => $composableBuilder(
+    column: $table.counterparty,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get date =>
       $composableBuilder(column: $table.date, builder: (column) => column);
@@ -4072,6 +4140,7 @@ class $$EntriesTableTableManager
                 Value<String?> targetAccountId = const Value.absent(),
                 Value<String?> categoryId = const Value.absent(),
                 Value<String?> debtId = const Value.absent(),
+                Value<String> counterparty = const Value.absent(),
                 Value<String> date = const Value.absent(),
                 Value<String> note = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
@@ -4085,6 +4154,7 @@ class $$EntriesTableTableManager
                 targetAccountId: targetAccountId,
                 categoryId: categoryId,
                 debtId: debtId,
+                counterparty: counterparty,
                 date: date,
                 note: note,
                 createdAt: createdAt,
@@ -4100,6 +4170,7 @@ class $$EntriesTableTableManager
                 Value<String?> targetAccountId = const Value.absent(),
                 Value<String?> categoryId = const Value.absent(),
                 Value<String?> debtId = const Value.absent(),
+                Value<String> counterparty = const Value.absent(),
                 required String date,
                 Value<String> note = const Value.absent(),
                 required int createdAt,
@@ -4113,6 +4184,7 @@ class $$EntriesTableTableManager
                 targetAccountId: targetAccountId,
                 categoryId: categoryId,
                 debtId: debtId,
+                counterparty: counterparty,
                 date: date,
                 note: note,
                 createdAt: createdAt,

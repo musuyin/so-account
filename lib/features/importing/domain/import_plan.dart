@@ -3,6 +3,7 @@ import '../../../core/time/business_date.dart';
 import '../../../data/database/app_database.dart';
 import '../../ledger/data/ledger_repository.dart';
 import '../../ledger/domain/entry_kind.dart';
+import '../../ledger/domain/debt_relationship.dart';
 import 'import_table.dart';
 
 enum ImportField {
@@ -26,6 +27,8 @@ enum ImportField {
     'to_account',
   ]),
   fee('手续费', ['手续费', '转账手续费', 'fee']),
+  counterparty('往来人', ['往来人', '人员', '借贷对象', '对方姓名', 'counterparty']),
+  debt('原始借贷ID', ['原始借贷id', '关联借贷id', 'debt_id']),
   category('分类', ['分类', '类别', '交易分类', 'category']),
   currency('币种', ['币种', 'currency']),
   note('备注', ['备注', '说明', '商品', 'note']);
@@ -38,6 +41,9 @@ enum ImportField {
 class ImportMapping {
   final Map<ImportField, int> columns = {};
   final Map<String, String> accounts = {}, categories = {}, kinds = {};
+  final Map<int, String> debts = {};
+  // Rows keep their identity throughout one table's mapping/preview lifecycle.
+  final Map<List<String>, EntryKind> rowKinds = {};
   String? defaultAccount, expenseCategory, incomeCategory, feeCategory;
   EntryKind defaultKind = EntryKind.expense;
   void detect(ImportTable table) {
@@ -45,6 +51,8 @@ class ImportMapping {
     accounts.clear();
     categories.clear();
     kinds.clear();
+    debts.clear();
+    rowKinds.clear();
     defaultAccount = expenseCategory = incomeCategory = feeCategory = null;
     defaultKind = EntryKind.expense;
     for (final field in ImportField.values) {
@@ -65,6 +73,7 @@ class ImportMapping {
   }
 
   EntryKind? kindFor(List<String> row) {
+    if (rowKinds.containsKey(row)) return rowKinds[row];
     final source = value(row, ImportField.kind);
     return source.isEmpty ? defaultKind : detectedKind(kinds[source] ?? source);
   }
@@ -94,10 +103,65 @@ class ImportMapping {
   String sourceAccountValue(List<String> row, EntryKind? kind) {
     final ordinary = value(row, ImportField.account);
     final source = value(row, ImportField.source);
+    if (ordinary.isEmpty &&
+        hasTransferAccounts &&
+        [EntryKind.borrow, EntryKind.collect].contains(kind)) {
+      return value(row, ImportField.target);
+    }
     return kind == EntryKind.transfer
         ? (source.isNotEmpty ? source : ordinary)
         : (ordinary.isNotEmpty ? ordinary : source);
   }
+
+  String counterpartyValue(List<String> row, EntryKind? kind) {
+    if (![
+      EntryKind.borrow,
+      EntryKind.lend,
+      EntryKind.repay,
+      EntryKind.collect,
+    ].contains(kind)) {
+      return '';
+    }
+    final person = value(row, ImportField.counterparty);
+    if (person.isNotEmpty || !hasTransferAccounts) return person;
+    return value(
+      row,
+      [EntryKind.borrow, EntryKind.collect].contains(kind)
+          ? ImportField.source
+          : ImportField.target,
+    );
+  }
+}
+
+List<Entry> eligibleImportDebts(
+  List<String> row,
+  ImportMapping mapping,
+  List<Account> accounts,
+  List<Entry> existing,
+) {
+  final kind = mapping.kindFor(row);
+  if (kind == null || !kind.isSettlement) return [];
+  final person = mapping.counterpartyValue(row, kind);
+  final accountName = mapping.sourceAccountValue(row, kind);
+  final accountId = mapping.accounts[accountName];
+  final account = accounts
+      .where(
+        (a) => accountId != null ? a.id == accountId : a.name == accountName,
+      )
+      .firstOrNull;
+  return existing
+      .where(
+        (debt) =>
+            debt.kind == (kind == EntryKind.repay ? 'borrow' : 'lend') &&
+            (person.isEmpty || debt.counterparty == person) &&
+            (account == null ||
+                accounts.any(
+                  (a) =>
+                      a.id == debt.accountId && a.currency == account.currency,
+                )) &&
+            debtRemaining(debt, existing) > 0,
+      )
+      .toList();
 }
 
 String importDate(String value) {
@@ -136,6 +200,8 @@ class ImportEntry {
     bool duplicate = false,
     this.currency = 'CNY',
     this.fee,
+    this.counterparty = '',
+    this.debtId,
   }) : principalDuplicate = duplicate;
   final int row, amount;
   final EntryKind kind;
@@ -144,6 +210,8 @@ class ImportEntry {
   final bool principalDuplicate;
   final String currency;
   final ImportEntry? fee;
+  final String counterparty;
+  final String? debtId;
 
   bool get duplicate => principalDuplicate && (fee?.duplicate ?? true);
   bool get suspectedDuplicate =>
@@ -171,8 +239,10 @@ String _signature(
   String date,
   String note,
   String? category,
-  String? target,
-) => [
+  String? target, [
+  String counterparty = '',
+  String? debtId,
+]) => [
   kind,
   '$amount',
   account,
@@ -180,6 +250,8 @@ String _signature(
   note,
   category ?? '',
   target ?? '',
+  counterparty,
+  debtId ?? '',
 ].map((v) => '${v.length}:$v').join();
 
 List<ImportResult> previewImport(
@@ -206,6 +278,8 @@ List<ImportResult> previewImport(
         e.note,
         e.categoryId,
         e.targetAccountId,
+        e.counterparty,
+        e.debtId,
       ),
   };
   return [
@@ -216,9 +290,6 @@ List<ImportResult> previewImport(
           final kind = mapping.kindFor(row);
           if (kind == null) {
             throw const FormatException('请关联交易类型；信贷账户还款可明确选择“转账”');
-          }
-          if (kind.isSettlement) {
-            throw const FormatException('借贷还款需关联原借款，请在账本中记录或使用完整备份恢复');
           }
           Account resolveAccount(String value, {bool target = false}) {
             final id = value.isEmpty
@@ -301,6 +372,39 @@ List<ImportResult> previewImport(
             throw const FormatException('目标账户须为另一个同币种账户');
           }
           final date = importDate(mapping.value(row, ImportField.date));
+          var counterparty = mapping.counterpartyValue(row, kind);
+          if (counterparty.length > 80) {
+            throw const FormatException('往来人名称不能超过 80 字');
+          }
+          String? debtId;
+          if (kind.isSettlement) {
+            debtId =
+                mapping.debts[i + 2] ?? mapping.value(row, ImportField.debt);
+            final debt = existing
+                .where(
+                  (e) =>
+                      e.id == debtId &&
+                      e.kind == (kind == EntryKind.repay ? 'borrow' : 'lend'),
+                )
+                .firstOrNull;
+            if (debt == null) {
+              throw const FormatException('请选择此行对应的原始借贷；尚未入账的借贷请先分批导入');
+            }
+            if (counterparty.isNotEmpty && counterparty != debt.counterparty) {
+              throw const FormatException('往来人与原始借贷不一致，请检查类型或原始借贷');
+            }
+            final debtAccount = accounts
+                .where((a) => a.id == debt.accountId)
+                .firstOrNull;
+            if (debtAccount?.currency != account.currency ||
+                date.compareTo(debt.date) < 0) {
+              throw const FormatException('还款币种须一致，日期不能早于借贷');
+            }
+            if (amount > debtRemaining(debt, existing)) {
+              throw const FormatException('还款不能超过剩余本金');
+            }
+            counterparty = debt.counterparty;
+          }
           final note = mapping.value(row, ImportField.note);
           if (note.length > 2000) throw const FormatException('备注不能超过 2000 字');
           final rawFee = mapping.value(row, ImportField.fee);
@@ -340,6 +444,8 @@ List<ImportResult> previewImport(
             note,
             categoryId,
             target?.id,
+            counterparty,
+            debtId,
           );
           final duplicate = !seen.add(signature);
           final feeDuplicate =
@@ -368,6 +474,8 @@ List<ImportResult> previewImport(
               targetId: target?.id,
               duplicate: duplicate,
               currency: account.currency,
+              counterparty: counterparty,
+              debtId: debtId,
               fee: fee == 0
                   ? null
                   : ImportEntry(
@@ -411,6 +519,8 @@ Future<int> commitImport(AppDatabase db, List<ImportEntry> entries) =>
           targetAccountId: entry.targetId,
           date: entry.date,
           note: entry.note,
+          counterparty: entry.counterparty,
+          debtId: entry.debtId,
         );
       }
       return entries.length;

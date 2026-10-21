@@ -143,6 +143,7 @@ class LedgerRepository {
     String? targetAccountId,
     String? categoryId,
     String? debtId,
+    String counterparty = '',
     required String date,
     String note = '',
   }) => db.transaction(() async {
@@ -150,6 +151,8 @@ class LedgerRepository {
       throw const FormatException('金额必须大于零且不超出上限');
     }
     parseDate(date);
+    counterparty = counterparty.trim();
+    if (counterparty.length > 80) throw const FormatException('往来人名称不能超过 80 字');
     if (note.length > 2000) throw const FormatException('备注不能超过 2000 字');
     final account = await (db.select(
       db.accounts,
@@ -166,10 +169,11 @@ class LedgerRepository {
       )..where((e) => e.debtId.equals(old.id))).get();
       if (settlements.isNotEmpty &&
           (kind.name != old.kind ||
+              counterparty != old.counterparty ||
               accountId != old.accountId ||
               amount < settlements.fold<int>(0, (s, e) => s + e.amount) ||
               settlements.any((e) => e.date.compareTo(date) < 0))) {
-        throw const FormatException('已有还款，不能改变债务类型、账户或使本金小于已还金额、日期晚于还款');
+        throw const FormatException('已有还款，不能改变往来人、债务类型、账户或使本金小于已还金额、日期晚于还款');
       }
       final links = await (db.select(
         db.purchaseLinks,
@@ -221,6 +225,10 @@ class LedgerRepository {
           debt.kind != (kind == EntryKind.repay ? 'borrow' : 'lend')) {
         throw const FormatException('请选择对应的原始借贷');
       }
+      if (counterparty.isNotEmpty && counterparty != debt.counterparty) {
+        throw const FormatException('还款往来人须与原始借贷一致');
+      }
+      counterparty = debt.counterparty;
       final debtAccount = await (db.select(
         db.accounts,
       )..where((a) => a.id.equals(debt.accountId))).getSingle();
@@ -239,6 +247,7 @@ class LedgerRepository {
       }
     } else {
       debtId = null;
+      if (kind != EntryKind.borrow && kind != EntryKind.lend) counterparty = '';
     }
     final entryId = id ?? _uuid.v4();
     final now = DateTime.now().toUtc().millisecondsSinceEpoch;
@@ -253,6 +262,7 @@ class LedgerRepository {
             targetAccountId: Value(targetAccountId),
             categoryId: Value(categoryId),
             debtId: Value(debtId),
+            counterparty: Value(counterparty),
             date: date,
             note: Value(note.trim()),
             createdAt: old?.createdAt ?? now,

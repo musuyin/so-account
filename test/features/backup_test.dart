@@ -66,6 +66,9 @@ void main() {
     for (final row in json['accounts'] as List) {
       (row as Map).remove('avatar');
     }
+    for (final row in json['entries'] as List) {
+      (row as Map).remove('counterparty');
+    }
     for (final row in json['items'] as List) {
       (row as Map).remove('useType');
       row.remove('status');
@@ -91,6 +94,31 @@ void main() {
     expect((await db.select(db.accounts).get()).single.avatar, '');
     expect((await db.select(db.items).get()).single.useType, 'durable');
     expect((await db.select(db.items).get()).single.status, 'active');
+    expect((await db.select(db.entries).get()).single.counterparty, '');
+  });
+  test('people and original loan links survive backup and restore', () async {
+    final ledger = LedgerRepository(db);
+    final account = (await db.select(db.accounts).get()).single;
+    final loan = await ledger.saveEntry(
+      kind: EntryKind.borrow,
+      amount: 10000,
+      accountId: account.id,
+      date: '2026-10-01',
+      counterparty: '小林',
+    );
+    await ledger.saveEntry(
+      kind: EntryKind.repay,
+      amount: 1000,
+      accountId: account.id,
+      date: '2026-10-02',
+      debtId: loan,
+    );
+    final bytes = await service.export();
+    await service.restore(bytes);
+    final entries = await db.select(db.entries).get();
+    expect(entries.singleWhere((e) => e.kind == 'borrow').counterparty, '小林');
+    expect(entries.singleWhere((e) => e.kind == 'repay').counterparty, '小林');
+    expect(entries.singleWhere((e) => e.kind == 'repay').debtId, loan);
   });
   test('appearance preferences survive backup and restore', () async {
     await db

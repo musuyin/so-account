@@ -9,6 +9,7 @@ import '../../../app/widgets.dart';
 import '../../../core/money/money.dart';
 import '../../../data/database/app_database.dart';
 import '../../ledger/domain/entry_kind.dart';
+import '../../ledger/domain/debt_relationship.dart';
 import '../../ledger/presentation/accounts_page.dart';
 import '../../statistics/data/csv_export.dart';
 import '../domain/import_table.dart';
@@ -205,7 +206,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                 mapping.value(row, ImportField.kind) == '还款' &&
                 mapping.kindFor(row) == null,
           )) {
-        throw const FormatException('请先确认“还款”的含义：信贷账户还款选择“转账”；向他人还款需在账本关联原借款');
+        throw const FormatException(
+          '请先确认“还款”的含义：信贷账户还款选择转账；人员还款选择偿还借入或收回借出，并关联原始借贷',
+        );
       }
       final missing = missingImportAccounts(
         tables[sheet],
@@ -598,7 +601,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                               subtitle: entry == null
                                   ? null
                                   : Text(
-                                      '${accountName(entry.accountId)}${entry.targetId == null ? '' : ' → ${accountName(entry.targetId!)}'}${entry.kind.needsCategory ? ' · ${data.category(entry.categoryId)}' : ''}${entry.fee == null ? '' : ' · 手续费 ${money(entry.fee!.amount, entry.currency)}（${data.category(entry.fee!.categoryId)}）'}${entry.note.isEmpty ? '' : ' · ${entry.note}'}${entry.duplicate
+                                      '${accountName(entry.accountId)}${entry.targetId == null ? '' : ' → ${accountName(entry.targetId!)}'}${entry.counterparty.isEmpty ? '' : ' · 往来人 ${entry.counterparty}'}${entry.debtId == null ? '' : ' · 原借贷 ${data.entries.where((e) => e.id == entry.debtId).firstOrNull?.date ?? ''}'}${entry.kind.needsCategory ? ' · ${data.category(entry.categoryId)}' : ''}${entry.fee == null ? '' : ' · 手续费 ${money(entry.fee!.amount, entry.currency)}（${data.category(entry.fee!.categoryId)}）'}${entry.note.isEmpty ? '' : ' · ${entry.note}'}${entry.duplicate
                                           ? ' · 疑似重复'
                                           : entry.principalDuplicate
                                           ? ' · 转账已存在，仅补手续费'
@@ -840,12 +843,67 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                               if (value == '还款' &&
                                   mapping.hasTransferAccounts) ...[
                                 const Text(
-                                  '“还款”含义确认：花呗、信用卡等账户还款按转账处理；向他人偿还借款需在账本关联原借款。',
+                                  '“还款”含义确认：花呗、信用卡等还款选转账；人员还款选偿还借入或收回借出，并逐笔选择原始借贷。人员不创建为资金账户。',
                                 ),
                                 select('类型内容：还款', mapping.kinds[value], {
                                   '': '请确认还款含义',
                                   'transfer': '信贷账户还款（转账）',
+                                  'repay': '向他人还款（偿还借入）',
+                                  'collect': '他人向我还款（收回借出）',
                                 }, (target) => mapping.kinds[value] = target),
+                                ExpansionTile(
+                                  title: const Text('逐行区分还款类型（混合情况）'),
+                                  subtitle: const Text(
+                                    '上方选择用于整组；个别记录可在这里单独修改。',
+                                  ),
+                                  children: [
+                                    for (final (index, row)
+                                        in table.rows.indexed
+                                            .where(
+                                              (r) =>
+                                                  mapping.value(
+                                                    r.$2,
+                                                    ImportField.kind,
+                                                  ) ==
+                                                  '还款',
+                                            )
+                                            .take(100))
+                                      select(
+                                        '第 ${index + 2} 行还款类型 · ${mapping.value(row, ImportField.date)} · ${mapping.value(row, ImportField.source)} → ${mapping.value(row, ImportField.target)} · ${mapping.value(row, ImportField.amount)}',
+                                        mapping.rowKinds[row]?.name ??
+                                            mapping.kindFor(row)?.name,
+                                        {
+                                          '': '跟随整组选择',
+                                          'transfer': '信贷账户还款（转账）',
+                                          'repay': '向他人还款（偿还借入）',
+                                          'collect': '他人向我还款（收回借出）',
+                                        },
+                                        (value) {
+                                          if (value.isEmpty) {
+                                            mapping.rowKinds.remove(row);
+                                          } else {
+                                            mapping.rowKinds[row] = EntryKind
+                                                .values
+                                                .byName(value);
+                                          }
+                                        },
+                                      ),
+                                    if (table.rows
+                                            .where(
+                                              (r) =>
+                                                  mapping.value(
+                                                    r,
+                                                    ImportField.kind,
+                                                  ) ==
+                                                  '还款',
+                                            )
+                                            .length >
+                                        100)
+                                      const Text(
+                                        '逐行区分最多显示 100 行；其余请分批导入，或在类型列直接填写“转账 / 偿还借入 / 收回借出”。',
+                                      ),
+                                  ],
+                                ),
                               ] else
                                 select(
                                   '类型内容：$value',
@@ -853,9 +911,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                       detectedKind(value)?.name,
                                   {
                                     '': '请关联',
-                                    for (final kind in EntryKind.values.where(
-                                      (k) => !k.isSettlement,
-                                    ))
+                                    for (final kind in EntryKind.values)
                                       kind.name: kind.label,
                                   },
                                   (target) {
@@ -916,6 +972,47 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                       label: Text('创建“$value”'),
                                     ),
                                 ],
+                              ),
+                            for (final (index, row)
+                                in table.rows.indexed
+                                    .where(
+                                      (r) =>
+                                          mapping.kindFor(r.$2)?.isSettlement ==
+                                              true &&
+                                          mapping
+                                              .value(r.$2, ImportField.debt)
+                                              .isEmpty,
+                                    )
+                                    .take(100))
+                              select(
+                                '第 ${index + 2} 行原始借贷 · ${mapping.counterpartyValue(row, mapping.kindFor(row))}',
+                                mapping.debts[index + 2],
+                                {
+                                  '': '请明确选择原始借贷',
+                                  for (final debt in eligibleImportDebts(
+                                    row,
+                                    mapping,
+                                    data.accounts,
+                                    data.entries,
+                                  ))
+                                    debt.id:
+                                        '${debt.counterparty.isEmpty ? '未注明往来人' : debt.counterparty} · ${debt.date} · 剩余 ${money(debtRemaining(debt, data.entries), data.account(debt.accountId).currency)}${debt.note.isEmpty ? '' : ' · ${debt.note}'}',
+                                },
+                                (value) => mapping.debts[index + 2] = value,
+                              ),
+                            if (table.rows
+                                    .where(
+                                      (row) =>
+                                          mapping.kindFor(row)?.isSettlement ==
+                                              true &&
+                                          mapping
+                                              .value(row, ImportField.debt)
+                                              .isEmpty,
+                                    )
+                                    .length >
+                                100)
+                              const Text(
+                                '逐行关联原始借贷最多显示 100 行；请分批导入，或提供“原始借贷ID”列。',
                               ),
                             for (final kind in [
                               'expense',

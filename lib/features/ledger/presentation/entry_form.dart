@@ -7,14 +7,25 @@ import '../../../core/money/money.dart';
 import '../../../core/time/business_date.dart';
 import '../../../data/database/app_database.dart';
 import '../domain/entry_kind.dart';
+import '../domain/debt_relationship.dart';
 import 'accounts_page.dart';
 import 'amount_pad.dart';
 import 'category_icons.dart';
 import '../../../core/money/calculator.dart';
 
 class EntryForm extends ConsumerStatefulWidget {
-  const EntryForm({super.key, this.entry, this.initialDate});
+  const EntryForm({
+    super.key,
+    this.entry,
+    this.initialDate,
+    this.initialKind,
+    this.initialDebt,
+    this.initialCounterparty,
+  });
   final Entry? entry;
+  final EntryKind? initialKind;
+  final Entry? initialDebt;
+  final String? initialCounterparty;
   final DateTime? initialDate;
   @override
   ConsumerState<EntryForm> createState() => _EntryFormState();
@@ -22,22 +33,27 @@ class EntryForm extends ConsumerStatefulWidget {
 
 class _EntryFormState extends ConsumerState<EntryForm> {
   late EntryKind kind = EntryKind.values.byName(
-    widget.entry?.kind ?? 'expense',
+    widget.entry?.kind ?? widget.initialKind?.name ?? 'expense',
   );
-  late String? accountId = widget.entry?.accountId;
+  late String? accountId =
+      widget.entry?.accountId ?? widget.initialDebt?.accountId;
   late String? targetId = widget.entry?.targetAccountId;
   late String? categoryId = widget.entry?.categoryId;
-  late String? debtId = widget.entry?.debtId;
+  late String? debtId = widget.entry?.debtId ?? widget.initialDebt?.id;
   late DateTime date = widget.entry == null
       ? widget.initialDate ?? DateTime.now()
       : parseDate(widget.entry!.date);
   final amount = TextEditingController();
   late final note = TextEditingController(text: widget.entry?.note);
+  late final counterparty = TextEditingController(
+    text: widget.entry?.counterparty ?? widget.initialCounterparty,
+  );
   bool initialized = false, saving = false;
   @override
   void dispose() {
     amount.dispose();
     note.dispose();
+    counterparty.dispose();
     super.dispose();
   }
 
@@ -80,16 +96,23 @@ class _EntryFormState extends ConsumerState<EntryForm> {
             (e) =>
                 e.id != widget.entry?.id &&
                 e.kind == (kind == EntryKind.repay ? 'borrow' : 'lend') &&
+                (debtRemaining(e, data.entries, excludingId: widget.entry?.id) >
+                        0 ||
+                    e.id == debtId) &&
                 data.account(e.accountId).currency == account.currency,
           )
           .toList();
-      if (!debts.any((e) => e.id == debtId)) debtId = debts.firstOrNull?.id;
+      if (!debts.any((e) => e.id == debtId)) debtId = null;
       return FormFrame(
         title: widget.entry == null ? '记一笔' : '编辑账目',
         saving: saving,
         onSave: () async {
           setState(() => saving = true);
           final ok = await perform(context, () async {
+            if ([EntryKind.borrow, EntryKind.lend].contains(kind) &&
+                counterparty.text.trim().isEmpty) {
+              throw const FormatException('请填写往来人');
+            }
             await ref
                 .read(ledgerProvider)
                 .saveEntry(
@@ -100,6 +123,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                   targetAccountId: targetId,
                   categoryId: categoryId,
                   debtId: debtId,
+                  counterparty: kind.isSettlement ? '' : counterparty.text,
                   date: dateKey(date),
                   note: note.text,
                 );
@@ -218,9 +242,32 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                   .toList(),
               onChanged: (v) => targetId = v,
             ),
-          if (kind.isSettlement)
+          if ([EntryKind.borrow, EntryKind.lend].contains(kind))
+            Autocomplete<String>(
+              initialValue: TextEditingValue(text: counterparty.text),
+              optionsBuilder: (value) => data.entries
+                  .map((e) => e.counterparty)
+                  .where(
+                    (name) =>
+                        name.isNotEmpty && name.contains(value.text.trim()),
+                  )
+                  .toSet(),
+              onSelected: (value) => counterparty.text = value,
+              fieldViewBuilder: (context, controller, focus, submit) =>
+                  TextField(
+                    controller: controller,
+                    focusNode: focus,
+                    maxLength: 80,
+                    decoration: const InputDecoration(
+                      labelText: '往来人',
+                      hintText: '姓名或称呼',
+                    ),
+                    onChanged: (value) => counterparty.text = value,
+                  ),
+            ),
+          if (kind.isSettlement) ...[
             DropdownButtonFormField<String>(
-              key: ValueKey('debt-${kind.name}-$accountId'),
+              key: ValueKey('debt-${kind.name}-$accountId-$debtId'),
               isExpanded: true,
               initialValue: debtId,
               decoration: const InputDecoration(labelText: '原始借贷'),
@@ -229,19 +276,24 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                     (e) => DropdownMenuItem(
                       value: e.id,
                       child: Text(
-                        '${e.date} ${e.note.isEmpty ? data.account(e.accountId).name : e.note} ${money(e.amount, account.currency)}',
+                        '${e.counterparty.isEmpty ? '未注明往来人' : e.counterparty} · ${e.date} · 剩余 ${money(debtRemaining(e, data.entries, excludingId: widget.entry?.id), account.currency)}${e.note.isEmpty ? '' : ' · ${e.note}'}',
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   )
                   .toList(),
-              onChanged: (v) => debtId = v,
+              onChanged: (v) => setState(() => debtId = v),
             ),
+            if (debtId != null)
+              Text(
+                '往来人：${debts.firstWhere((e) => e.id == debtId).counterparty.isEmpty ? '未注明往来人' : debts.firstWhere((e) => e.id == debtId).counterparty}',
+              ),
+          ],
           TextField(
             controller: note,
             maxLength: 2000,
             maxLines: 3,
-            decoration: const InputDecoration(labelText: '备注 / 往来人'),
+            decoration: const InputDecoration(labelText: '备注'),
           ),
           if (kind == EntryKind.borrow || kind == EntryKind.lend)
             const Text('借贷本金不计入收入或支出，后续通过“偿还借入 / 收回借出”结算。'),

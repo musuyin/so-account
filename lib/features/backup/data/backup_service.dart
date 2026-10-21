@@ -89,6 +89,7 @@ class BackupService {
           targetAccountId: e.targetAccountId,
           categoryId: e.categoryId,
           debtId: e.debtId,
+          counterparty: e.counterparty,
           date: e.date,
           note: e.note,
         );
@@ -249,7 +250,7 @@ class _Snapshot {
     return _Snapshot(
       rows('accounts', (r) => Account.fromJson({'avatar': '', ...r})),
       rows('categories', Category.fromJson),
-      rows('entries', Entry.fromJson),
+      rows('entries', (r) => Entry.fromJson({'counterparty': '', ...r})),
       rows('budgets', Budget.fromJson),
       rows(
         'items',

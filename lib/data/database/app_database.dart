@@ -40,6 +40,7 @@ class Entries extends Table {
       text().nullable().references(Accounts, #id)();
   TextColumn get categoryId => text().nullable().references(Categories, #id)();
   TextColumn get debtId => text().nullable().references(Entries, #id)();
+  TextColumn get counterparty => text().withDefault(const Constant(''))();
   TextColumn get date => text()();
   TextColumn get note => text().withDefault(const Constant(''))();
   IntColumn get createdAt => integer()();
@@ -118,7 +119,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   Future<void> seedDefaults({bool upgrade = false}) async {
     for (final (kind, names) in [
@@ -178,6 +179,9 @@ class AppDatabase extends _$AppDatabase {
         await customStatement(
           "UPDATE items SET status = 'completed' WHERE status IN ('retired', 'depleted')",
         );
+      }
+      if (from < 4) {
+        await m.addColumn(entries, entries.counterparty);
       }
     },
     beforeOpen: (_) async {

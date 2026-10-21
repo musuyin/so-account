@@ -37,10 +37,21 @@ List<MissingImportAccount> importAccountSources(
   for (var i = 0; i < table.rows.length; i++) {
     final row = table.rows[i];
     final kind = mapping.kindFor(row);
+    // Resolve the meaning before treating either side as a funds account.
+    if (kind == null) continue;
     for (final (name, role) in [
       (
         mapping.sourceAccountValue(row, kind),
-        kind == EntryKind.transfer ? '转账源账户' : '收支账户',
+        kind == EntryKind.transfer
+            ? '转账源账户'
+            : [
+                EntryKind.borrow,
+                EntryKind.lend,
+                EntryKind.repay,
+                EntryKind.collect,
+              ].contains(kind)
+            ? '借贷资金账户'
+            : '收支账户',
       ),
       if (kind == EntryKind.transfer)
         (mapping.value(row, ImportField.target), '转账目标账户'),
