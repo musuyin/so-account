@@ -1,7 +1,6 @@
 """Generate verified deltas from the two latest public releases, never mutable builds."""
 import hashlib
 import json
-import os
 from pathlib import Path
 import re
 import time
@@ -12,10 +11,12 @@ from delta_patch import apply_patch, create_patch, MAX_APK
 REPO = 'musuyin/so-account'
 
 
-def fetch(url, maximum, *, api=False):
+def fetch(url, maximum):
     headers = {'User-Agent': 'SoAccount-release'}
-    if api and os.environ.get('GH_TOKEN'):
-        headers['Authorization'] = 'Bearer ' + os.environ['GH_TOKEN']
+    if url.startswith('https://api.github.com/'):
+        headers.update({'Accept': 'application/vnd.github+json',
+                        'X-GitHub-Api-Version': '2022-11-28',
+                        'Cache-Control': 'no-cache'})
     for attempt in range(3):
         try:
             with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=45) as response:

@@ -3,12 +3,24 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch, MagicMock
 
 from release_manifest import package
-from release_deltas import generate, load_releases
+from release_deltas import generate, load_releases, fetch
 
 
 class ReleaseDeltaTests(unittest.TestCase):
+    def test_public_api_requests_versioned_json_without_authentication(self):
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = b'[]'
+        with patch('urllib.request.urlopen', return_value=response) as request:
+            self.assertEqual(fetch('https://api.github.com/repos/musuyin/so-account/releases?per_page=10', 1024), b'[]')
+        headers = dict((key.lower(), value) for key, value in request.call_args.args[0].header_items())
+        self.assertEqual(headers['accept'], 'application/vnd.github+json')
+        self.assertEqual(headers['x-github-api-version'], '2022-11-28')
+        self.assertEqual(headers['cache-control'], 'no-cache')
+        self.assertNotIn('authorization', headers)
+
     def test_baseline_discovery_uses_public_collection_without_credentials(self):
         calls = []
         def public_download(url, maximum):
