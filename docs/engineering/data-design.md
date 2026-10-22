@@ -1,6 +1,6 @@
-# 数据规则与 Schema v6
+# 数据规则与 Schema v7
 
-实际表定义位于 `lib/data/database/app_database.dart`，Schema 快照位于 `lib/data/database/migrations/drift_schema_v6.json`。业务校验由相应仓库实现，SQLite 外键、唯一键和金额 CHECK 提供第二道约束。
+实际表定义位于 `lib/data/database/app_database.dart`，Schema 快照位于 `lib/data/database/migrations/drift_schema_v7.json`。业务校验由相应仓库实现，SQLite 外键、唯一键和金额 CHECK 提供第二道约束。
 
 ## 金额、币种与日期
 
@@ -15,6 +15,8 @@
 | --- | --- |
 | accounts | 名称、类别、类型、自定义类别名、币种、初始余额、可选买入单价 |
 | balance_adjustments | 账户、调整前后余额、差额、业务日期、原因、创建时间；非交易记录 |
+| wish_goals | 心愿/攒钱目标、币种、目标金额、截止日期、优先级、状态及备注 |
+| goal_contributions | 目标关联、带方向的金额、业务日期、备注、创建时间；独立进度，不改变账户余额 |
 | categories | 收支分类；名称与类型组合唯一 |
 | entries | 七种交易类型、正整数金额、账户、可选转入账户 / 分类 / 原债务 / 债务账户、日期备注、审计时间 |
 | budgets | 月份与币种联合主键、预算整数金额 |
@@ -42,6 +44,6 @@ Android retrieveLostData 在物品页面首次打开时处理，恢复照片交�
 
 当前采用 ZIP + manifest + 逻辑 JSON + 原图，替代早期复制数据库文件 / 多文件切换的建议。全量读事务创建快照；恢复先隔离验证、发布新图片，再通过单一 SQLite 事务替换所有逻辑行。详细限制、故障保护和测试边界见 [备份协议](backup-format.md)。
 
-Schema 与备份格式版本独立维护，目前数据库为 6、备份容器为 1，支持旧库升级与 Schema 1–6 逻辑备份恢复。v5 引入账户分类和债务账户，v6 引入余额调整；保留所有历史快照。不记录金额、备注、原图或备份正文到日志；测试使用人工数据。
+Schema 与备份格式版本独立维护，目前数据库为 7、备份容器为 1，支持旧库升级与 Schema 1–7 逻辑备份恢复。v5 引入账户分类和债务账户，v6 引入余额调整，v7 引入心愿及攒钱进度；保留所有历史快照。不记录金额、备注、原图或备份正文到日志；测试使用人工数据。
 
 0.2.0 的资产、图表和归档新规则以 [产品调整](../product/revision-0.2.md) 为准。
