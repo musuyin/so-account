@@ -40,6 +40,17 @@ def asset(release, name):
     return item
 
 
+def load_releases(download=fetch):
+    # Baselines are public artifacts. Authenticated collection responses can be
+    # scoped differently from the public repository even when single tags work.
+    releases = json.loads(download(
+        f'https://api.github.com/repos/{REPO}/releases?per_page=10', 4 * 1024 * 1024))
+    if not isinstance(releases, list):
+        raise ValueError('Invalid public release list')
+    print(f'Found {len(releases)} public releases for delta baselines', flush=True)
+    return releases
+
+
 def generate(output, releases, download=fetch):
     output = Path(output)
     manifest_path = output / 'so-account-update.json'
@@ -50,6 +61,7 @@ def generate(output, releases, download=fetch):
     patches = []
     candidates = [r for r in releases if not r['draft'] and not r['prerelease'] and
                   re.fullmatch(r'v\d+\.\d+\.\d+', r['tag_name']) and r['tag_name'] != 'v' + manifest['version']][:2]
+    print('Delta baselines: ' + (', '.join(r['tag_name'] for r in candidates) or 'none'), flush=True)
     for release in candidates:
         info = asset(release, 'so-account-update.json')
         previous = json.loads(download(info['browser_download_url'], 1024 * 1024))
@@ -97,5 +109,4 @@ def generate(output, releases, download=fetch):
 
 
 if __name__ == '__main__':
-    releases = json.loads(fetch(f'https://api.github.com/repos/{REPO}/releases?per_page=10', 4 * 1024 * 1024, api=True))
-    generate('.tooling/release', releases)
+    generate('.tooling/release', load_releases())

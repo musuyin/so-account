@@ -5,10 +5,20 @@ import tempfile
 import unittest
 
 from release_manifest import package
-from release_deltas import generate
+from release_deltas import generate, load_releases
 
 
 class ReleaseDeltaTests(unittest.TestCase):
+    def test_baseline_discovery_uses_public_collection_without_credentials(self):
+        calls = []
+        def public_download(url, maximum):
+            calls.append(url)
+            return b'[{"tag_name":"v0.5.3"}]'
+        self.assertEqual(load_releases(public_download), [{'tag_name': 'v0.5.3'}])
+        self.assertEqual(calls, ['https://api.github.com/repos/musuyin/so-account/releases?per_page=10'])
+        with self.assertRaises(ValueError):
+            load_releases(lambda url, maximum: b'{}')
+
     def test_publishes_only_byte_verified_smaller_patch_and_checks_baseline(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
