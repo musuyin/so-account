@@ -49,7 +49,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
       actions: [
         IconButton(
           tooltip: '心愿单',
-          onPressed: () => openForm(context, const GoalsPage()),
+          onPressed: () =>
+              openForm(context, GoalsPage(initialCurrency: currency)),
           icon: const Icon(Icons.favorite_outline),
         ),
         DropdownButton(

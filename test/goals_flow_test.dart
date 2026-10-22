@@ -95,6 +95,31 @@ void main() {
     },
   );
 
+  testWidgets('new goal keeps the currency selected on its parent list', (
+    t,
+  ) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    addTearDown(() => t.runAsync(db.close));
+    await t.runAsync(() => db.select(db.wishGoals).get());
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: [databaseProvider.overrideWithValue(db)],
+        child: const MaterialApp(home: GoalsPage(initialCurrency: 'JPY')),
+      ),
+    );
+    await settle(t);
+    await t.tap(find.text('新增目标'));
+    await settle(t);
+    await enter(t, '目标名称', '日元目标');
+    await enter(t, '目标金额', '1000');
+    await t.tap(find.text('保存'));
+    await settle(t);
+    final rows = await t.runAsync(() => db.select(db.wishGoals).get());
+    expect(rows!.single.currency, 'JPY');
+    expect(rows.single.target, 1000);
+    await t.pumpWidget(const SizedBox.shrink());
+    await t.pump(const Duration(milliseconds: 1));
+  });
   for (final brightness in Brightness.values) {
     for (final palette in AppPalette.values) {
       testWidgets(

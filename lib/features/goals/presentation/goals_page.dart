@@ -13,7 +13,8 @@ import '../data/goals_repository.dart';
 import '../data/goals_export.dart';
 
 class GoalsPage extends ConsumerStatefulWidget {
-  const GoalsPage({super.key});
+  const GoalsPage({super.key, this.initialCurrency = 'CNY'});
+  final String initialCurrency;
   @override
   ConsumerState<GoalsPage> createState() => _GoalsPageState();
 }
@@ -40,11 +41,8 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
     if (mounted) setState(() => exporting = false);
   }
 
-  String currency = 'CNY',
-      status = 'active',
-      kind = '',
-      search = '',
-      sort = 'priority';
+  late String currency = widget.initialCurrency;
+  String status = 'active', kind = '', search = '', sort = 'priority';
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -69,7 +67,7 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
       ],
     ),
     floatingActionButton: FloatingActionButton.extended(
-      onPressed: () => openForm(context, const GoalForm()),
+      onPressed: () => openForm(context, GoalForm(initialCurrency: currency)),
       icon: const Icon(Icons.add),
       label: const Text('新增目标'),
     ),
@@ -296,8 +294,9 @@ class GoalProgress extends StatelessWidget {
 }
 
 class GoalForm extends ConsumerStatefulWidget {
-  const GoalForm({super.key, this.goal});
+  const GoalForm({super.key, this.goal, this.initialCurrency = 'CNY'});
   final WishGoal? goal;
+  final String initialCurrency;
   @override
   ConsumerState<GoalForm> createState() => _GoalFormState();
 }
@@ -312,7 +311,7 @@ class _GoalFormState extends ConsumerState<GoalForm> {
   late final note = TextEditingController(text: widget.goal?.note);
   final initial = TextEditingController();
   late String kind = widget.goal?.kind ?? 'wish',
-      currency = widget.goal?.currency ?? 'CNY';
+      currency = widget.goal?.currency ?? widget.initialCurrency;
   late String? deadline = widget.goal?.deadline;
   late int priority = widget.goal?.priority ?? 1;
   bool saving = false;

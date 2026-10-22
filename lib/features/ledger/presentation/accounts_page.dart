@@ -28,7 +28,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
       actions: [
         IconButton(
           tooltip: '心愿与攒钱',
-          onPressed: () => openForm(context, const GoalsPage()),
+          onPressed: () =>
+              openForm(context, GoalsPage(initialCurrency: currency)),
           icon: const Icon(Icons.savings_outlined),
         ),
         IconButton(
