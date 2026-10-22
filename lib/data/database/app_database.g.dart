@@ -3136,6 +3136,524 @@ class PreferencesCompanion extends UpdateCompanion<Preference> {
   }
 }
 
+class $BalanceAdjustmentsTable extends BalanceAdjustments
+    with TableInfo<$BalanceAdjustmentsTable, BalanceAdjustment> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BalanceAdjustmentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+    'account_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES accounts (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _beforeBalanceMeta = const VerificationMeta(
+    'beforeBalance',
+  );
+  @override
+  late final GeneratedColumn<int> beforeBalance = GeneratedColumn<int>(
+    'before_balance',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _afterBalanceMeta = const VerificationMeta(
+    'afterBalance',
+  );
+  @override
+  late final GeneratedColumn<int> afterBalance = GeneratedColumn<int>(
+    'after_balance',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deltaMeta = const VerificationMeta('delta');
+  @override
+  late final GeneratedColumn<int> delta = GeneratedColumn<int>(
+    'delta',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<String> date = GeneratedColumn<String>(
+    'date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reasonMeta = const VerificationMeta('reason');
+  @override
+  late final GeneratedColumn<String> reason = GeneratedColumn<String>(
+    'reason',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    accountId,
+    beforeBalance,
+    afterBalance,
+    delta,
+    date,
+    reason,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'balance_adjustments';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BalanceAdjustment> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_accountIdMeta);
+    }
+    if (data.containsKey('before_balance')) {
+      context.handle(
+        _beforeBalanceMeta,
+        beforeBalance.isAcceptableOrUnknown(
+          data['before_balance']!,
+          _beforeBalanceMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_beforeBalanceMeta);
+    }
+    if (data.containsKey('after_balance')) {
+      context.handle(
+        _afterBalanceMeta,
+        afterBalance.isAcceptableOrUnknown(
+          data['after_balance']!,
+          _afterBalanceMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_afterBalanceMeta);
+    }
+    if (data.containsKey('delta')) {
+      context.handle(
+        _deltaMeta,
+        delta.isAcceptableOrUnknown(data['delta']!, _deltaMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deltaMeta);
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('reason')) {
+      context.handle(
+        _reasonMeta,
+        reason.isAcceptableOrUnknown(data['reason']!, _reasonMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  BalanceAdjustment map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BalanceAdjustment(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_id'],
+      )!,
+      beforeBalance: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}before_balance'],
+      )!,
+      afterBalance: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}after_balance'],
+      )!,
+      delta: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}delta'],
+      )!,
+      date: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}date'],
+      )!,
+      reason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reason'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $BalanceAdjustmentsTable createAlias(String alias) {
+    return $BalanceAdjustmentsTable(attachedDatabase, alias);
+  }
+}
+
+class BalanceAdjustment extends DataClass
+    implements Insertable<BalanceAdjustment> {
+  final String id;
+  final String accountId;
+  final int beforeBalance;
+  final int afterBalance;
+  final int delta;
+  final String date;
+  final String reason;
+  final int createdAt;
+  const BalanceAdjustment({
+    required this.id,
+    required this.accountId,
+    required this.beforeBalance,
+    required this.afterBalance,
+    required this.delta,
+    required this.date,
+    required this.reason,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['account_id'] = Variable<String>(accountId);
+    map['before_balance'] = Variable<int>(beforeBalance);
+    map['after_balance'] = Variable<int>(afterBalance);
+    map['delta'] = Variable<int>(delta);
+    map['date'] = Variable<String>(date);
+    map['reason'] = Variable<String>(reason);
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  BalanceAdjustmentsCompanion toCompanion(bool nullToAbsent) {
+    return BalanceAdjustmentsCompanion(
+      id: Value(id),
+      accountId: Value(accountId),
+      beforeBalance: Value(beforeBalance),
+      afterBalance: Value(afterBalance),
+      delta: Value(delta),
+      date: Value(date),
+      reason: Value(reason),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory BalanceAdjustment.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BalanceAdjustment(
+      id: serializer.fromJson<String>(json['id']),
+      accountId: serializer.fromJson<String>(json['accountId']),
+      beforeBalance: serializer.fromJson<int>(json['beforeBalance']),
+      afterBalance: serializer.fromJson<int>(json['afterBalance']),
+      delta: serializer.fromJson<int>(json['delta']),
+      date: serializer.fromJson<String>(json['date']),
+      reason: serializer.fromJson<String>(json['reason']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'accountId': serializer.toJson<String>(accountId),
+      'beforeBalance': serializer.toJson<int>(beforeBalance),
+      'afterBalance': serializer.toJson<int>(afterBalance),
+      'delta': serializer.toJson<int>(delta),
+      'date': serializer.toJson<String>(date),
+      'reason': serializer.toJson<String>(reason),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  BalanceAdjustment copyWith({
+    String? id,
+    String? accountId,
+    int? beforeBalance,
+    int? afterBalance,
+    int? delta,
+    String? date,
+    String? reason,
+    int? createdAt,
+  }) => BalanceAdjustment(
+    id: id ?? this.id,
+    accountId: accountId ?? this.accountId,
+    beforeBalance: beforeBalance ?? this.beforeBalance,
+    afterBalance: afterBalance ?? this.afterBalance,
+    delta: delta ?? this.delta,
+    date: date ?? this.date,
+    reason: reason ?? this.reason,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  BalanceAdjustment copyWithCompanion(BalanceAdjustmentsCompanion data) {
+    return BalanceAdjustment(
+      id: data.id.present ? data.id.value : this.id,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      beforeBalance: data.beforeBalance.present
+          ? data.beforeBalance.value
+          : this.beforeBalance,
+      afterBalance: data.afterBalance.present
+          ? data.afterBalance.value
+          : this.afterBalance,
+      delta: data.delta.present ? data.delta.value : this.delta,
+      date: data.date.present ? data.date.value : this.date,
+      reason: data.reason.present ? data.reason.value : this.reason,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BalanceAdjustment(')
+          ..write('id: $id, ')
+          ..write('accountId: $accountId, ')
+          ..write('beforeBalance: $beforeBalance, ')
+          ..write('afterBalance: $afterBalance, ')
+          ..write('delta: $delta, ')
+          ..write('date: $date, ')
+          ..write('reason: $reason, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    accountId,
+    beforeBalance,
+    afterBalance,
+    delta,
+    date,
+    reason,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BalanceAdjustment &&
+          other.id == this.id &&
+          other.accountId == this.accountId &&
+          other.beforeBalance == this.beforeBalance &&
+          other.afterBalance == this.afterBalance &&
+          other.delta == this.delta &&
+          other.date == this.date &&
+          other.reason == this.reason &&
+          other.createdAt == this.createdAt);
+}
+
+class BalanceAdjustmentsCompanion extends UpdateCompanion<BalanceAdjustment> {
+  final Value<String> id;
+  final Value<String> accountId;
+  final Value<int> beforeBalance;
+  final Value<int> afterBalance;
+  final Value<int> delta;
+  final Value<String> date;
+  final Value<String> reason;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const BalanceAdjustmentsCompanion({
+    this.id = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.beforeBalance = const Value.absent(),
+    this.afterBalance = const Value.absent(),
+    this.delta = const Value.absent(),
+    this.date = const Value.absent(),
+    this.reason = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BalanceAdjustmentsCompanion.insert({
+    required String id,
+    required String accountId,
+    required int beforeBalance,
+    required int afterBalance,
+    required int delta,
+    required String date,
+    this.reason = const Value.absent(),
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       accountId = Value(accountId),
+       beforeBalance = Value(beforeBalance),
+       afterBalance = Value(afterBalance),
+       delta = Value(delta),
+       date = Value(date),
+       createdAt = Value(createdAt);
+  static Insertable<BalanceAdjustment> custom({
+    Expression<String>? id,
+    Expression<String>? accountId,
+    Expression<int>? beforeBalance,
+    Expression<int>? afterBalance,
+    Expression<int>? delta,
+    Expression<String>? date,
+    Expression<String>? reason,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (accountId != null) 'account_id': accountId,
+      if (beforeBalance != null) 'before_balance': beforeBalance,
+      if (afterBalance != null) 'after_balance': afterBalance,
+      if (delta != null) 'delta': delta,
+      if (date != null) 'date': date,
+      if (reason != null) 'reason': reason,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BalanceAdjustmentsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? accountId,
+    Value<int>? beforeBalance,
+    Value<int>? afterBalance,
+    Value<int>? delta,
+    Value<String>? date,
+    Value<String>? reason,
+    Value<int>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return BalanceAdjustmentsCompanion(
+      id: id ?? this.id,
+      accountId: accountId ?? this.accountId,
+      beforeBalance: beforeBalance ?? this.beforeBalance,
+      afterBalance: afterBalance ?? this.afterBalance,
+      delta: delta ?? this.delta,
+      date: date ?? this.date,
+      reason: reason ?? this.reason,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
+    if (beforeBalance.present) {
+      map['before_balance'] = Variable<int>(beforeBalance.value);
+    }
+    if (afterBalance.present) {
+      map['after_balance'] = Variable<int>(afterBalance.value);
+    }
+    if (delta.present) {
+      map['delta'] = Variable<int>(delta.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<String>(date.value);
+    }
+    if (reason.present) {
+      map['reason'] = Variable<String>(reason.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BalanceAdjustmentsCompanion(')
+          ..write('id: $id, ')
+          ..write('accountId: $accountId, ')
+          ..write('beforeBalance: $beforeBalance, ')
+          ..write('afterBalance: $afterBalance, ')
+          ..write('delta: $delta, ')
+          ..write('date: $date, ')
+          ..write('reason: $reason, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3146,6 +3664,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ItemsTable items = $ItemsTable(this);
   late final $PurchaseLinksTable purchaseLinks = $PurchaseLinksTable(this);
   late final $PreferencesTable preferences = $PreferencesTable(this);
+  late final $BalanceAdjustmentsTable balanceAdjustments =
+      $BalanceAdjustmentsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3158,6 +3678,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     items,
     purchaseLinks,
     preferences,
+    balanceAdjustments,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -3174,6 +3695,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('purchase_links', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'accounts',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('balance_adjustments', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -3202,6 +3730,32 @@ typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<int> openingBalance,
   Value<int> rowid,
 });
+
+final class $$AccountsTableReferences
+    extends BaseReferences<_$AppDatabase, $AccountsTable, Account> {
+  $$AccountsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$BalanceAdjustmentsTable, List<BalanceAdjustment>>
+  _balanceAdjustmentsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.balanceAdjustments,
+        aliasName: 'accounts__id__balance_adjustments__account_id',
+      );
+
+  $$BalanceAdjustmentsTableProcessedTableManager get balanceAdjustmentsRefs {
+    final manager = $$BalanceAdjustmentsTableTableManager(
+      $_db,
+      $_db.balanceAdjustments,
+    ).filter((f) => f.accountId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _balanceAdjustmentsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
 
 class $$AccountsTableFilterComposer
     extends Composer<_$AppDatabase, $AccountsTable> {
@@ -3256,6 +3810,31 @@ class $$AccountsTableFilterComposer
     column: $table.openingBalance,
     builder: (column) => ColumnFilters(column),
   );
+
+  Expression<bool> balanceAdjustmentsRefs(
+    Expression<bool> Function($$BalanceAdjustmentsTableFilterComposer f) f,
+  ) {
+    final $$BalanceAdjustmentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.balanceAdjustments,
+      getReferencedColumn: (t) => t.accountId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BalanceAdjustmentsTableFilterComposer(
+            $db: $db,
+            $table: $db.balanceAdjustments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$AccountsTableOrderingComposer
@@ -3352,6 +3931,32 @@ class $$AccountsTableAnnotationComposer
     column: $table.openingBalance,
     builder: (column) => column,
   );
+
+  Expression<T> balanceAdjustmentsRefs<T extends Object>(
+    Expression<T> Function($$BalanceAdjustmentsTableAnnotationComposer a) f,
+  ) {
+    final $$BalanceAdjustmentsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.balanceAdjustments,
+          getReferencedColumn: (t) => t.accountId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$BalanceAdjustmentsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.balanceAdjustments,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$AccountsTableTableManager
@@ -3365,9 +3970,9 @@ class $$AccountsTableTableManager
           $$AccountsTableAnnotationComposer,
           $$AccountsTableCreateCompanionBuilder,
           $$AccountsTableUpdateCompanionBuilder,
-          (Account, BaseReferences<_$AppDatabase, $AccountsTable, Account>),
+          (Account, $$AccountsTableReferences),
           Account,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool balanceAdjustmentsRefs})
         > {
   $$AccountsTableTableManager(_$AppDatabase db, $AccountsTable table)
     : super(
@@ -3432,15 +4037,41 @@ class $$AccountsTableTableManager
               .map(
                 (e) => (
                   e.readTable<$AccountsTable, Account>(table),
-                  BaseReferences<_$AppDatabase, $AccountsTable, Account>(
-                    db,
-                    table,
-                    e,
-                  ),
+                  $$AccountsTableReferences(db, table, e),
                 ),
               )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({balanceAdjustmentsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (balanceAdjustmentsRefs) db.balanceAdjustments,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (balanceAdjustmentsRefs)
+                    await $_getPrefetchedData<
+                      Account,
+                      $AccountsTable,
+                      BalanceAdjustment
+                    >(
+                      currentTable: table,
+                      referencedTable: $$AccountsTableReferences
+                          ._balanceAdjustmentsRefsTable(db),
+                      managerFromTypedResult: (p0) => $$AccountsTableReferences(
+                        db,
+                        table,
+                        p0,
+                      ).balanceAdjustmentsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.accountId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
         ),
       );
 }
@@ -3455,9 +4086,9 @@ typedef $$AccountsTableProcessedTableManager =
       $$AccountsTableAnnotationComposer,
       $$AccountsTableCreateCompanionBuilder,
       $$AccountsTableUpdateCompanionBuilder,
-      (Account, BaseReferences<_$AppDatabase, $AccountsTable, Account>),
+      (Account, $$AccountsTableReferences),
       Account,
-      PrefetchHooks Function()
+      PrefetchHooks Function({bool balanceAdjustmentsRefs})
     >;
 typedef $$CategoriesTableCreateCompanionBuilder = CategoriesCompanion Function({
   required String id,
@@ -5783,6 +6414,398 @@ typedef $$PreferencesTableProcessedTableManager =
       Preference,
       PrefetchHooks Function()
     >;
+typedef $$BalanceAdjustmentsTableCreateCompanionBuilder =
+    BalanceAdjustmentsCompanion Function({
+      required String id,
+      required String accountId,
+      required int beforeBalance,
+      required int afterBalance,
+      required int delta,
+      required String date,
+      Value<String> reason,
+      required int createdAt,
+      Value<int> rowid,
+    });
+typedef $$BalanceAdjustmentsTableUpdateCompanionBuilder =
+    BalanceAdjustmentsCompanion Function({
+      Value<String> id,
+      Value<String> accountId,
+      Value<int> beforeBalance,
+      Value<int> afterBalance,
+      Value<int> delta,
+      Value<String> date,
+      Value<String> reason,
+      Value<int> createdAt,
+      Value<int> rowid,
+    });
+
+final class $$BalanceAdjustmentsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $BalanceAdjustmentsTable,
+          BalanceAdjustment
+        > {
+  $$BalanceAdjustmentsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $AccountsTable _accountIdTable(_$AppDatabase db) =>
+      db.accounts.createAlias('balance_adjustments__account_id__accounts__id');
+
+  $$AccountsTableProcessedTableManager get accountId {
+    final $_column = $_itemColumn<String>('account_id')!;
+
+    final manager = $$AccountsTableTableManager(
+      $_db,
+      $_db.accounts,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_accountIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$BalanceAdjustmentsTableFilterComposer
+    extends Composer<_$AppDatabase, $BalanceAdjustmentsTable> {
+  $$BalanceAdjustmentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get beforeBalance => $composableBuilder(
+    column: $table.beforeBalance,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get afterBalance => $composableBuilder(
+    column: $table.afterBalance,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get delta => $composableBuilder(
+    column: $table.delta,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$AccountsTableFilterComposer get accountId {
+    final $$AccountsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableFilterComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$BalanceAdjustmentsTableOrderingComposer
+    extends Composer<_$AppDatabase, $BalanceAdjustmentsTable> {
+  $$BalanceAdjustmentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get beforeBalance => $composableBuilder(
+    column: $table.beforeBalance,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get afterBalance => $composableBuilder(
+    column: $table.afterBalance,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get delta => $composableBuilder(
+    column: $table.delta,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$AccountsTableOrderingComposer get accountId {
+    final $$AccountsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableOrderingComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$BalanceAdjustmentsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BalanceAdjustmentsTable> {
+  $$BalanceAdjustmentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get beforeBalance => $composableBuilder(
+    column: $table.beforeBalance,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get afterBalance => $composableBuilder(
+    column: $table.afterBalance,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get delta =>
+      $composableBuilder(column: $table.delta, builder: (column) => column);
+
+  GeneratedColumn<String> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<String> get reason =>
+      $composableBuilder(column: $table.reason, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$AccountsTableAnnotationComposer get accountId {
+    final $$AccountsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$BalanceAdjustmentsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $BalanceAdjustmentsTable,
+          BalanceAdjustment,
+          $$BalanceAdjustmentsTableFilterComposer,
+          $$BalanceAdjustmentsTableOrderingComposer,
+          $$BalanceAdjustmentsTableAnnotationComposer,
+          $$BalanceAdjustmentsTableCreateCompanionBuilder,
+          $$BalanceAdjustmentsTableUpdateCompanionBuilder,
+          (BalanceAdjustment, $$BalanceAdjustmentsTableReferences),
+          BalanceAdjustment,
+          PrefetchHooks Function({bool accountId})
+        > {
+  $$BalanceAdjustmentsTableTableManager(
+    _$AppDatabase db,
+    $BalanceAdjustmentsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BalanceAdjustmentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BalanceAdjustmentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BalanceAdjustmentsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> accountId = const Value.absent(),
+                Value<int> beforeBalance = const Value.absent(),
+                Value<int> afterBalance = const Value.absent(),
+                Value<int> delta = const Value.absent(),
+                Value<String> date = const Value.absent(),
+                Value<String> reason = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BalanceAdjustmentsCompanion(
+                id: id,
+                accountId: accountId,
+                beforeBalance: beforeBalance,
+                afterBalance: afterBalance,
+                delta: delta,
+                date: date,
+                reason: reason,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String accountId,
+                required int beforeBalance,
+                required int afterBalance,
+                required int delta,
+                required String date,
+                Value<String> reason = const Value.absent(),
+                required int createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => BalanceAdjustmentsCompanion.insert(
+                id: id,
+                accountId: accountId,
+                beforeBalance: beforeBalance,
+                afterBalance: afterBalance,
+                delta: delta,
+                date: date,
+                reason: reason,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$BalanceAdjustmentsTable, BalanceAdjustment>(
+                    table,
+                  ),
+                  $$BalanceAdjustmentsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({accountId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (accountId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.accountId,
+                        referencedTable: $$BalanceAdjustmentsTableReferences
+                            ._accountIdTable(db),
+                        referencedColumn: $$BalanceAdjustmentsTableReferences
+                            ._accountIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$BalanceAdjustmentsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $BalanceAdjustmentsTable,
+      BalanceAdjustment,
+      $$BalanceAdjustmentsTableFilterComposer,
+      $$BalanceAdjustmentsTableOrderingComposer,
+      $$BalanceAdjustmentsTableAnnotationComposer,
+      $$BalanceAdjustmentsTableCreateCompanionBuilder,
+      $$BalanceAdjustmentsTableUpdateCompanionBuilder,
+      (BalanceAdjustment, $$BalanceAdjustmentsTableReferences),
+      BalanceAdjustment,
+      PrefetchHooks Function({bool accountId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5801,4 +6824,6 @@ class $AppDatabaseManager {
       $$PurchaseLinksTableTableManager(_db, _db.purchaseLinks);
   $$PreferencesTableTableManager get preferences =>
       $$PreferencesTableTableManager(_db, _db.preferences);
+  $$BalanceAdjustmentsTableTableManager get balanceAdjustments =>
+      $$BalanceAdjustmentsTableTableManager(_db, _db.balanceAdjustments);
 }

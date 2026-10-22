@@ -101,6 +101,9 @@ class BackupService {
       for (final b in snapshot.budgets) {
         await ledger.setBudget(b.month, b.currency, b.amount);
       }
+      for (final adjustment in snapshot.adjustments) {
+        LedgerRepository.validateAdjustment(adjustment);
+      }
       final inventory = InventoryRepository(stage);
       for (final item in snapshot.items) {
         if (item.photo != null && !files.containsKey(item.photo)) {
@@ -178,6 +181,7 @@ class BackupService {
         await db.delete(db.purchaseLinks).go();
         await db.delete(db.items).go();
         await db.delete(db.entries).go();
+        await db.delete(db.balanceAdjustments).go();
         await db.delete(db.accounts).go();
         await db.delete(db.categories).go();
         await db.delete(db.budgets).go();
@@ -206,6 +210,9 @@ class BackupService {
         for (final row in data.preferences) {
           await db.into(db.preferences).insert(row);
         }
+        for (final row in data.adjustments) {
+          await db.into(db.balanceAdjustments).insert(row);
+        }
         await db.migrateDebtAccounts();
       });
 }
@@ -218,8 +225,9 @@ class _Snapshot {
     this.budgets,
     this.items,
     this.links,
-    this.preferences,
-  );
+    this.preferences, [
+    this.adjustments = const [],
+  ]);
   final List<Account> accounts;
   final List<Category> categories;
   final List<Entry> entries;
@@ -227,6 +235,7 @@ class _Snapshot {
   final List<Item> items;
   final List<PurchaseLink> links;
   final List<Preference> preferences;
+  final List<BalanceAdjustment> adjustments;
   static Future<_Snapshot> read(AppDatabase db) async => _Snapshot(
     await db.select(db.accounts).get(),
     await db.select(db.categories).get(),
@@ -235,6 +244,7 @@ class _Snapshot {
     await db.select(db.items).get(),
     await db.select(db.purchaseLinks).get(),
     await db.select(db.preferences).get(),
+    await db.select(db.balanceAdjustments).get(),
   );
   Map<String, Object?> toJson() => {
     'accounts': accounts.map((r) => r.toJson()).toList(),
@@ -244,8 +254,10 @@ class _Snapshot {
     'items': items.map((r) => r.toJson()).toList(),
     'links': links.map((r) => r.toJson()).toList(),
     'preferences': preferences.map((r) => r.toJson()).toList(),
+    'adjustments': adjustments.map((r) => r.toJson()).toList(),
   };
   factory _Snapshot.fromJson(Map<String, dynamic> json) {
+    json.putIfAbsent('adjustments', () => []);
     List<T> rows<T>(String key, T Function(Map<String, dynamic>) decode) {
       final list = json[key] as List;
       if (list.length > 100000) throw const FormatException('记录数量超过限制');
@@ -284,6 +296,7 @@ class _Snapshot {
       ),
       rows('links', PurchaseLink.fromJson),
       rows('preferences', Preference.fromJson),
+      rows('adjustments', BalanceAdjustment.fromJson),
     );
   }
   _Snapshot withPhotos(Map<String, String> remap) => _Snapshot(
@@ -299,5 +312,6 @@ class _Snapshot {
         .toList(),
     links,
     preferences,
+    adjustments,
   );
 }

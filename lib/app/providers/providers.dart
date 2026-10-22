@@ -43,6 +43,7 @@ final snapshotProvider = StreamProvider((ref) {
           db.items,
           db.purchaseLinks,
           db.preferences,
+          db.balanceAdjustments,
         },
       )
       .watch()
@@ -56,6 +57,7 @@ final snapshotProvider = StreamProvider((ref) {
             await db.select(db.items).get(),
             await db.select(db.purchaseLinks).get(),
             await db.select(db.preferences).get(),
+            await db.select(db.balanceAdjustments).get(),
           ),
         ),
       );
@@ -75,8 +77,9 @@ class AppSnapshot {
     this.budgets,
     this.items,
     this.links,
-    this.preferences,
-  );
+    this.preferences, [
+    this.adjustments = const [],
+  ]);
   final List<Account> accounts;
   final List<Category> categories;
   final List<Entry> entries;
@@ -84,6 +87,7 @@ class AppSnapshot {
   final List<Item> items;
   final List<PurchaseLink> links;
   final List<Preference> preferences;
+  final List<BalanceAdjustment> adjustments;
   Account account(String id) => accounts.firstWhere((a) => a.id == id);
   String category(String? id) =>
       categories.where((c) => c.id == id).firstOrNull?.name ?? '往来';

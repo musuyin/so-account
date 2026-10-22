@@ -99,6 +99,20 @@ class Preferences extends Table {
   Set<Column> get primaryKey => {key};
 }
 
+class BalanceAdjustments extends Table {
+  TextColumn get id => text()();
+  TextColumn get accountId =>
+      text().references(Accounts, #id, onDelete: KeyAction.cascade)();
+  IntColumn get beforeBalance => integer()();
+  IntColumn get afterBalance => integer()();
+  IntColumn get delta => integer()();
+  TextColumn get date => text()();
+  TextColumn get reason => text().withDefault(const Constant(''))();
+  IntColumn get createdAt => integer()();
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DriftDatabase(
   tables: [
     Accounts,
@@ -108,6 +122,7 @@ class Preferences extends Table {
     Items,
     PurchaseLinks,
     Preferences,
+    BalanceAdjustments,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -123,7 +138,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   Future<void> migrateDebtAccounts() async {
     for (final account in await select(accounts).get()) {
@@ -215,6 +230,9 @@ class AppDatabase extends _$AppDatabase {
       await m.createAll();
       await customStatement('CREATE INDEX entries_date ON entries(date)');
       await customStatement(
+        'CREATE INDEX balance_adjustments_account ON balance_adjustments(account_id)',
+      );
+      await customStatement(
         'CREATE INDEX entries_account ON entries(account_id)',
       );
       await seedDefaults();
@@ -254,6 +272,12 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(accounts, accounts.unitPrice);
         await m.addColumn(entries, entries.debtAccountId);
         await migrateDebtAccounts();
+      }
+      if (from < 6) {
+        await m.createTable(balanceAdjustments);
+        await customStatement(
+          'CREATE INDEX balance_adjustments_account ON balance_adjustments(account_id)',
+        );
       }
     },
     beforeOpen: (_) async {

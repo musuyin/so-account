@@ -9,6 +9,7 @@ import '../domain/entry_kind.dart';
 import '../domain/asset_summary.dart';
 import 'account_avatar.dart';
 import 'people_debts_page.dart';
+import 'balance_adjustment_form.dart';
 
 class AccountsPage extends ConsumerStatefulWidget {
   const AccountsPage({super.key});
@@ -357,6 +358,23 @@ class _AccountFormState extends ConsumerState<AccountForm> {
         maxLength: 80,
         decoration: const InputDecoration(labelText: '账户名称'),
       ),
+      if (widget.account != null)
+        TextButton.icon(
+          icon: const Icon(Icons.tune),
+          label: const Text('余额调整'),
+          onPressed:
+              ref.watch(balancesProvider).value?[widget.account!.id] == null
+              ? null
+              : () => openForm(
+                  context,
+                  BalanceAdjustmentForm(
+                    account: widget.account!,
+                    balance: ref
+                        .read(balancesProvider)
+                        .value![widget.account!.id]!,
+                  ),
+                ),
+        ),
       DropdownButtonFormField<String>(
         initialValue: avatar,
         decoration: const InputDecoration(labelText: '账户头像'),

@@ -192,6 +192,7 @@ void main() {
       'ALTER TABLE accounts DROP COLUMN custom_channel',
     );
     await old.customStatement('ALTER TABLE accounts DROP COLUMN unit_price');
+    await old.customStatement('DROP TABLE balance_adjustments');
     await old.customStatement('PRAGMA user_version=4');
     await old.close();
     final next = AppDatabase(NativeDatabase(file));

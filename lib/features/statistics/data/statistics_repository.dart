@@ -50,7 +50,12 @@ class StatisticsRepository {
   Stream<FinanceReport> watchReport(ReportRange range, String currency) => db
       .customSelect(
         'SELECT 1',
-        readsFrom: {db.entries, db.accounts, db.categories},
+        readsFrom: {
+          db.entries,
+          db.accounts,
+          db.categories,
+          db.balanceAdjustments,
+        },
       )
       .watch()
       .asyncMap((_) => load(range, currency));
@@ -108,14 +113,23 @@ class StatisticsRepository {
         final changes = await db
             .customSelect(
               '''
-      SELECT e.date,
-        SUM(CASE WHEN e.kind='income' THEN e.amount ELSE 0 END) AS income,
-        SUM(CASE WHEN e.kind='expense' THEN e.amount ELSE 0 END) AS expense
-      FROM entries e JOIN accounts a ON a.id=e.account_id
-      WHERE a.currency=? AND e.date<? AND e.kind IN ('income','expense')
-      GROUP BY e.date ORDER BY e.date
+      SELECT date,SUM(income) AS income,SUM(expense) AS expense,SUM(correction) AS correction FROM (
+        SELECT e.date,CASE WHEN e.kind='income' THEN e.amount ELSE 0 END AS income,
+          CASE WHEN e.kind='expense' THEN e.amount ELSE 0 END AS expense,0 AS correction
+        FROM entries e JOIN accounts a ON a.id=e.account_id
+        WHERE a.currency=? AND e.date<? AND e.kind IN ('income','expense')
+        UNION ALL
+        SELECT b.date,0 AS income,0 AS expense,
+          CASE WHEN a.kind='债务' AND a.channel='应付款' THEN -b.delta ELSE b.delta END AS correction
+        FROM balance_adjustments b JOIN accounts a ON a.id=b.account_id WHERE a.currency=? AND b.date<?
+      ) GROUP BY date ORDER BY date
     ''',
-              variables: [Variable(currency), Variable(dateKey(range.end))],
+              variables: [
+                Variable(currency),
+                Variable(dateKey(range.end)),
+                Variable(currency),
+                Variable(dateKey(range.end)),
+              ],
             )
             .get();
         final opening = await db
@@ -132,19 +146,21 @@ class StatisticsRepository {
                 0) {
           assets +=
               changes[index].read<int>('income') -
-              changes[index].read<int>('expense');
+              changes[index].read<int>('expense') +
+              changes[index].read<int>('correction');
           index++;
         }
         final points = <ReportPoint>[];
         for (final key in range.buckets) {
-          var income = 0, expense = 0;
+          var income = 0, expense = 0, correction = 0;
           while (index < changes.length &&
               changes[index].read<String>('date').startsWith(key)) {
             income += changes[index].read<int>('income');
             expense += changes[index].read<int>('expense');
+            correction += changes[index].read<int>('correction');
             index++;
           }
-          assets += income - expense;
+          assets += income - expense + correction;
           points.add(ReportPoint(key, income, expense, assets));
         }
         return FinanceReport(

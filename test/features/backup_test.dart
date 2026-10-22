@@ -63,6 +63,7 @@ void main() {
     final files = decodeBackup(await service.export());
     final json =
         jsonDecode(utf8.decode(files['data.json']!)) as Map<String, dynamic>;
+    json.remove('adjustments');
     for (final row in json['accounts'] as List) {
       (row as Map).remove('avatar');
     }

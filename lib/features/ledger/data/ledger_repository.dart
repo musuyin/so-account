@@ -78,7 +78,10 @@ class LedgerRepository {
                       e.debtAccountId.equals(id),
                 ))
                 .get();
-        if (used.isNotEmpty &&
+        final corrections = await (db.select(
+          db.balanceAdjustments,
+        )..where((a) => a.accountId.equals(id))).get();
+        if ((used.isNotEmpty || corrections.isNotEmpty) &&
             (old.currency != currency ||
                 old.openingBalance != openingBalance ||
                 (old.kind == '债务') != (kind == '债务') ||
@@ -117,6 +120,57 @@ class LedgerRepository {
       throw const FormatException('账户仍有流水，请先处理流水');
     }
   }
+
+  static void validateAdjustment(BalanceAdjustment adjustment) {
+    parseDate(adjustment.date);
+    if (adjustment.afterBalance.abs() > 999999999999 ||
+        adjustment.delta !=
+            adjustment.afterBalance - adjustment.beforeBalance ||
+        adjustment.delta == 0 ||
+        adjustment.reason.length > 200 ||
+        adjustment.createdAt < 0) {
+      throw const FormatException('余额调整记录无效');
+    }
+  }
+
+  Future<void> adjustBalance({
+    required String accountId,
+    required int desiredBalance,
+    required int expectedBalance,
+    String? expectedCurrency,
+    String reason = '',
+    DateTime? at,
+  }) => db.transaction(() async {
+    if (desiredBalance.abs() > 999999999999 || reason.trim().length > 200) {
+      throw const FormatException('余额超出上限或说明超过 200 字');
+    }
+    final account = await (db.select(
+      db.accounts,
+    )..where((a) => a.id.equals(accountId))).getSingleOrNull();
+    if (account == null) throw const FormatException('账户已不存在');
+    if (expectedCurrency != null && account.currency != expectedCurrency) {
+      throw const FormatException('账户币种已变化，请重新打开余额调整');
+    }
+    final current = (await balances())[accountId];
+    if (current == null) throw const FormatException('账户已不存在');
+    if (current != expectedBalance) {
+      throw const FormatException('账户余额已变化，请重新打开余额调整后核对');
+    }
+    if (current == desiredBalance) return;
+    final now = at ?? DateTime.now();
+    final adjustment = BalanceAdjustment(
+      id: _uuid.v4(),
+      accountId: accountId,
+      beforeBalance: current,
+      afterBalance: desiredBalance,
+      delta: desiredBalance - current,
+      reason: reason.trim(),
+      date: dateKey(now),
+      createdAt: now.toUtc().millisecondsSinceEpoch,
+    );
+    validateAdjustment(adjustment);
+    await db.into(db.balanceAdjustments).insert(adjustment);
+  });
 
   Future<void> saveCategory(String name, String kind, {String? id}) async {
     if (name.trim().isEmpty ||
@@ -375,10 +429,9 @@ class LedgerRepository {
         );
   }
 
-  Stream<Map<String, int>> watchBalances() => db
-      .customSelect(
-        '''
-    SELECT a.id, a.opening_balance + COALESCE(SUM(
+  Selectable<QueryRow> _balanceRows() => db.customSelect(
+    '''
+    SELECT a.id, a.opening_balance + COALESCE((SELECT SUM(b.delta) FROM balance_adjustments b WHERE b.account_id=a.id),0) + COALESCE(SUM(
       CASE WHEN e.debt_account_id = a.id THEN CASE WHEN e.kind IN ('borrow','lend') THEN e.amount ELSE -e.amount END
       WHEN e.target_account_id = a.id THEN CASE WHEN a.kind='债务' AND a.channel='应付款' THEN -e.amount ELSE e.amount END
       WHEN a.kind='债务' AND a.channel='应付款' THEN e.amount
@@ -387,14 +440,16 @@ class LedgerRepository {
     FROM accounts a LEFT JOIN entries e ON e.account_id = a.id OR e.target_account_id = a.id OR e.debt_account_id = a.id
     GROUP BY a.id
   ''',
-        readsFrom: {db.accounts, db.entries},
-      )
-      .watch()
-      .map(
-        (rows) => {
-          for (final r in rows) r.read<String>('id'): r.read<int>('balance'),
-        },
-      );
+    readsFrom: {db.accounts, db.entries, db.balanceAdjustments},
+  );
+
+  Map<String, int> _balanceMap(List<QueryRow> rows) => {
+    for (final r in rows) r.read<String>('id'): r.read<int>('balance'),
+  };
+  Future<Map<String, int>> balances() async =>
+      _balanceMap(await _balanceRows().get());
+  Stream<Map<String, int>> watchBalances() =>
+      _balanceRows().watch().map(_balanceMap);
 
   Stream<List<MonthlyTotal>> watchMonthly(String month) => db
       .customSelect(
