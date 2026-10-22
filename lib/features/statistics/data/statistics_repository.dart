@@ -120,7 +120,7 @@ class StatisticsRepository {
             .get();
         final opening = await db
             .customSelect(
-              'SELECT COALESCE(SUM(opening_balance),0) AS amount FROM accounts WHERE currency=?',
+              "SELECT COALESCE(SUM(CASE WHEN kind='债务' AND channel='应付款' THEN -opening_balance ELSE opening_balance END),0) AS amount FROM accounts WHERE currency=?",
               variables: [Variable(currency)],
             )
             .getSingle();

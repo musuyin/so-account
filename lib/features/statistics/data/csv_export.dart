@@ -63,12 +63,26 @@ class CsvExport {
       ]);
     }
     final rows = await db.customSelect('''
-      SELECT e.*, a.name AS account_name, a.currency, t.name AS target_name, c.name AS category_name
+      SELECT e.*, a.name AS account_name, a.currency, t.name AS target_name, c.name AS category_name, d.name AS debt_name, d.channel AS debt_side
       FROM entries e JOIN accounts a ON a.id=e.account_id LEFT JOIN accounts t ON t.id=e.target_account_id
-      LEFT JOIN categories c ON c.id=e.category_id $clause ORDER BY e.date,e.created_at
+      LEFT JOIN categories c ON c.id=e.category_id LEFT JOIN accounts d ON d.id=e.debt_account_id $clause ORDER BY e.date,e.created_at
     ''', variables: variables).get();
     return csvDocument([
-      ['ID', '日期', '类型', '币种', '金额', '账户', '转入账户', '分类', '关联借贷ID', '备注', '往来人'],
+      [
+        'ID',
+        '日期',
+        '类型',
+        '币种',
+        '金额',
+        '账户',
+        '转入账户',
+        '分类',
+        '关联借贷ID',
+        '备注',
+        '债务账户',
+        '债务类别',
+        '往来人',
+      ],
       for (final r in rows)
         [
           r.read<String>('id'),
@@ -81,6 +95,8 @@ class CsvExport {
           r.readNullable<String>('category_name'),
           r.readNullable<String>('debt_id'),
           r.read<String>('note'),
+          r.readNullable<String>('debt_name'),
+          r.readNullable<String>('debt_side'),
           r.read<String>('counterparty'),
         ],
     ]);

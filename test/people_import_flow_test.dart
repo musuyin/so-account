@@ -129,7 +129,7 @@ void main() {
         () => db.select(db.accounts).get(),
       ))!;
       expect(entries.length, 2);
-      expect(accounts.length, personal ? 1 : 2);
+      expect(accounts.length, 2);
       if (personal) {
         expect(entries.singleWhere((e) => e.kind == 'repay').debtId, original);
         expect(
@@ -183,6 +183,73 @@ void main() {
         find.textContaining('小林 · 2026-10-01 · 剩余 CNY 20.00'),
         findsAtLeastNWidgets(1),
       );
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    },
+  );
+  testWidgets(
+    'imported lending creates a named receivable account with explicit opening balance',
+    (tester) async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(() => tester.runAsync(db.close));
+      await tester.runAsync(
+        () => LedgerRepository(db).saveAccount(
+          name: '钱包',
+          kind: '资金账户',
+          channel: '现金',
+          currency: 'CNY',
+          openingBalance: 10000,
+        ),
+      );
+      final table = ImportTable.fromRows('借出', [
+        ['日期', '类型', '金额', '账户', '往来人'],
+        ['2026-10-22', '借出', '10', '钱包', '小陈'],
+      ]);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [databaseProvider.overrideWithValue(db)],
+          child: MaterialApp(home: ImportPage(initialTables: [table])),
+        ),
+      );
+      await settle(tester);
+      await tester.tap(find.text('下一步：账户与分类'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('预览明细'));
+      await tester.pumpAndSettle();
+      final name = find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.labelText == '账户名称',
+      );
+      expect(tester.widget<TextField>(name).controller!.text, '小陈');
+      await choose(tester, '币种', 'CNY');
+      final opening = find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.labelText == '初始余额',
+      );
+      await tester.scrollUntilVisible(
+        opening,
+        100,
+        scrollable: find.byType(Scrollable).last,
+      );
+      expect(tester.widget<TextField>(opening).controller!.text, '');
+      await tester.enterText(opening, '0');
+      await tester.tap(find.text('保存'));
+      await settle(tester);
+      expect(find.text('确认导入 1 条'), findsOneWidget);
+      await tester.tap(find.text('确认导入 1 条'));
+      await settle(tester);
+      final accounts = (await tester.runAsync(
+        () => db.select(db.accounts).get(),
+      ))!;
+      final debt = accounts.singleWhere((a) => a.name == '小陈');
+      expect(debt.kind, '债务');
+      expect(debt.channel, '应收款');
+      final entries = (await tester.runAsync(
+        () => db.select(db.entries).get(),
+      ))!;
+      expect(entries.single.debtAccountId, debt.id);
+      final balances = (await tester.runAsync(
+        () => LedgerRepository(db).watchBalances().first,
+      ))!;
+      expect(balances[debt.id], 1000);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(milliseconds: 1));
     },

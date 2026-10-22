@@ -167,6 +167,8 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       MaterialPageRoute(
         builder: (_) => AccountForm(
           initialName: source?.name,
+          initialKind: source?.debtSide == null ? null : '债务',
+          initialChannel: source?.debtSide,
           importContext: source == null
               ? '创建本批明细使用的默认账户。'
               : '来源账户：${source.name} · ${source.rows.length} 条明细\n用途：${source.roles.join('、')}${source.currencies.isEmpty ? '' : '\n文件币种 ${source.currencies.single}'}${source.firstDate == null ? '' : '\n最早交易：${source.firstDate}'}',
@@ -183,6 +185,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       createdAccounts[account.id] = account;
       if (source == null) {
         mapping.defaultAccount = account.id;
+      } else if (source.debtSide != null) {
+        mapping.debtAccounts['${source.debtSide}:${source.currencies.single}:${source.name}'] =
+            account.id;
       } else {
         mapping.accounts[source.name] = account.id;
       }
@@ -233,6 +238,13 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       if (!mounted) return;
       final db = ref.read(databaseProvider);
       final accounts = await db.select(db.accounts).get();
+      for (final source in missingImportDebtAccounts(
+        tables[sheet],
+        mapping,
+        accounts,
+      )) {
+        if (!mounted || !await createAccount(source)) return;
+      }
       // Refresh data after account forms; imported records may have changed in another route.
       final categories = await db.select(db.categories).get();
       final entries = await db.select(db.entries).get();
@@ -240,7 +252,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       final plan = previewImport(
         tables[sheet],
         mapping,
-        accounts,
+        await db.select(db.accounts).get(),
         categories,
         entries,
       );
@@ -972,6 +984,51 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                       label: Text('创建“$value”'),
                                     ),
                                 ],
+                              ),
+                            for (final source in importDebtAccountSources(
+                              table,
+                              mapping,
+                              data.accounts,
+                            ).take(100))
+                              select(
+                                '债务账户：${source.debtSide} · ${source.name}',
+                                mapping.debtAccounts['${source.debtSide}:${source.currencies.single}:${source.name}'] ??
+                                    data.accounts
+                                        .where(
+                                          (a) =>
+                                              a.kind == '债务' &&
+                                              a.name == source.name &&
+                                              a.currency ==
+                                                  source.currencies.single &&
+                                              (a.channel == source.debtSide ||
+                                                  (source.debtSide == '应收款' &&
+                                                      a.channel == '报销')),
+                                        )
+                                        .singleOrNull
+                                        ?.id,
+                                {
+                                  '': '请选择 / 预览时创建',
+                                  for (final a in data.accounts.where(
+                                    (a) =>
+                                        a.kind == '债务' &&
+                                        a.currency ==
+                                            source.currencies.single &&
+                                        (a.channel == source.debtSide ||
+                                            (source.debtSide == '应收款' &&
+                                                a.channel == '报销')),
+                                  ))
+                                    a.id:
+                                        '${a.name} · ${a.channel} · ${a.currency}',
+                                },
+                                (value) {
+                                  final key =
+                                      '${source.debtSide}:${source.currencies.single}:${source.name}';
+                                  if (value.isEmpty) {
+                                    mapping.debtAccounts.remove(key);
+                                  } else {
+                                    mapping.debtAccounts[key] = value;
+                                  }
+                                },
                               ),
                             for (final (index, row)
                                 in table.rows.indexed

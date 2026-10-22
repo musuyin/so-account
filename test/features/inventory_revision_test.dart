@@ -67,8 +67,14 @@ void main() {
       final file = File('${dir.path}/data.db');
       final old = NativeDatabase(file);
       await old.ensureOpen(_Version2());
-      // This focused legacy fixture also needs the entries table for v4.
-      await old.runCustom('CREATE TABLE entries (id TEXT PRIMARY KEY)', []);
+      await old.runCustom(
+        "CREATE TABLE accounts (id TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL, channel TEXT NOT NULL, currency TEXT NOT NULL, avatar TEXT NOT NULL DEFAULT '', opening_balance INTEGER NOT NULL DEFAULT 0)",
+        [],
+      );
+      await old.runCustom(
+        "CREATE TABLE entries (id TEXT PRIMARY KEY, kind TEXT NOT NULL, amount INTEGER NOT NULL, account_id TEXT NOT NULL, target_account_id TEXT, category_id TEXT, debt_id TEXT, date TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
+        [],
+      );
       await old.runCustom(
         "CREATE TABLE items (id TEXT PRIMARY KEY, name TEXT NOT NULL, category TEXT NOT NULL DEFAULT '未分类', use_type TEXT NOT NULL DEFAULT 'durable', status TEXT NOT NULL DEFAULT 'active', archived_on TEXT, price INTEGER, currency TEXT NOT NULL, purchased_on TEXT, note TEXT NOT NULL DEFAULT '', photo TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
         [],

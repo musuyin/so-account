@@ -60,7 +60,7 @@ void main() {
       expect(lin.receivable, 5000);
       expect(lin.payable, 7500);
       expect((await repo.watchBalances().first)[cash], 92500);
-      expect((await db.select(db.accounts).get()).length, 1);
+      expect((await db.select(db.accounts).get()).length, 4);
       final csv = readImportTables(
         'export.csv',
         Uint8List.fromList(
@@ -129,10 +129,12 @@ void main() {
       categoryId: categories.firstWhere((c) => c.kind == 'income').id,
       counterparty: '不保留',
     );
+    final entries = await db.select(db.entries).get();
     expect(
-      (await db.select(db.entries).get()).map((e) => e.counterparty),
-      everyElement(''),
+      entries.singleWhere((e) => e.kind == 'borrow').counterparty,
+      '未注明往来人',
     );
+    expect(entries.singleWhere((e) => e.kind == 'income').counterparty, '');
   });
   test(
     'personal loan directions never turn a person into a funds account',
@@ -226,7 +228,7 @@ void main() {
           .map((e) => e.counterparty),
       ['小林', '小林'],
     );
-    expect((await db.select(db.accounts).get()).length, 1);
+    expect((await db.select(db.accounts).get()).length, 2);
   });
   test(
     'batch overpayment revalidates transaction and rolls back all repayments',
@@ -284,12 +286,22 @@ void main() {
         await old.customStatement(
           'ALTER TABLE entries DROP COLUMN counterparty',
         );
+        await old.customStatement(
+          'ALTER TABLE entries DROP COLUMN debt_account_id',
+        );
+        await old.customStatement("DELETE FROM accounts WHERE kind='债务'");
+        await old.customStatement(
+          'ALTER TABLE accounts DROP COLUMN custom_channel',
+        );
+        await old.customStatement(
+          'ALTER TABLE accounts DROP COLUMN unit_price',
+        );
         await old.customStatement('PRAGMA user_version = 3');
         await old.close();
         final next = AppDatabase(NativeDatabase(file));
         try {
           final entries = await next.select(next.entries).get();
-          expect(entries.map((e) => e.counterparty), everyElement(''));
+          expect(entries.map((e) => e.counterparty), everyElement('未注明往来人'));
           expect(
             entries.singleWhere((e) => e.kind == 'repay').debtId,
             principal,

@@ -24,7 +24,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
       title: const Text('账户'),
       actions: [
         IconButton(
-          tooltip: '人员往来',
+          tooltip: '债务',
           onPressed: () => openForm(context, const PeopleDebtsPage()),
           icon: const Icon(Icons.people_outline),
         ),
@@ -46,27 +46,22 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
         final accounts = data.accounts
             .where((a) => a.currency == currency)
             .toList();
-        var receivable = 0, payable = 0;
-        for (final debt in data.entries.where(
-          (e) =>
-              ['borrow', 'lend'].contains(e.kind) &&
-              data.account(e.accountId).currency == currency,
-        )) {
-          final remaining =
-              debt.amount -
-              data.entries
-                  .where((e) => e.debtId == debt.id)
-                  .fold<int>(0, (s, e) => s + e.amount);
-          if (debt.kind == 'borrow') {
-            payable += remaining;
-          } else {
-            receivable += remaining;
-          }
-        }
+        final receivable = accounts
+            .where((a) => a.kind == '债务' && a.channel != '应付款')
+            .fold<int>(
+              0,
+              (sum, a) => sum + (balances[a.id] ?? a.openingBalance),
+            );
+        final payable = accounts
+            .where((a) => a.kind == '债务' && a.channel == '应付款')
+            .fold<int>(
+              0,
+              (sum, a) => sum + (balances[a.id] ?? a.openingBalance),
+            );
         final totals = AssetSummary.calculate(
-          accounts.map((a) => balances[a.id] ?? a.openingBalance),
-          receivable: receivable,
-          payable: payable,
+          accounts.map(
+            (a) => assetBalance(a.channel, balances[a.id] ?? a.openingBalance),
+          ),
         );
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
@@ -121,7 +116,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
             if (accounts.isEmpty) const EmptyState('暂无账户', '添加账户后开始记账。'),
             ListTile(
               leading: const Icon(Icons.people_outline),
-              title: const Text('人员往来'),
+              title: const Text('债务'),
               subtitle: Text(
                 '待收回 ${money(receivable, currency)} · 待偿还 ${money(payable, currency)}',
               ),
@@ -155,8 +150,11 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                                         0,
                                         (s, a) =>
                                             s +
-                                            (balances[a.id] ??
-                                                a.openingBalance),
+                                            assetBalance(
+                                              a.channel,
+                                              balances[a.id] ??
+                                                  a.openingBalance,
+                                            ),
                                       ),
                                   currency,
                                 ),
@@ -165,42 +163,72 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                           ),
                         ),
                         const Divider(),
-                        for (final account in accounts.where(
-                          (a) => a.kind == kind,
-                        ))
-                          ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 4,
+                        for (final channel in accountTypes[kind]!)
+                          if (accounts.any(
+                            (a) => a.kind == kind && a.channel == channel,
+                          )) ...[
+                            ListTile(
+                              dense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
+                              title: Text(channel),
+                              trailing: Text(
+                                money(
+                                  accounts
+                                      .where(
+                                        (a) =>
+                                            a.kind == kind &&
+                                            a.channel == channel,
+                                      )
+                                      .fold<int>(
+                                        0,
+                                        (sum, a) =>
+                                            sum +
+                                            (balances[a.id] ??
+                                                a.openingBalance),
+                                      ),
+                                  currency,
+                                ),
+                              ),
                             ),
-                            leading: AccountAvatar(account: account),
-                            title: Text(account.name),
-                            subtitle: Text(
-                              '${account.channel} · ${money(balances[account.id] ?? account.openingBalance, currency)}',
-                            ),
-                            onTap: () => openForm(
-                              context,
-                              AccountForm(account: account),
-                            ),
-                            trailing: IconButton(
-                              tooltip: '删除账户',
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () async {
-                                if (await confirm(
-                                      context,
-                                      '删除账户？',
-                                      '已有流水的账户不能删除。',
-                                    ) &&
-                                    context.mounted) {
-                                  await perform(
-                                    context,
-                                    () => ref
-                                        .read(ledgerProvider)
-                                        .deleteAccount(account.id),
-                                  );
-                                }
-                              },
-                            ),
-                          ),
+                            for (final account in accounts.where(
+                              (a) => a.kind == kind && a.channel == channel,
+                            ))
+                              ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                leading: AccountAvatar(account: account),
+                                title: Text(account.name),
+                                subtitle: Text(
+                                  '${account.channel == '自定义' && account.customChannel.isNotEmpty ? account.customChannel : account.channel} · ${money(balances[account.id] ?? account.openingBalance, currency)}${account.unitPrice == null ? '' : '\n买入单价 ${account.unitPrice} ${account.currency} · 按成本记录'}',
+                                ),
+                                onTap: () => openForm(
+                                  context,
+                                  AccountForm(account: account),
+                                ),
+                                trailing: IconButton(
+                                  tooltip: '删除账户',
+                                  icon: const Icon(Icons.delete_outline),
+                                  onPressed: () async {
+                                    if (await confirm(
+                                          context,
+                                          '删除账户？',
+                                          '已有流水的账户不能删除。',
+                                        ) &&
+                                        context.mounted) {
+                                      await perform(
+                                        context,
+                                        () => ref
+                                            .read(ledgerProvider)
+                                            .deleteAccount(account.id),
+                                      );
+                                    }
+                                  },
+                                ),
+                              ),
+                          ],
                       ],
                     ),
                   ),
@@ -223,10 +251,13 @@ class AccountForm extends ConsumerStatefulWidget {
     this.account,
     this.initialName,
     this.importContext,
+    this.initialKind,
+    this.initialChannel,
   });
   final Account? account;
   final String? initialName;
   final String? importContext;
+  final String? initialKind, initialChannel;
   @override
   ConsumerState<AccountForm> createState() => _AccountFormState();
 }
@@ -239,10 +270,16 @@ class _AccountFormState extends ConsumerState<AccountForm> {
       widget.account?.currency ?? (widget.importContext == null ? 'CNY' : null);
   late String? kind =
       widget.account?.kind ??
+      widget.initialKind ??
       (widget.importContext == null ? accountKinds.first : null);
   late String? channel =
       widget.account?.channel ??
-      (widget.importContext == null ? accountChannels.first : null);
+      widget.initialChannel ??
+      (widget.importContext == null ? accountTypes[kind]!.first : null);
+  late final custom = TextEditingController(
+    text: widget.account?.customChannel,
+  );
+  late final unitPrice = TextEditingController(text: widget.account?.unitPrice);
   late final opening = TextEditingController(
     text: widget.importContext == null
         ? decimalMoney(widget.account?.openingBalance ?? 0, currency ?? 'CNY')
@@ -259,13 +296,16 @@ class _AccountFormState extends ConsumerState<AccountForm> {
               .any(
                 (entry) =>
                     entry.accountId == widget.account!.id ||
-                    entry.targetAccountId == widget.account!.id,
+                    entry.targetAccountId == widget.account!.id ||
+                    entry.debtAccountId == widget.account!.id,
               ) ??
           false);
   @override
   void dispose() {
     name.dispose();
     opening.dispose();
+    custom.dispose();
+    unitPrice.dispose();
     super.dispose();
   }
 
@@ -280,6 +320,9 @@ class _AccountFormState extends ConsumerState<AccountForm> {
         if (kind == null || channel == null || currency == null) {
           throw const FormatException('请选择账户类型、渠道和币种');
         }
+        if (channel == '自定义' && custom.text.trim().isEmpty) {
+          throw const FormatException('请填写自定义类别');
+        }
         savedId = await ref
             .read(ledgerProvider)
             .saveAccount(
@@ -290,6 +333,8 @@ class _AccountFormState extends ConsumerState<AccountForm> {
               currency: currency!,
               openingBalance: parseMoney(opening.text, currency!, signed: true),
               avatar: avatar,
+              customChannel: custom.text,
+              unitPrice: unitPrice.text,
             );
       });
       if (mounted && context.mounted) {
@@ -321,21 +366,39 @@ class _AccountFormState extends ConsumerState<AccountForm> {
         onChanged: (v) => setState(() => avatar = v!),
       ),
       DropdownButtonFormField<String>(
-        initialValue: channel,
-        decoration: const InputDecoration(labelText: '渠道'),
-        items: accountChannels
-            .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-            .toList(),
-        onChanged: (v) => setState(() => channel = v!),
-      ),
-      DropdownButtonFormField<String>(
         initialValue: kind,
         decoration: const InputDecoration(labelText: '账户类型'),
         items: accountKinds
             .map((v) => DropdownMenuItem(value: v, child: Text(v)))
             .toList(),
-        onChanged: (v) => setState(() => kind = v!),
+        onChanged: balanceLocked || widget.initialKind == '债务'
+            ? null
+            : (v) => setState(() {
+                kind = v!;
+                if (!accountTypes[kind]!.contains(channel)) channel = null;
+              }),
       ),
+      DropdownButtonFormField<String>(
+        key: ValueKey('account-channel-$kind-$channel'),
+        initialValue: channel,
+        decoration: const InputDecoration(labelText: '类别'),
+        items: [
+          for (final value in accountTypes[kind] ?? <String>[])
+            DropdownMenuItem(value: value, child: Text(value)),
+        ],
+        onChanged:
+            kind == null ||
+                (balanceLocked && kind == '债务') ||
+                widget.initialChannel != null
+            ? null
+            : (v) => setState(() => channel = v!),
+      ),
+      if (channel == '自定义')
+        TextField(
+          controller: custom,
+          maxLength: 40,
+          decoration: const InputDecoration(labelText: '自定义类别'),
+        ),
       DropdownButtonFormField<String>(
         initialValue: currency,
         decoration: const InputDecoration(labelText: '币种'),
@@ -351,11 +414,22 @@ class _AccountFormState extends ConsumerState<AccountForm> {
           decimal: true,
           signed: true,
         ),
-        decoration: const InputDecoration(
-          labelText: '初始余额',
-          helperText: '必填；无余额请填 0，欠款填负数。已有流水后不能改变初始余额和币种。',
+        decoration: InputDecoration(
+          labelText: kind == '投资理财' ? '买入价 / 期初持有成本' : '初始余额',
+          helperText: kind == '债务'
+              ? '填待收或待还金额，通常填正数；无期初债务填 0。'
+              : '必填；无余额请填 0，信贷欠款填负数。已有流水后可使用余额调整。',
         ),
       ),
+      if (kind == '投资理财')
+        TextField(
+          controller: unitPrice,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: '买入单价（选填）',
+            helperText: '最多 8 位小数；仅记录买入成本，不获取实时价格。',
+          ),
+        ),
     ],
   );
 }

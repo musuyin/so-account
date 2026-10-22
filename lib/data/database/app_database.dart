@@ -3,6 +3,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../features/ledger/domain/default_categories.dart';
+import '../../features/ledger/domain/entry_kind.dart';
 
 part 'app_database.g.dart';
 
@@ -13,6 +14,8 @@ class Accounts extends Table {
   TextColumn get channel => text()();
   TextColumn get currency => text()();
   TextColumn get avatar => text().withDefault(const Constant(''))();
+  TextColumn get customChannel => text().withDefault(const Constant(''))();
+  TextColumn get unitPrice => text().nullable()();
   IntColumn get openingBalance => integer().withDefault(const Constant(0))();
   @override
   Set<Column> get primaryKey => {id};
@@ -41,6 +44,7 @@ class Entries extends Table {
   TextColumn get categoryId => text().nullable().references(Categories, #id)();
   TextColumn get debtId => text().nullable().references(Entries, #id)();
   TextColumn get counterparty => text().withDefault(const Constant(''))();
+  TextColumn get debtAccountId => text().nullable().references(Accounts, #id)();
   TextColumn get date => text()();
   TextColumn get note => text().withDefault(const Constant(''))();
   IntColumn get createdAt => integer()();
@@ -119,7 +123,69 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
+
+  Future<void> migrateDebtAccounts() async {
+    for (final account in await select(accounts).get()) {
+      final type = normalizeAccountType(
+        account.kind,
+        account.channel,
+        account.customChannel,
+      );
+      await (update(accounts)..where((a) => a.id.equals(account.id))).write(
+        AccountsCompanion(
+          kind: Value(type.kind),
+          channel: Value(type.channel),
+          customChannel: Value(type.custom),
+        ),
+      );
+    }
+    final principals =
+        await (select(entries)..where(
+              (e) => e.kind.isIn(['borrow', 'lend']) & e.debtAccountId.isNull(),
+            ))
+            .get();
+    for (final debt in principals) {
+      final fund = await (select(
+        accounts,
+      )..where((a) => a.id.equals(debt.accountId))).getSingle();
+      final side = debt.kind == 'borrow' ? '应付款' : '应收款';
+      final name = debt.counterparty.isEmpty ? '未注明往来人' : debt.counterparty;
+      var account =
+          await (select(accounts)..where(
+                (a) =>
+                    a.kind.equals('债务') &
+                    a.channel.equals(side) &
+                    a.currency.equals(fund.currency) &
+                    a.name.equals(name),
+              ))
+              .getSingleOrNull();
+      if (account == null) {
+        final id =
+            'legacy-debt-${debt.kind}-${fund.currency}-${Uri.encodeComponent(name)}';
+        await into(accounts).insert(
+          AccountsCompanion.insert(
+            id: id,
+            name: name,
+            kind: '债务',
+            channel: side,
+            currency: fund.currency,
+          ),
+        );
+        account = await (select(
+          accounts,
+        )..where((a) => a.id.equals(id))).getSingle();
+      }
+      await (update(
+        entries,
+      )..where((e) => e.id.equals(debt.id) | e.debtId.equals(debt.id))).write(
+        EntriesCompanion(
+          debtAccountId: Value(account.id),
+          counterparty: Value(account.name),
+        ),
+      );
+    }
+  }
 
   Future<void> seedDefaults({bool upgrade = false}) async {
     for (final (kind, names) in [
@@ -182,6 +248,12 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 4) {
         await m.addColumn(entries, entries.counterparty);
+      }
+      if (from < 5) {
+        await m.addColumn(accounts, accounts.customChannel);
+        await m.addColumn(accounts, accounts.unitPrice);
+        await m.addColumn(entries, entries.debtAccountId);
+        await migrateDebtAccounts();
       }
     },
     beforeOpen: (_) async {

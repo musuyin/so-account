@@ -71,6 +71,29 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _customChannelMeta = const VerificationMeta(
+    'customChannel',
+  );
+  @override
+  late final GeneratedColumn<String> customChannel = GeneratedColumn<String>(
+    'custom_channel',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _unitPriceMeta = const VerificationMeta(
+    'unitPrice',
+  );
+  @override
+  late final GeneratedColumn<String> unitPrice = GeneratedColumn<String>(
+    'unit_price',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _openingBalanceMeta = const VerificationMeta(
     'openingBalance',
   );
@@ -91,6 +114,8 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     channel,
     currency,
     avatar,
+    customChannel,
+    unitPrice,
     openingBalance,
   ];
   @override
@@ -148,6 +173,21 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         avatar.isAcceptableOrUnknown(data['avatar']!, _avatarMeta),
       );
     }
+    if (data.containsKey('custom_channel')) {
+      context.handle(
+        _customChannelMeta,
+        customChannel.isAcceptableOrUnknown(
+          data['custom_channel']!,
+          _customChannelMeta,
+        ),
+      );
+    }
+    if (data.containsKey('unit_price')) {
+      context.handle(
+        _unitPriceMeta,
+        unitPrice.isAcceptableOrUnknown(data['unit_price']!, _unitPriceMeta),
+      );
+    }
     if (data.containsKey('opening_balance')) {
       context.handle(
         _openingBalanceMeta,
@@ -190,6 +230,14 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         DriftSqlType.string,
         data['${effectivePrefix}avatar'],
       )!,
+      customChannel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}custom_channel'],
+      )!,
+      unitPrice: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}unit_price'],
+      ),
       openingBalance: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}opening_balance'],
@@ -210,6 +258,8 @@ class Account extends DataClass implements Insertable<Account> {
   final String channel;
   final String currency;
   final String avatar;
+  final String customChannel;
+  final String? unitPrice;
   final int openingBalance;
   const Account({
     required this.id,
@@ -218,6 +268,8 @@ class Account extends DataClass implements Insertable<Account> {
     required this.channel,
     required this.currency,
     required this.avatar,
+    required this.customChannel,
+    this.unitPrice,
     required this.openingBalance,
   });
   @override
@@ -229,6 +281,10 @@ class Account extends DataClass implements Insertable<Account> {
     map['channel'] = Variable<String>(channel);
     map['currency'] = Variable<String>(currency);
     map['avatar'] = Variable<String>(avatar);
+    map['custom_channel'] = Variable<String>(customChannel);
+    if (!nullToAbsent || unitPrice != null) {
+      map['unit_price'] = Variable<String>(unitPrice);
+    }
     map['opening_balance'] = Variable<int>(openingBalance);
     return map;
   }
@@ -241,6 +297,10 @@ class Account extends DataClass implements Insertable<Account> {
       channel: Value(channel),
       currency: Value(currency),
       avatar: Value(avatar),
+      customChannel: Value(customChannel),
+      unitPrice: unitPrice == null && nullToAbsent
+          ? const Value.absent()
+          : Value(unitPrice),
       openingBalance: Value(openingBalance),
     );
   }
@@ -257,6 +317,8 @@ class Account extends DataClass implements Insertable<Account> {
       channel: serializer.fromJson<String>(json['channel']),
       currency: serializer.fromJson<String>(json['currency']),
       avatar: serializer.fromJson<String>(json['avatar']),
+      customChannel: serializer.fromJson<String>(json['customChannel']),
+      unitPrice: serializer.fromJson<String?>(json['unitPrice']),
       openingBalance: serializer.fromJson<int>(json['openingBalance']),
     );
   }
@@ -270,6 +332,8 @@ class Account extends DataClass implements Insertable<Account> {
       'channel': serializer.toJson<String>(channel),
       'currency': serializer.toJson<String>(currency),
       'avatar': serializer.toJson<String>(avatar),
+      'customChannel': serializer.toJson<String>(customChannel),
+      'unitPrice': serializer.toJson<String?>(unitPrice),
       'openingBalance': serializer.toJson<int>(openingBalance),
     };
   }
@@ -281,6 +345,8 @@ class Account extends DataClass implements Insertable<Account> {
     String? channel,
     String? currency,
     String? avatar,
+    String? customChannel,
+    Value<String?> unitPrice = const Value.absent(),
     int? openingBalance,
   }) => Account(
     id: id ?? this.id,
@@ -289,6 +355,8 @@ class Account extends DataClass implements Insertable<Account> {
     channel: channel ?? this.channel,
     currency: currency ?? this.currency,
     avatar: avatar ?? this.avatar,
+    customChannel: customChannel ?? this.customChannel,
+    unitPrice: unitPrice.present ? unitPrice.value : this.unitPrice,
     openingBalance: openingBalance ?? this.openingBalance,
   );
   Account copyWithCompanion(AccountsCompanion data) {
@@ -299,6 +367,10 @@ class Account extends DataClass implements Insertable<Account> {
       channel: data.channel.present ? data.channel.value : this.channel,
       currency: data.currency.present ? data.currency.value : this.currency,
       avatar: data.avatar.present ? data.avatar.value : this.avatar,
+      customChannel: data.customChannel.present
+          ? data.customChannel.value
+          : this.customChannel,
+      unitPrice: data.unitPrice.present ? data.unitPrice.value : this.unitPrice,
       openingBalance: data.openingBalance.present
           ? data.openingBalance.value
           : this.openingBalance,
@@ -314,14 +386,25 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('channel: $channel, ')
           ..write('currency: $currency, ')
           ..write('avatar: $avatar, ')
+          ..write('customChannel: $customChannel, ')
+          ..write('unitPrice: $unitPrice, ')
           ..write('openingBalance: $openingBalance')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, kind, channel, currency, avatar, openingBalance);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    kind,
+    channel,
+    currency,
+    avatar,
+    customChannel,
+    unitPrice,
+    openingBalance,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -332,6 +415,8 @@ class Account extends DataClass implements Insertable<Account> {
           other.channel == this.channel &&
           other.currency == this.currency &&
           other.avatar == this.avatar &&
+          other.customChannel == this.customChannel &&
+          other.unitPrice == this.unitPrice &&
           other.openingBalance == this.openingBalance);
 }
 
@@ -342,6 +427,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<String> channel;
   final Value<String> currency;
   final Value<String> avatar;
+  final Value<String> customChannel;
+  final Value<String?> unitPrice;
   final Value<int> openingBalance;
   final Value<int> rowid;
   const AccountsCompanion({
@@ -351,6 +438,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.channel = const Value.absent(),
     this.currency = const Value.absent(),
     this.avatar = const Value.absent(),
+    this.customChannel = const Value.absent(),
+    this.unitPrice = const Value.absent(),
     this.openingBalance = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -361,6 +450,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     required String channel,
     required String currency,
     this.avatar = const Value.absent(),
+    this.customChannel = const Value.absent(),
+    this.unitPrice = const Value.absent(),
     this.openingBalance = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -375,6 +466,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<String>? channel,
     Expression<String>? currency,
     Expression<String>? avatar,
+    Expression<String>? customChannel,
+    Expression<String>? unitPrice,
     Expression<int>? openingBalance,
     Expression<int>? rowid,
   }) {
@@ -385,6 +478,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (channel != null) 'channel': channel,
       if (currency != null) 'currency': currency,
       if (avatar != null) 'avatar': avatar,
+      if (customChannel != null) 'custom_channel': customChannel,
+      if (unitPrice != null) 'unit_price': unitPrice,
       if (openingBalance != null) 'opening_balance': openingBalance,
       if (rowid != null) 'rowid': rowid,
     });
@@ -397,6 +492,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Value<String>? channel,
     Value<String>? currency,
     Value<String>? avatar,
+    Value<String>? customChannel,
+    Value<String?>? unitPrice,
     Value<int>? openingBalance,
     Value<int>? rowid,
   }) {
@@ -407,6 +504,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       channel: channel ?? this.channel,
       currency: currency ?? this.currency,
       avatar: avatar ?? this.avatar,
+      customChannel: customChannel ?? this.customChannel,
+      unitPrice: unitPrice ?? this.unitPrice,
       openingBalance: openingBalance ?? this.openingBalance,
       rowid: rowid ?? this.rowid,
     );
@@ -433,6 +532,12 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (avatar.present) {
       map['avatar'] = Variable<String>(avatar.value);
     }
+    if (customChannel.present) {
+      map['custom_channel'] = Variable<String>(customChannel.value);
+    }
+    if (unitPrice.present) {
+      map['unit_price'] = Variable<String>(unitPrice.value);
+    }
     if (openingBalance.present) {
       map['opening_balance'] = Variable<int>(openingBalance.value);
     }
@@ -451,6 +556,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('channel: $channel, ')
           ..write('currency: $currency, ')
           ..write('avatar: $avatar, ')
+          ..write('customChannel: $customChannel, ')
+          ..write('unitPrice: $unitPrice, ')
           ..write('openingBalance: $openingBalance, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -817,6 +924,20 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _debtAccountIdMeta = const VerificationMeta(
+    'debtAccountId',
+  );
+  @override
+  late final GeneratedColumn<String> debtAccountId = GeneratedColumn<String>(
+    'debt_account_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES accounts (id)',
+    ),
+  );
   static const VerificationMeta _dateMeta = const VerificationMeta('date');
   @override
   late final GeneratedColumn<String> date = GeneratedColumn<String>(
@@ -868,6 +989,7 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
     categoryId,
     debtId,
     counterparty,
+    debtAccountId,
     date,
     note,
     createdAt,
@@ -944,6 +1066,15 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
         ),
       );
     }
+    if (data.containsKey('debt_account_id')) {
+      context.handle(
+        _debtAccountIdMeta,
+        debtAccountId.isAcceptableOrUnknown(
+          data['debt_account_id']!,
+          _debtAccountIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('date')) {
       context.handle(
         _dateMeta,
@@ -1015,6 +1146,10 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
         DriftSqlType.string,
         data['${effectivePrefix}counterparty'],
       )!,
+      debtAccountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}debt_account_id'],
+      ),
       date: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}date'],
@@ -1049,6 +1184,7 @@ class Entry extends DataClass implements Insertable<Entry> {
   final String? categoryId;
   final String? debtId;
   final String counterparty;
+  final String? debtAccountId;
   final String date;
   final String note;
   final int createdAt;
@@ -1062,6 +1198,7 @@ class Entry extends DataClass implements Insertable<Entry> {
     this.categoryId,
     this.debtId,
     required this.counterparty,
+    this.debtAccountId,
     required this.date,
     required this.note,
     required this.createdAt,
@@ -1084,6 +1221,9 @@ class Entry extends DataClass implements Insertable<Entry> {
       map['debt_id'] = Variable<String>(debtId);
     }
     map['counterparty'] = Variable<String>(counterparty);
+    if (!nullToAbsent || debtAccountId != null) {
+      map['debt_account_id'] = Variable<String>(debtAccountId);
+    }
     map['date'] = Variable<String>(date);
     map['note'] = Variable<String>(note);
     map['created_at'] = Variable<int>(createdAt);
@@ -1107,6 +1247,9 @@ class Entry extends DataClass implements Insertable<Entry> {
           ? const Value.absent()
           : Value(debtId),
       counterparty: Value(counterparty),
+      debtAccountId: debtAccountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(debtAccountId),
       date: Value(date),
       note: Value(note),
       createdAt: Value(createdAt),
@@ -1128,6 +1271,7 @@ class Entry extends DataClass implements Insertable<Entry> {
       categoryId: serializer.fromJson<String?>(json['categoryId']),
       debtId: serializer.fromJson<String?>(json['debtId']),
       counterparty: serializer.fromJson<String>(json['counterparty']),
+      debtAccountId: serializer.fromJson<String?>(json['debtAccountId']),
       date: serializer.fromJson<String>(json['date']),
       note: serializer.fromJson<String>(json['note']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
@@ -1146,6 +1290,7 @@ class Entry extends DataClass implements Insertable<Entry> {
       'categoryId': serializer.toJson<String?>(categoryId),
       'debtId': serializer.toJson<String?>(debtId),
       'counterparty': serializer.toJson<String>(counterparty),
+      'debtAccountId': serializer.toJson<String?>(debtAccountId),
       'date': serializer.toJson<String>(date),
       'note': serializer.toJson<String>(note),
       'createdAt': serializer.toJson<int>(createdAt),
@@ -1162,6 +1307,7 @@ class Entry extends DataClass implements Insertable<Entry> {
     Value<String?> categoryId = const Value.absent(),
     Value<String?> debtId = const Value.absent(),
     String? counterparty,
+    Value<String?> debtAccountId = const Value.absent(),
     String? date,
     String? note,
     int? createdAt,
@@ -1177,6 +1323,9 @@ class Entry extends DataClass implements Insertable<Entry> {
     categoryId: categoryId.present ? categoryId.value : this.categoryId,
     debtId: debtId.present ? debtId.value : this.debtId,
     counterparty: counterparty ?? this.counterparty,
+    debtAccountId: debtAccountId.present
+        ? debtAccountId.value
+        : this.debtAccountId,
     date: date ?? this.date,
     note: note ?? this.note,
     createdAt: createdAt ?? this.createdAt,
@@ -1198,6 +1347,9 @@ class Entry extends DataClass implements Insertable<Entry> {
       counterparty: data.counterparty.present
           ? data.counterparty.value
           : this.counterparty,
+      debtAccountId: data.debtAccountId.present
+          ? data.debtAccountId.value
+          : this.debtAccountId,
       date: data.date.present ? data.date.value : this.date,
       note: data.note.present ? data.note.value : this.note,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -1216,6 +1368,7 @@ class Entry extends DataClass implements Insertable<Entry> {
           ..write('categoryId: $categoryId, ')
           ..write('debtId: $debtId, ')
           ..write('counterparty: $counterparty, ')
+          ..write('debtAccountId: $debtAccountId, ')
           ..write('date: $date, ')
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
@@ -1234,6 +1387,7 @@ class Entry extends DataClass implements Insertable<Entry> {
     categoryId,
     debtId,
     counterparty,
+    debtAccountId,
     date,
     note,
     createdAt,
@@ -1251,6 +1405,7 @@ class Entry extends DataClass implements Insertable<Entry> {
           other.categoryId == this.categoryId &&
           other.debtId == this.debtId &&
           other.counterparty == this.counterparty &&
+          other.debtAccountId == this.debtAccountId &&
           other.date == this.date &&
           other.note == this.note &&
           other.createdAt == this.createdAt &&
@@ -1266,6 +1421,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
   final Value<String?> categoryId;
   final Value<String?> debtId;
   final Value<String> counterparty;
+  final Value<String?> debtAccountId;
   final Value<String> date;
   final Value<String> note;
   final Value<int> createdAt;
@@ -1280,6 +1436,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     this.categoryId = const Value.absent(),
     this.debtId = const Value.absent(),
     this.counterparty = const Value.absent(),
+    this.debtAccountId = const Value.absent(),
     this.date = const Value.absent(),
     this.note = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -1295,6 +1452,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     this.categoryId = const Value.absent(),
     this.debtId = const Value.absent(),
     this.counterparty = const Value.absent(),
+    this.debtAccountId = const Value.absent(),
     required String date,
     this.note = const Value.absent(),
     required int createdAt,
@@ -1316,6 +1474,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     Expression<String>? categoryId,
     Expression<String>? debtId,
     Expression<String>? counterparty,
+    Expression<String>? debtAccountId,
     Expression<String>? date,
     Expression<String>? note,
     Expression<int>? createdAt,
@@ -1331,6 +1490,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
       if (categoryId != null) 'category_id': categoryId,
       if (debtId != null) 'debt_id': debtId,
       if (counterparty != null) 'counterparty': counterparty,
+      if (debtAccountId != null) 'debt_account_id': debtAccountId,
       if (date != null) 'date': date,
       if (note != null) 'note': note,
       if (createdAt != null) 'created_at': createdAt,
@@ -1348,6 +1508,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     Value<String?>? categoryId,
     Value<String?>? debtId,
     Value<String>? counterparty,
+    Value<String?>? debtAccountId,
     Value<String>? date,
     Value<String>? note,
     Value<int>? createdAt,
@@ -1363,6 +1524,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
       categoryId: categoryId ?? this.categoryId,
       debtId: debtId ?? this.debtId,
       counterparty: counterparty ?? this.counterparty,
+      debtAccountId: debtAccountId ?? this.debtAccountId,
       date: date ?? this.date,
       note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,
@@ -1398,6 +1560,9 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     if (counterparty.present) {
       map['counterparty'] = Variable<String>(counterparty.value);
     }
+    if (debtAccountId.present) {
+      map['debt_account_id'] = Variable<String>(debtAccountId.value);
+    }
     if (date.present) {
       map['date'] = Variable<String>(date.value);
     }
@@ -1427,6 +1592,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
           ..write('categoryId: $categoryId, ')
           ..write('debtId: $debtId, ')
           ..write('counterparty: $counterparty, ')
+          ..write('debtAccountId: $debtAccountId, ')
           ..write('date: $date, ')
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
@@ -3019,6 +3185,8 @@ typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   required String channel,
   required String currency,
   Value<String> avatar,
+  Value<String> customChannel,
+  Value<String?> unitPrice,
   Value<int> openingBalance,
   Value<int> rowid,
 });
@@ -3029,6 +3197,8 @@ typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<String> channel,
   Value<String> currency,
   Value<String> avatar,
+  Value<String> customChannel,
+  Value<String?> unitPrice,
   Value<int> openingBalance,
   Value<int> rowid,
 });
@@ -3069,6 +3239,16 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<String> get avatar => $composableBuilder(
     column: $table.avatar,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get customChannel => $composableBuilder(
+    column: $table.customChannel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get unitPrice => $composableBuilder(
+    column: $table.unitPrice,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3117,6 +3297,16 @@ class $$AccountsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get customChannel => $composableBuilder(
+    column: $table.customChannel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get unitPrice => $composableBuilder(
+    column: $table.unitPrice,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get openingBalance => $composableBuilder(
     column: $table.openingBalance,
     builder: (column) => ColumnOrderings(column),
@@ -3149,6 +3339,14 @@ class $$AccountsTableAnnotationComposer
 
   GeneratedColumn<String> get avatar =>
       $composableBuilder(column: $table.avatar, builder: (column) => column);
+
+  GeneratedColumn<String> get customChannel => $composableBuilder(
+    column: $table.customChannel,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get unitPrice =>
+      $composableBuilder(column: $table.unitPrice, builder: (column) => column);
 
   GeneratedColumn<int> get openingBalance => $composableBuilder(
     column: $table.openingBalance,
@@ -3190,6 +3388,8 @@ class $$AccountsTableTableManager
                 Value<String> channel = const Value.absent(),
                 Value<String> currency = const Value.absent(),
                 Value<String> avatar = const Value.absent(),
+                Value<String> customChannel = const Value.absent(),
+                Value<String?> unitPrice = const Value.absent(),
                 Value<int> openingBalance = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsCompanion(
@@ -3199,6 +3399,8 @@ class $$AccountsTableTableManager
                 channel: channel,
                 currency: currency,
                 avatar: avatar,
+                customChannel: customChannel,
+                unitPrice: unitPrice,
                 openingBalance: openingBalance,
                 rowid: rowid,
               ),
@@ -3210,6 +3412,8 @@ class $$AccountsTableTableManager
                 required String channel,
                 required String currency,
                 Value<String> avatar = const Value.absent(),
+                Value<String> customChannel = const Value.absent(),
+                Value<String?> unitPrice = const Value.absent(),
                 Value<int> openingBalance = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsCompanion.insert(
@@ -3219,6 +3423,8 @@ class $$AccountsTableTableManager
                 channel: channel,
                 currency: currency,
                 avatar: avatar,
+                customChannel: customChannel,
+                unitPrice: unitPrice,
                 openingBalance: openingBalance,
                 rowid: rowid,
               ),
@@ -3524,6 +3730,7 @@ typedef $$EntriesTableCreateCompanionBuilder = EntriesCompanion Function({
   Value<String?> categoryId,
   Value<String?> debtId,
   Value<String> counterparty,
+  Value<String?> debtAccountId,
   required String date,
   Value<String> note,
   required int createdAt,
@@ -3539,6 +3746,7 @@ typedef $$EntriesTableUpdateCompanionBuilder = EntriesCompanion Function({
   Value<String?> categoryId,
   Value<String?> debtId,
   Value<String> counterparty,
+  Value<String?> debtAccountId,
   Value<String> date,
   Value<String> note,
   Value<int> createdAt,
@@ -3612,6 +3820,23 @@ final class $$EntriesTableReferences
       $_db.entries,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_debtIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $AccountsTable _debtAccountIdTable(_$AppDatabase db) =>
+      db.accounts.createAlias('entries__debt_account_id__accounts__id');
+
+  $$AccountsTableProcessedTableManager? get debtAccountId {
+    final $_column = $_itemColumn<String>('debt_account_id');
+    if ($_column == null) return null;
+    final manager = $$AccountsTableTableManager(
+      $_db,
+      $_db.accounts,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_debtAccountIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -3769,6 +3994,29 @@ class $$EntriesTableFilterComposer
           }) => $$EntriesTableFilterComposer(
             $db: $db,
             $table: $db.entries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableFilterComposer get debtAccountId {
+    final $$AccountsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.debtAccountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableFilterComposer(
+            $db: $db,
+            $table: $db.accounts,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -3944,6 +4192,29 @@ class $$EntriesTableOrderingComposer
     );
     return composer;
   }
+
+  $$AccountsTableOrderingComposer get debtAccountId {
+    final $$AccountsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.debtAccountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableOrderingComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$EntriesTableAnnotationComposer
@@ -4073,6 +4344,29 @@ class $$EntriesTableAnnotationComposer
     return composer;
   }
 
+  $$AccountsTableAnnotationComposer get debtAccountId {
+    final $$AccountsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.debtAccountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
   Expression<T> purchaseLinksRefs<T extends Object>(
     Expression<T> Function($$PurchaseLinksTableAnnotationComposer a) f,
   ) {
@@ -4117,6 +4411,7 @@ class $$EntriesTableTableManager
             bool targetAccountId,
             bool categoryId,
             bool debtId,
+            bool debtAccountId,
             bool purchaseLinksRefs,
           })
         > {
@@ -4141,6 +4436,7 @@ class $$EntriesTableTableManager
                 Value<String?> categoryId = const Value.absent(),
                 Value<String?> debtId = const Value.absent(),
                 Value<String> counterparty = const Value.absent(),
+                Value<String?> debtAccountId = const Value.absent(),
                 Value<String> date = const Value.absent(),
                 Value<String> note = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
@@ -4155,6 +4451,7 @@ class $$EntriesTableTableManager
                 categoryId: categoryId,
                 debtId: debtId,
                 counterparty: counterparty,
+                debtAccountId: debtAccountId,
                 date: date,
                 note: note,
                 createdAt: createdAt,
@@ -4171,6 +4468,7 @@ class $$EntriesTableTableManager
                 Value<String?> categoryId = const Value.absent(),
                 Value<String?> debtId = const Value.absent(),
                 Value<String> counterparty = const Value.absent(),
+                Value<String?> debtAccountId = const Value.absent(),
                 required String date,
                 Value<String> note = const Value.absent(),
                 required int createdAt,
@@ -4185,6 +4483,7 @@ class $$EntriesTableTableManager
                 categoryId: categoryId,
                 debtId: debtId,
                 counterparty: counterparty,
+                debtAccountId: debtAccountId,
                 date: date,
                 note: note,
                 createdAt: createdAt,
@@ -4205,6 +4504,7 @@ class $$EntriesTableTableManager
                 targetAccountId = false,
                 categoryId = false,
                 debtId = false,
+                debtAccountId = false,
                 purchaseLinksRefs = false,
               }) {
                 return PrefetchHooks(
@@ -4272,6 +4572,17 @@ class $$EntriesTableTableManager
                                 .id,
                           ) as T;
                         }
+                        if (debtAccountId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.debtAccountId,
+                            referencedTable: $$EntriesTableReferences
+                                ._debtAccountIdTable(db),
+                            referencedColumn: $$EntriesTableReferences
+                                ._debtAccountIdTable(db)
+                                .id,
+                          ) as T;
+                        }
 
                         return state;
                       },
@@ -4323,6 +4634,7 @@ typedef $$EntriesTableProcessedTableManager =
         bool targetAccountId,
         bool categoryId,
         bool debtId,
+        bool debtAccountId,
         bool purchaseLinksRefs,
       })
     >;

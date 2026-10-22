@@ -29,6 +29,8 @@ class LedgerRepository {
     required String currency,
     required int openingBalance,
     String avatar = '',
+    String customChannel = '',
+    String? unitPrice,
   }) async {
     if (name.trim().isEmpty || name.trim().length > 80) {
       throw const FormatException('账户名称为 1–80 字');
@@ -37,18 +39,27 @@ class LedgerRepository {
     if (!['', 'wechat', 'alipay', 'bank', 'huabei'].contains(avatar)) {
       throw const FormatException('无效账户头像');
     }
-    if (!accountKinds.contains(kind) || !accountChannels.contains(channel)) {
-      throw const FormatException('无效账户类型');
-    }
+    final type = normalizeAccountType(kind, channel, customChannel.trim());
+    kind = type.kind;
+    channel = type.channel;
+    customChannel = type.custom;
+    unitPrice = kind == '投资理财' ? validateUnitPrice(unitPrice) : null;
     if (openingBalance.abs() > 999999999999) {
       throw const FormatException('初始余额超出上限');
     }
     return db.transaction(() async {
-      if (id == null) {
+      {
         final duplicate =
             await (db.select(db.accounts)..where(
                   (a) =>
-                      a.name.equals(name.trim()) & a.currency.equals(currency),
+                      a.name.equals(name.trim()) &
+                      a.currency.equals(currency) &
+                      (kind == '债务'
+                          ? a.kind.equals(kind) & a.channel.equals(channel)
+                          : a.kind.equals('债务').not()) &
+                      (id == null
+                          ? const Constant(true)
+                          : a.id.equals(id).not()),
                 ))
                 .get();
         if (duplicate.isNotEmpty) {
@@ -61,13 +72,18 @@ class LedgerRepository {
         )..where((a) => a.id.equals(id))).getSingle();
         final used =
             await (db.select(db.entries)..where(
-                  (e) => e.accountId.equals(id) | e.targetAccountId.equals(id),
+                  (e) =>
+                      e.accountId.equals(id) |
+                      e.targetAccountId.equals(id) |
+                      e.debtAccountId.equals(id),
                 ))
                 .get();
         if (used.isNotEmpty &&
             (old.currency != currency ||
-                old.openingBalance != openingBalance)) {
-          throw const FormatException('已有流水的账户不能修改币种或初始余额');
+                old.openingBalance != openingBalance ||
+                (old.kind == '债务') != (kind == '债务') ||
+                (old.kind == '债务' && old.channel != channel))) {
+          throw const FormatException('已有流水的账户不能改变币种、期初余额或债务方向');
         }
       }
       final accountId = id ?? _uuid.v4();
@@ -82,8 +98,14 @@ class LedgerRepository {
               currency: currency,
               openingBalance: Value(openingBalance),
               avatar: Value(avatar),
+              customChannel: Value(customChannel),
+              unitPrice: Value(unitPrice),
             ),
           );
+      if (id != null) {
+        await (db.update(db.entries)..where((e) => e.debtAccountId.equals(id)))
+            .write(EntriesCompanion(counterparty: Value(name.trim())));
+      }
       return accountId;
     });
   }
@@ -144,6 +166,7 @@ class LedgerRepository {
     String? categoryId,
     String? debtId,
     String counterparty = '',
+    String? debtAccountId,
     required String date,
     String note = '',
   }) => db.transaction(() async {
@@ -158,6 +181,50 @@ class LedgerRepository {
       db.accounts,
     )..where((a) => a.id.equals(accountId))).getSingleOrNull();
     if (account == null) throw const FormatException('请选择账户');
+    if (kind != EntryKind.transfer && account.kind == '债务') {
+      throw const FormatException('请选择实际收付款的资金账户，债务账户需单独关联');
+    }
+    if (kind == EntryKind.borrow || kind == EntryKind.lend) {
+      final side = kind == EntryKind.borrow ? '应付款' : '应收款';
+      final person = counterparty.isEmpty ? '未注明往来人' : counterparty;
+      Account? debtAccount;
+      if (debtAccountId != null) {
+        debtAccount = await (db.select(
+          db.accounts,
+        )..where((a) => a.id.equals(debtAccountId!))).getSingleOrNull();
+      } else {
+        debtAccount =
+            await (db.select(db.accounts)..where(
+                  (a) =>
+                      a.name.equals(person) &
+                      a.currency.equals(account.currency) &
+                      a.kind.equals('债务') &
+                      a.channel.equals(side),
+                ))
+                .getSingleOrNull();
+        if (debtAccount == null) {
+          final id = await saveAccount(
+            name: person,
+            kind: '债务',
+            channel: side,
+            currency: account.currency,
+            openingBalance: 0,
+          );
+          debtAccount = await (db.select(
+            db.accounts,
+          )..where((a) => a.id.equals(id))).getSingle();
+        }
+      }
+      if (debtAccount == null ||
+          debtAccount.kind != '债务' ||
+          debtAccount.currency != account.currency ||
+          (debtAccount.channel != side &&
+              !(side == '应收款' && debtAccount.channel == '报销'))) {
+        throw FormatException('请选择对应币种的$side账户');
+      }
+      debtAccountId = debtAccount.id;
+      counterparty = debtAccount.name;
+    }
     final old = id == null
         ? null
         : await (db.select(
@@ -169,7 +236,7 @@ class LedgerRepository {
       )..where((e) => e.debtId.equals(old.id))).get();
       if (settlements.isNotEmpty &&
           (kind.name != old.kind ||
-              counterparty != old.counterparty ||
+              debtAccountId != old.debtAccountId ||
               accountId != old.accountId ||
               amount < settlements.fold<int>(0, (s, e) => s + e.amount) ||
               settlements.any((e) => e.date.compareTo(date) < 0))) {
@@ -211,6 +278,14 @@ class LedgerRepository {
           target.currency != account.currency) {
         throw const FormatException('转账需选择另一个同币种账户');
       }
+      for (final side in [account, target].where((a) => a.kind == '债务')) {
+        final loans = await (db.select(
+          db.entries,
+        )..where((e) => e.debtAccountId.equals(side.id))).get();
+        if (loans.isNotEmpty) {
+          throw const FormatException('该债务账户已有分笔借贷，请通过偿还借入或收回借出关联结算');
+        }
+      }
     } else {
       targetAccountId = null;
     }
@@ -229,6 +304,7 @@ class LedgerRepository {
         throw const FormatException('还款往来人须与原始借贷一致');
       }
       counterparty = debt.counterparty;
+      debtAccountId = debt.debtAccountId;
       final debtAccount = await (db.select(
         db.accounts,
       )..where((a) => a.id.equals(debt.accountId))).getSingle();
@@ -247,7 +323,10 @@ class LedgerRepository {
       }
     } else {
       debtId = null;
-      if (kind != EntryKind.borrow && kind != EntryKind.lend) counterparty = '';
+      if (kind != EntryKind.borrow && kind != EntryKind.lend) {
+        counterparty = '';
+        debtAccountId = null;
+      }
     }
     final entryId = id ?? _uuid.v4();
     final now = DateTime.now().toUtc().millisecondsSinceEpoch;
@@ -263,6 +342,7 @@ class LedgerRepository {
             categoryId: Value(categoryId),
             debtId: Value(debtId),
             counterparty: Value(counterparty),
+            debtAccountId: Value(debtAccountId),
             date: date,
             note: Value(note.trim()),
             createdAt: old?.createdAt ?? now,
@@ -299,10 +379,12 @@ class LedgerRepository {
       .customSelect(
         '''
     SELECT a.id, a.opening_balance + COALESCE(SUM(
-      CASE WHEN e.target_account_id = a.id THEN e.amount
+      CASE WHEN e.debt_account_id = a.id THEN CASE WHEN e.kind IN ('borrow','lend') THEN e.amount ELSE -e.amount END
+      WHEN e.target_account_id = a.id THEN CASE WHEN a.kind='债务' AND a.channel='应付款' THEN -e.amount ELSE e.amount END
+      WHEN a.kind='债务' AND a.channel='应付款' THEN e.amount
       WHEN e.kind IN ('income', 'borrow', 'collect') THEN e.amount
       ELSE -e.amount END), 0) AS balance
-    FROM accounts a LEFT JOIN entries e ON e.account_id = a.id OR e.target_account_id = a.id
+    FROM accounts a LEFT JOIN entries e ON e.account_id = a.id OR e.target_account_id = a.id OR e.debt_account_id = a.id
     GROUP BY a.id
   ''',
         readsFrom: {db.accounts, db.entries},

@@ -62,6 +62,7 @@ class BackupService {
         jsonDecode(utf8.decode(files['data.json']!)) as Map<String, dynamic>,
       );
       await _replace(stage, snapshot);
+      snapshot = await _Snapshot.read(stage);
       final ledger = LedgerRepository(stage);
       for (final a in snapshot.accounts) {
         if (a.openingBalance.abs() > 999999999999) {
@@ -75,6 +76,8 @@ class BackupService {
           currency: a.currency,
           openingBalance: a.openingBalance,
           avatar: a.avatar,
+          customChannel: a.customChannel,
+          unitPrice: a.unitPrice,
         );
       }
       for (final c in snapshot.categories) {
@@ -90,6 +93,7 @@ class BackupService {
           categoryId: e.categoryId,
           debtId: e.debtId,
           counterparty: e.counterparty,
+          debtAccountId: e.debtAccountId,
           date: e.date,
           note: e.note,
         );
@@ -202,6 +206,7 @@ class BackupService {
         for (final row in data.preferences) {
           await db.into(db.preferences).insert(row);
         }
+        await db.migrateDebtAccounts();
       });
 }
 
@@ -248,9 +253,21 @@ class _Snapshot {
     }
 
     return _Snapshot(
-      rows('accounts', (r) => Account.fromJson({'avatar': '', ...r})),
+      rows(
+        'accounts',
+        (r) => Account.fromJson({
+          'avatar': '',
+          'customChannel': '',
+          'unitPrice': null,
+          ...r,
+        }),
+      ),
       rows('categories', Category.fromJson),
-      rows('entries', (r) => Entry.fromJson({'counterparty': '', ...r})),
+      rows(
+        'entries',
+        (r) =>
+            Entry.fromJson({'counterparty': '', 'debtAccountId': null, ...r}),
+      ),
       rows('budgets', Budget.fromJson),
       rows(
         'items',

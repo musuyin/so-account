@@ -1,142 +1,152 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/providers/providers.dart';
 import '../../../app/widgets.dart';
 import '../../../core/money/money.dart';
 import '../domain/debt_relationship.dart';
 import '../domain/entry_kind.dart';
+import 'accounts_page.dart';
 import 'entry_form.dart';
 
+// Preserve the existing route entry while folding people into debt accounts.
 class PeopleDebtsPage extends ConsumerStatefulWidget {
   const PeopleDebtsPage({super.key});
   @override
-  ConsumerState<PeopleDebtsPage> createState() => _PeopleDebtsPageState();
+  ConsumerState<PeopleDebtsPage> createState() => _DebtAccountsState();
 }
 
-class _PeopleDebtsPageState extends ConsumerState<PeopleDebtsPage> {
+class _DebtAccountsState extends ConsumerState<PeopleDebtsPage> {
   String currency = 'CNY';
-  bool includeSettled = false;
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('人员往来')),
+    appBar: AppBar(title: const Text('债务')),
     body: DataView(
       builder: (data) {
-        final groups = PersonDebtSummary.group(data.entries, data.accounts)
-            .where(
-              (g) =>
-                  g.currency == currency &&
-                  (includeSettled || g.receivable > 0 || g.payable > 0),
-            )
+        final balances = ref.watch(balancesProvider).value ?? {};
+        final accounts = data.accounts
+            .where((a) => a.kind == '债务' && a.currency == currency)
             .toList();
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Wrap(
-              spacing: 12,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                DropdownButton<String>(
-                  value: currency,
-                  items: [
-                    for (final value in currencies)
-                      DropdownMenuItem(value: value, child: Text(value)),
-                  ],
-                  onChanged: (value) => setState(() => currency = value!),
-                ),
-                FilterChip(
-                  label: const Text('包含已结清'),
-                  selected: includeSettled,
-                  onSelected: (value) => setState(() => includeSettled = value),
-                ),
+            DropdownButton<String>(
+              value: currency,
+              items: [
+                for (final value in currencies)
+                  DropdownMenuItem(value: value, child: Text(value)),
               ],
+              onChanged: (v) => setState(() => currency = v!),
             ),
-            Wrap(
-              spacing: 12,
-              children: [
-                for (final kind in [EntryKind.borrow, EntryKind.lend])
-                  FilledButton.tonalIcon(
-                    onPressed: () =>
-                        openForm(context, EntryForm(initialKind: kind)),
-                    icon: const Icon(Icons.add),
-                    label: Text(kind.label),
+            for (final side in accountTypes['债务']!) ...[
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  side,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                subtitle: Text(
+                  '余额合计 ${money(accounts.where((a) => a.channel == side).fold<int>(0, (sum, a) => sum + (balances[a.id] ?? a.openingBalance)), currency)}',
+                ),
+                trailing: IconButton(
+                  tooltip: '新增$side账户',
+                  icon: const Icon(Icons.add),
+                  onPressed: () => openForm(
+                    context,
+                    AccountForm(initialKind: '债务', initialChannel: side),
                   ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '待收回 ${money(groups.fold(0, (sum, g) => sum + g.receivable), currency)}',
-            ),
-            Text(
-              '待偿还 ${money(groups.fold(0, (sum, g) => sum + g.payable), currency)}',
-            ),
-            if (groups.isEmpty)
-              const EmptyState('暂无人员往来', '借入、借出时填写往来人，分笔记录和结算。'),
-            for (final group in groups)
-              Card(
-                child: ExpansionTile(
-                  title: Text(group.name.isEmpty ? '未注明往来人' : group.name),
-                  subtitle: Text(
-                    '待收回 ${money(group.receivable, currency)} · 待偿还 ${money(group.payable, currency)}',
-                  ),
-                  children: [
-                    for (final debt in group.debts.where(
-                      (e) =>
-                          includeSettled || debtRemaining(e, data.entries) > 0,
-                    ))
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(
-                                '${debt.kind == 'borrow' ? '借入' : '借出'} ${money(debt.amount, currency)}',
-                              ),
-                              subtitle: Text(
-                                '${debt.date} · ${data.account(debt.accountId).name}\n剩余 ${money(debtRemaining(debt, data.entries), currency)}${debt.note.isEmpty ? '' : '\n${debt.note}'}',
-                              ),
-                              onTap: () =>
-                                  openForm(context, EntryForm(entry: debt)),
-                            ),
-                            if (debtRemaining(debt, data.entries) > 0)
-                              TextButton(
-                                onPressed: () => openForm(
-                                  context,
-                                  EntryForm(
-                                    initialKind: debt.kind == 'borrow'
-                                        ? EntryKind.repay
-                                        : EntryKind.collect,
-                                    initialDebt: debt,
-                                  ),
-                                ),
-                                child: Text(
-                                  debt.kind == 'borrow' ? '偿还借入' : '收回借出',
-                                ),
-                              ),
-                            for (final payment in data.entries.where(
-                              (e) => e.debtId == debt.id,
-                            ))
+                ),
+              ),
+              for (final account in accounts.where((a) => a.channel == side))
+                Card(
+                  child: ExpansionTile(
+                    title: Text(account.name),
+                    subtitle: Text(
+                      '${side == '应付款' ? '待偿还' : '待收回'} ${money(balances[account.id] ?? account.openingBalance, currency)}',
+                    ),
+                    children: [
+                      TextButton(
+                        onPressed: () =>
+                            openForm(context, AccountForm(account: account)),
+                        child: const Text('编辑账户'),
+                      ),
+                      TextButton(
+                        onPressed: () => openForm(
+                          context,
+                          EntryForm(
+                            initialKind: side == '应付款'
+                                ? EntryKind.borrow
+                                : EntryKind.lend,
+                            initialDebtAccountId: account.id,
+                          ),
+                        ),
+                        child: Text(side == '应付款' ? '新增借入' : '新增借出 / 待收'),
+                      ),
+                      for (final debt in data.entries.where(
+                        (e) =>
+                            e.debtAccountId == account.id &&
+                            ['borrow', 'lend'].contains(e.kind),
+                      ))
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               ListTile(
                                 contentPadding: EdgeInsets.zero,
                                 title: Text(
-                                  '${payment.kind == 'repay' ? '已偿还' : '已收回'} ${money(payment.amount, currency)}',
+                                  '${debt.kind == 'borrow' ? '借入' : '借出'} ${money(debt.amount, currency)}',
                                 ),
                                 subtitle: Text(
-                                  '${payment.date} · ${data.account(payment.accountId).name}',
+                                  '${debt.date} · 剩余 ${money(debtRemaining(debt, data.entries), currency)}',
                                 ),
-                                onTap: () => openForm(
-                                  context,
-                                  EntryForm(entry: payment),
-                                ),
+                                onTap: () =>
+                                    openForm(context, EntryForm(entry: debt)),
                               ),
-                            const Divider(),
-                          ],
+                              if (debtRemaining(debt, data.entries) > 0)
+                                TextButton(
+                                  onPressed: () => openForm(
+                                    context,
+                                    EntryForm(
+                                      initialKind: debt.kind == 'borrow'
+                                          ? EntryKind.repay
+                                          : EntryKind.collect,
+                                      initialDebt: debt,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    debt.kind == 'borrow' ? '偿还借入' : '收回借出',
+                                  ),
+                                ),
+                              for (final payment in data.entries.where(
+                                (e) => e.debtId == debt.id,
+                              ))
+                                ListTile(
+                                  title: Text(
+                                    '${payment.date} · ${money(payment.amount, currency)}',
+                                  ),
+                                  subtitle: Text(
+                                    data.account(payment.accountId).name,
+                                  ),
+                                  onTap: () => openForm(
+                                    context,
+                                    EntryForm(entry: payment),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
-                      ),
-                  ],
+                      if (!data.entries.any(
+                        (e) => e.debtAccountId == account.id,
+                      ))
+                        const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text('期初债务可通过转账偿还或收回；有分笔借贷时请选择对应记录结算。'),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
+            ],
           ],
         );
       },

@@ -41,6 +41,7 @@ void main() {
         final data = AppSnapshot(
           [
             const Account(
+              customChannel: '',
               id: 'wallet',
               avatar: '',
               name: '日常钱包',

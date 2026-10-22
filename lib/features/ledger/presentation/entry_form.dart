@@ -21,11 +21,13 @@ class EntryForm extends ConsumerStatefulWidget {
     this.initialKind,
     this.initialDebt,
     this.initialCounterparty,
+    this.initialDebtAccountId,
   });
   final Entry? entry;
   final EntryKind? initialKind;
   final Entry? initialDebt;
   final String? initialCounterparty;
+  final String? initialDebtAccountId;
   final DateTime? initialDate;
   @override
   ConsumerState<EntryForm> createState() => _EntryFormState();
@@ -40,6 +42,10 @@ class _EntryFormState extends ConsumerState<EntryForm> {
   late String? targetId = widget.entry?.targetAccountId;
   late String? categoryId = widget.entry?.categoryId;
   late String? debtId = widget.entry?.debtId ?? widget.initialDebt?.id;
+  late String? debtAccountId =
+      widget.entry?.debtAccountId ??
+      widget.initialDebt?.debtAccountId ??
+      widget.initialDebtAccountId;
   late DateTime date = widget.entry == null
       ? widget.initialDate ?? DateTime.now()
       : parseDate(widget.entry!.date);
@@ -60,7 +66,10 @@ class _EntryFormState extends ConsumerState<EntryForm> {
   @override
   Widget build(BuildContext context) => DataView(
     builder: (data) {
-      if (data.accounts.isEmpty) {
+      final funds = data.accounts
+          .where((a) => kind == EntryKind.transfer || a.kind != '债务')
+          .toList();
+      if (funds.isEmpty) {
         return Scaffold(
           appBar: AppBar(title: const Text('记一笔')),
           body: Center(
@@ -71,7 +80,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
           ),
         );
       }
-      accountId ??= data.accounts.first.id;
+      if (!funds.any((a) => a.id == accountId)) accountId = funds.first.id;
       final account = data.account(accountId!);
       if (!initialized) {
         if (widget.entry != null) {
@@ -103,6 +112,17 @@ class _EntryFormState extends ConsumerState<EntryForm> {
           )
           .toList();
       if (!debts.any((e) => e.id == debtId)) debtId = null;
+      final debtSide = kind == EntryKind.borrow ? '应付款' : '应收款';
+      final debtAccounts = data.accounts
+          .where(
+            (a) =>
+                a.kind == '债务' &&
+                a.currency == account.currency &&
+                (a.channel == debtSide ||
+                    (debtSide == '应收款' && a.channel == '报销')),
+          )
+          .toList();
+      if (!debtAccounts.any((a) => a.id == debtAccountId)) debtAccountId = null;
       return FormFrame(
         title: widget.entry == null ? '记一笔' : '编辑账目',
         saving: saving,
@@ -110,8 +130,8 @@ class _EntryFormState extends ConsumerState<EntryForm> {
           setState(() => saving = true);
           final ok = await perform(context, () async {
             if ([EntryKind.borrow, EntryKind.lend].contains(kind) &&
-                counterparty.text.trim().isEmpty) {
-              throw const FormatException('请填写往来人');
+                debtAccountId == null) {
+              throw const FormatException('请选择或创建债务账户');
             }
             await ref
                 .read(ledgerProvider)
@@ -124,6 +144,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                   categoryId: categoryId,
                   debtId: debtId,
                   counterparty: kind.isSettlement ? '' : counterparty.text,
+                  debtAccountId: debtAccountId,
                   date: dateKey(date),
                   note: note.text,
                 );
@@ -154,7 +175,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
           DropdownButtonFormField<String>(
             initialValue: accountId,
             decoration: const InputDecoration(labelText: '账户'),
-            items: data.accounts
+            items: funds
                 .map(
                   (a) => DropdownMenuItem(
                     value: a.id,
@@ -242,29 +263,40 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                   .toList(),
               onChanged: (v) => targetId = v,
             ),
-          if ([EntryKind.borrow, EntryKind.lend].contains(kind))
-            Autocomplete<String>(
-              initialValue: TextEditingValue(text: counterparty.text),
-              optionsBuilder: (value) => data.entries
-                  .map((e) => e.counterparty)
-                  .where(
-                    (name) =>
-                        name.isNotEmpty && name.contains(value.text.trim()),
-                  )
-                  .toSet(),
-              onSelected: (value) => counterparty.text = value,
-              fieldViewBuilder: (context, controller, focus, submit) =>
-                  TextField(
-                    controller: controller,
-                    focusNode: focus,
-                    maxLength: 80,
-                    decoration: const InputDecoration(
-                      labelText: '往来人',
-                      hintText: '姓名或称呼',
-                    ),
-                    onChanged: (value) => counterparty.text = value,
+          if ([EntryKind.borrow, EntryKind.lend].contains(kind)) ...[
+            DropdownButtonFormField<String>(
+              key: ValueKey(
+                'debt-account-${kind.name}-$accountId-$debtAccountId',
+              ),
+              initialValue: debtAccountId,
+              isExpanded: true,
+              decoration: InputDecoration(labelText: '$debtSide账户'),
+              items: [
+                for (final a in debtAccounts)
+                  DropdownMenuItem(
+                    value: a.id,
+                    child: Text('${a.name} · ${a.channel}'),
                   ),
+              ],
+              onChanged: (v) => setState(() => debtAccountId = v),
             ),
+            TextButton.icon(
+              icon: const Icon(Icons.person_add_outlined),
+              label: Text('创建$debtSide账户'),
+              onPressed: () async {
+                final id = await Navigator.of(context).push<String>(
+                  MaterialPageRoute(
+                    builder: (_) => AccountForm(
+                      initialKind: '债务',
+                      initialChannel: debtSide,
+                      initialName: widget.initialCounterparty,
+                    ),
+                  ),
+                );
+                if (mounted && id != null) setState(() => debtAccountId = id);
+              },
+            ),
+          ],
           if (kind.isSettlement) ...[
             DropdownButtonFormField<String>(
               key: ValueKey('debt-${kind.name}-$accountId-$debtId'),

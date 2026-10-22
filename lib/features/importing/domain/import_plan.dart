@@ -40,7 +40,10 @@ enum ImportField {
 
 class ImportMapping {
   final Map<ImportField, int> columns = {};
-  final Map<String, String> accounts = {}, categories = {}, kinds = {};
+  final Map<String, String> accounts = {},
+      categories = {},
+      kinds = {},
+      debtAccounts = {};
   final Map<int, String> debts = {};
   // Rows keep their identity throughout one table's mapping/preview lifecycle.
   final Map<List<String>, EntryKind> rowKinds = {};
@@ -49,6 +52,7 @@ class ImportMapping {
   void detect(ImportTable table) {
     columns.clear();
     accounts.clear();
+    debtAccounts.clear();
     categories.clear();
     kinds.clear();
     debts.clear();
@@ -202,6 +206,7 @@ class ImportEntry {
     this.fee,
     this.counterparty = '',
     this.debtId,
+    this.debtAccountId,
   }) : principalDuplicate = duplicate;
   final int row, amount;
   final EntryKind kind;
@@ -211,7 +216,7 @@ class ImportEntry {
   final String currency;
   final ImportEntry? fee;
   final String counterparty;
-  final String? debtId;
+  final String? debtId, debtAccountId;
 
   bool get duplicate => principalDuplicate && (fee?.duplicate ?? true);
   bool get suspectedDuplicate =>
@@ -242,6 +247,7 @@ String _signature(
   String? target, [
   String counterparty = '',
   String? debtId,
+  String? debtAccountId,
 ]) => [
   kind,
   '$amount',
@@ -252,6 +258,7 @@ String _signature(
   target ?? '',
   counterparty,
   debtId ?? '',
+  debtAccountId ?? '',
 ].map((v) => '${v.length}:$v').join();
 
 List<ImportResult> previewImport(
@@ -280,6 +287,7 @@ List<ImportResult> previewImport(
         e.targetAccountId,
         e.counterparty,
         e.debtId,
+        e.debtAccountId,
       ),
   };
   return [
@@ -297,6 +305,7 @@ List<ImportResult> previewImport(
                 : mapping.accounts[value];
             final matches = accounts
                 .where((a) => id != null ? a.id == id : a.name == value)
+                .where((a) => kind == EntryKind.transfer || a.kind != '债务')
                 .toList();
             if (matches.length != 1) {
               throw FormatException(
@@ -377,6 +386,28 @@ List<ImportResult> previewImport(
             throw const FormatException('往来人名称不能超过 80 字');
           }
           String? debtId;
+          String? debtAccountId;
+          if (kind == EntryKind.borrow || kind == EntryKind.lend) {
+            final side = kind == EntryKind.borrow ? '应付款' : '应收款';
+            final person = counterparty.isEmpty ? '未注明往来人' : counterparty;
+            final id =
+                mapping.debtAccounts['$side:${account.currency}:$person'];
+            final candidates = accounts
+                .where(
+                  (a) =>
+                      a.kind == '债务' &&
+                      a.currency == account.currency &&
+                      (a.channel == side ||
+                          (side == '应收款' && a.channel == '报销')) &&
+                      (id != null ? a.id == id : a.name == person),
+                )
+                .toList();
+            if (candidates.length != 1) {
+              throw FormatException('请创建或关联$side账户：$person');
+            }
+            debtAccountId = candidates.single.id;
+            counterparty = candidates.single.name;
+          }
           if (kind.isSettlement) {
             debtId =
                 mapping.debts[i + 2] ?? mapping.value(row, ImportField.debt);
@@ -404,6 +435,7 @@ List<ImportResult> previewImport(
               throw const FormatException('还款不能超过剩余本金');
             }
             counterparty = debt.counterparty;
+            debtAccountId = debt.debtAccountId;
           }
           final note = mapping.value(row, ImportField.note);
           if (note.length > 2000) throw const FormatException('备注不能超过 2000 字');
@@ -446,6 +478,7 @@ List<ImportResult> previewImport(
             target?.id,
             counterparty,
             debtId,
+            debtAccountId,
           );
           final duplicate = !seen.add(signature);
           final feeDuplicate =
@@ -476,6 +509,7 @@ List<ImportResult> previewImport(
               currency: account.currency,
               counterparty: counterparty,
               debtId: debtId,
+              debtAccountId: debtAccountId,
               fee: fee == 0
                   ? null
                   : ImportEntry(
@@ -521,6 +555,7 @@ Future<int> commitImport(AppDatabase db, List<ImportEntry> entries) =>
           note: entry.note,
           counterparty: entry.counterparty,
           debtId: entry.debtId,
+          debtAccountId: entry.debtAccountId,
         );
       }
       return entries.length;

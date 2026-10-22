@@ -57,8 +57,8 @@ void main() {
           expect(find.text('请选择账户类型、渠道和币种'), findsOneWidget);
           await tester.enterText(nameField, '旅行现金');
           for (final entry in {
-            '渠道': '现金',
             '账户类型': '资金账户',
+            '类别': '现金',
             '币种': 'CNY',
           }.entries) {
             final dropdown = find.byWidgetPredicate(

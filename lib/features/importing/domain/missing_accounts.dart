@@ -10,6 +10,63 @@ class MissingImportAccount {
   final Set<int> rows = {};
   final Set<String> roles = {};
   String? firstDate;
+  String? debtSide;
+}
+
+List<MissingImportAccount> missingImportDebtAccounts(
+  ImportTable table,
+  ImportMapping mapping,
+  List<Account> accounts,
+) {
+  return importDebtAccountSources(table, mapping, accounts).where((source) {
+    final side = source.debtSide!, currency = source.currencies.single;
+    final id = mapping.debtAccounts['$side:$currency:${source.name}'];
+    return accounts
+        .where(
+          (a) =>
+              a.kind == '债务' &&
+              a.currency == currency &&
+              (a.channel == side || (side == '应收款' && a.channel == '报销')) &&
+              (id != null ? a.id == id : a.name == source.name),
+        )
+        .isEmpty;
+  }).toList();
+}
+
+List<MissingImportAccount> importDebtAccountSources(
+  ImportTable table,
+  ImportMapping mapping,
+  List<Account> accounts,
+) {
+  final result = <String, MissingImportAccount>{};
+  for (final (index, row) in table.rows.indexed) {
+    final kind = mapping.kindFor(row);
+    if (kind != EntryKind.borrow && kind != EntryKind.lend) continue;
+    final side = kind == EntryKind.borrow ? '应付款' : '应收款';
+    final source = mapping.sourceAccountValue(row, kind);
+    final sourceId =
+        mapping.accounts[source] ??
+        (source.isEmpty ? mapping.defaultAccount : null);
+    final fund = accounts
+        .where(
+          (a) =>
+              a.kind != '债务' &&
+              (sourceId != null ? a.id == sourceId : a.name == source),
+        )
+        .firstOrNull;
+    if (fund == null) continue;
+    var name = mapping.counterpartyValue(row, kind);
+    if (name.isEmpty) name = '未注明往来人';
+    final key = '$side:${fund.currency}:$name';
+    final missing = result.putIfAbsent(
+      key,
+      () => MissingImportAccount(name)..debtSide = side,
+    );
+    missing.currencies.add(fund.currency);
+    missing.roles.add(side);
+    missing.rows.add(index + 2);
+  }
+  return result.values.toList();
 }
 
 List<MissingImportAccount> missingImportAccounts(
