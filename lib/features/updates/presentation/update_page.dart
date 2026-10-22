@@ -73,8 +73,9 @@ class _UpdatePageState extends ConsumerState<UpdatePage> {
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         Text(
-                          'Android · ${(update.apk.size / 1024 / 1024).toStringAsFixed(1)} MB',
+                          'Android · ${update.abi} · 完整包 ${(update.apk.size / 1024 / 1024).toStringAsFixed(1)} MB',
                         ),
+                        const Text('优先匹配差分补丁；旧包不匹配或合成失败时自动下载完整包。'),
                         const SizedBox(height: 12),
                         SelectableText(
                           update.notes.isEmpty ? '此版本未填写更新说明。' : update.notes,

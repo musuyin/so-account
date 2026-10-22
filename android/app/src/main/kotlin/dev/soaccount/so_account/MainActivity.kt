@@ -24,7 +24,10 @@ class MainActivity : FlutterActivity() {
                             result.success(mapOf(
                                 "platform" to "android",
                                 "version" to info.versionName,
-                                "build" to versionCode(info)
+                                "build" to versionCode(info),
+                                "abis" to Build.SUPPORTED_ABIS.toList(),
+                                "baseApk" to applicationInfo.sourceDir,
+                                "splitApk" to !applicationInfo.splitSourceDirs.isNullOrEmpty()
                             ))
                         }
                         "install" -> result.success(installUpdate(

@@ -31,6 +31,8 @@ class UpdateController extends ChangeNotifier {
   int currentBuild = 0, received = 0, total = 0;
   AppUpdate? update;
   File? downloaded;
+  File? installedApk;
+  List<String> abis = const [];
   bool get busy => checking || downloading || installing;
 
   Future<void> initialize() => _initializing ??= _initialize();
@@ -42,6 +44,10 @@ class UpdateController extends ChangeNotifier {
       currentVersion = info['version'] as String;
       currentBuild = info['build'] as int;
       android = info['platform'] == 'android';
+      abis = (info['abis'] as List? ?? []).cast<String>();
+      if (android && info['splitApk'] != true && info['baseApk'] is String) {
+        installedApk = File(info['baseApk'] as String);
+      }
       supported = android || info['platform'] == 'ios';
       _settings = File(
         '${(await getApplicationSupportDirectory()).path}/updates.json',
@@ -102,7 +108,7 @@ class UpdateController extends ChangeNotifier {
     message = '正在检查更新…';
     _notify();
     try {
-      final next = await service.check(currentBuild);
+      final next = await service.check(currentBuild, abis: abis);
       if (next?.build != update?.build) downloaded = null;
       update = next;
       message = next == null ? '当前已是最新正式版本' : '发现新版本 ${next.version}';
@@ -132,6 +138,11 @@ class UpdateController extends ChangeNotifier {
         release,
         Directory('${cache.path}/app-updates'),
         cancelled: () => _cancelled,
+        installedApk: installedApk,
+        onStage: (stage) {
+          message = stage;
+          _notify();
+        },
         onProgress: (received, total) {
           this.received = received;
           this.total = total;

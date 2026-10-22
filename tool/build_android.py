@@ -45,5 +45,6 @@ if __name__ == '__main__':
     if flutter is None:
         raise SystemExit('flutter must be on PATH')
     mode = '--release' if '--release' in sys.argv[1:] else '--debug'
-    raise SystemExit(build([flutter, 'build', 'apk', mode, '--verbose'],
+    extra = ['--split-per-abi', '-Pforce-version-code-ignoring-abi=true'] if '--split-per-abi' in sys.argv[1:] else []
+    raise SystemExit(build([flutter, 'build', 'apk', mode, '--verbose', *extra],
                           '.tooling/ci-logs'))

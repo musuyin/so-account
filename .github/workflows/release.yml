@@ -54,15 +54,22 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: python3 tool/ci_signing.py
       - run: python3 tool/build_android.py --release
+      - run: python3 tool/build_android.py --release --split-per-abi
       - name: Verify signed APK
         shell: bash
         run: |
           SIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
-          "$SIGNER" verify --verbose --print-certs build/app/outputs/flutter-apk/app-release.apk
+          for APK in build/app/outputs/flutter-apk/*release.apk; do
+            "$SIGNER" verify --verbose --print-certs "$APK"
+          done
       - name: Package release assets
         env:
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: python3 tool/release_manifest.py "$RELEASE_TAG"
+      - name: Generate and verify incremental updates
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tool/release_deltas.py
       - name: Publish complete release
         env:
           GH_TOKEN: ${{ github.token }}
