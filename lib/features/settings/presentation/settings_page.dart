@@ -17,6 +17,7 @@ import 'item_categories_page.dart';
 import '../../importing/presentation/import_page.dart';
 import '../../backup/presentation/backup_page.dart';
 import '../../updates/presentation/update_page.dart';
+import '../../goals/presentation/goals_page.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -54,6 +55,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       builder: (data) => ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.savings_outlined),
+              title: const Text('心愿与攒钱'),
+              subtitle: const Text('记录心愿 · 规划目标 · 跟踪进度'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => openForm(context, const GoalsPage()),
+            ),
+          ),
           Card(
             child: ListTile(
               leading: const Icon(Icons.system_update_outlined),

@@ -12,11 +12,13 @@ import '../features/inventory/presentation/inventory_page.dart';
 import '../features/settings/presentation/settings_page.dart';
 import '../features/statistics/presentation/statistics_page.dart';
 import '../features/updates/presentation/update_page.dart';
+import '../features/goals/presentation/goals_page.dart';
 
 final routerProvider = Provider((ref) {
   final router = GoRouter(
     initialLocation: '/',
     routes: [
+      GoRoute(path: '/goals', builder: (_, _) => const GoalsPage()),
       ShellRoute(
         builder: (context, state, child) =>
             AppShell(path: state.uri.path, child: child),

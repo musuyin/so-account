@@ -10,6 +10,7 @@ import '../domain/asset_summary.dart';
 import 'account_avatar.dart';
 import 'people_debts_page.dart';
 import 'balance_adjustment_form.dart';
+import '../../goals/presentation/goals_page.dart';
 
 class AccountsPage extends ConsumerStatefulWidget {
   const AccountsPage({super.key});
@@ -24,6 +25,11 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     appBar: AppBar(
       title: const Text('账户'),
       actions: [
+        IconButton(
+          tooltip: '心愿与攒钱',
+          onPressed: () => openForm(context, const GoalsPage()),
+          icon: const Icon(Icons.savings_outlined),
+        ),
         IconButton(
           tooltip: '债务',
           onPressed: () => openForm(context, const PeopleDebtsPage()),

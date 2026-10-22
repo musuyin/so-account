@@ -156,8 +156,12 @@ class GoalsRepository {
     required int amount,
     required String date,
     String note = '',
+    String? expectedCurrency,
   }) => db.transaction(() async {
     final goal = await _goal(goalId);
+    if (expectedCurrency != null && goal.currency != expectedCurrency) {
+      throw const FormatException('目标币种已变化，请重新打开进度记录');
+    }
     if (goal.status != 'active') throw const FormatException('请先将目标恢复为进行中');
     final records = await _records(goalId);
     // Stable same-day ordering, including multiple saves in one millisecond.

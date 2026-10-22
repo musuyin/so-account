@@ -1,6 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
+import '../../goals/presentation/goals_page.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/providers.dart';
@@ -44,6 +47,11 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
     appBar: AppBar(
       title: const Text('物品'),
       actions: [
+        IconButton(
+          tooltip: '心愿单',
+          onPressed: () => openForm(context, const GoalsPage()),
+          icon: const Icon(Icons.favorite_outline),
+        ),
         DropdownButton(
           value: currency,
           items: currencies

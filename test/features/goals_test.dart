@@ -128,6 +128,26 @@ void main() {
     await repo.setStatus(wish, 'completed');
     expect(await db.select(db.entries).get(), isEmpty);
   });
+  test('a stale currency on the contribution form cannot save a mislabelled amount', () async {
+    final id = await create();
+    await repo.save(
+      id: id,
+      name: '旅行',
+      kind: 'saving',
+      currency: 'JPY',
+      target: 1000,
+    );
+    await expectLater(
+      repo.contribute(
+        goalId: id,
+        amount: 100,
+        date: today,
+        expectedCurrency: 'CNY',
+      ),
+      throwsFormatException,
+    );
+    expect(await records(), isEmpty);
+  });
   test('currency remains locked even when contributions return to zero; deleted goals cannot reappear', () async {
     final id = await create(initial: 1000);
     await repo.contribute(goalId: id, amount: -1000, date: today);
