@@ -297,6 +297,8 @@ void main() {
           'ALTER TABLE accounts DROP COLUMN unit_price',
         );
         await old.customStatement('DROP TABLE balance_adjustments');
+        await old.customStatement('DROP TABLE goal_contributions');
+        await old.customStatement('DROP TABLE wish_goals');
         await old.customStatement('PRAGMA user_version = 3');
         await old.close();
         final next = AppDatabase(NativeDatabase(file));

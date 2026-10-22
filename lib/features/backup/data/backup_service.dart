@@ -13,6 +13,7 @@ import '../../inventory/data/inventory_repository.dart';
 import '../../inventory/domain/item_categories.dart';
 import '../../ledger/data/ledger_repository.dart';
 import '../../ledger/domain/entry_kind.dart';
+import '../../goals/data/goals_repository.dart';
 import '../domain/backup_codec.dart';
 
 // Isolate closures are created outside the service so their captured context
@@ -104,6 +105,9 @@ class BackupService {
       for (final adjustment in snapshot.adjustments) {
         LedgerRepository.validateAdjustment(adjustment);
       }
+      for (final goal in snapshot.goals) {
+        GoalsRepository.validateHistory(goal, snapshot.contributions);
+      }
       final inventory = InventoryRepository(stage);
       for (final item in snapshot.items) {
         if (item.photo != null && !files.containsKey(item.photo)) {
@@ -178,6 +182,8 @@ class BackupService {
 
   static Future<void> _replace(AppDatabase db, _Snapshot data) =>
       db.transaction(() async {
+        await db.delete(db.goalContributions).go();
+        await db.delete(db.wishGoals).go();
         await db.delete(db.purchaseLinks).go();
         await db.delete(db.items).go();
         await db.delete(db.entries).go();
@@ -213,6 +219,12 @@ class BackupService {
         for (final row in data.adjustments) {
           await db.into(db.balanceAdjustments).insert(row);
         }
+        for (final row in data.goals) {
+          await db.into(db.wishGoals).insert(row);
+        }
+        for (final row in data.contributions) {
+          await db.into(db.goalContributions).insert(row);
+        }
         await db.migrateDebtAccounts();
       });
 }
@@ -227,6 +239,8 @@ class _Snapshot {
     this.links,
     this.preferences, [
     this.adjustments = const [],
+    this.goals = const [],
+    this.contributions = const [],
   ]);
   final List<Account> accounts;
   final List<Category> categories;
@@ -236,6 +250,8 @@ class _Snapshot {
   final List<PurchaseLink> links;
   final List<Preference> preferences;
   final List<BalanceAdjustment> adjustments;
+  final List<WishGoal> goals;
+  final List<GoalContribution> contributions;
   static Future<_Snapshot> read(AppDatabase db) async => _Snapshot(
     await db.select(db.accounts).get(),
     await db.select(db.categories).get(),
@@ -245,6 +261,8 @@ class _Snapshot {
     await db.select(db.purchaseLinks).get(),
     await db.select(db.preferences).get(),
     await db.select(db.balanceAdjustments).get(),
+    await db.select(db.wishGoals).get(),
+    await db.select(db.goalContributions).get(),
   );
   Map<String, Object?> toJson() => {
     'accounts': accounts.map((r) => r.toJson()).toList(),
@@ -255,9 +273,13 @@ class _Snapshot {
     'links': links.map((r) => r.toJson()).toList(),
     'preferences': preferences.map((r) => r.toJson()).toList(),
     'adjustments': adjustments.map((r) => r.toJson()).toList(),
+    'goals': goals.map((r) => r.toJson()).toList(),
+    'contributions': contributions.map((r) => r.toJson()).toList(),
   };
   factory _Snapshot.fromJson(Map<String, dynamic> json) {
     json.putIfAbsent('adjustments', () => []);
+    json.putIfAbsent('goals', () => []);
+    json.putIfAbsent('contributions', () => []);
     List<T> rows<T>(String key, T Function(Map<String, dynamic>) decode) {
       final list = json[key] as List;
       if (list.length > 100000) throw const FormatException('记录数量超过限制');
@@ -297,6 +319,8 @@ class _Snapshot {
       rows('links', PurchaseLink.fromJson),
       rows('preferences', Preference.fromJson),
       rows('adjustments', BalanceAdjustment.fromJson),
+      rows('goals', WishGoal.fromJson),
+      rows('contributions', GoalContribution.fromJson),
     );
   }
   _Snapshot withPhotos(Map<String, String> remap) => _Snapshot(
@@ -313,5 +337,7 @@ class _Snapshot {
     links,
     preferences,
     adjustments,
+    goals,
+    contributions,
   );
 }

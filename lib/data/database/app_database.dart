@@ -113,6 +113,36 @@ class BalanceAdjustments extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+class WishGoals extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text().withLength(min: 1, max: 100)();
+  TextColumn get kind => text().withDefault(const Constant('wish'))();
+  TextColumn get currency => text()();
+  IntColumn get target =>
+      integer().customConstraint('NOT NULL CHECK (target > 0)')();
+  TextColumn get deadline => text().nullable()();
+  IntColumn get priority => integer().withDefault(const Constant(1))();
+  TextColumn get status => text().withDefault(const Constant('active'))();
+  TextColumn get note => text().withDefault(const Constant(''))();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class GoalContributions extends Table {
+  TextColumn get id => text()();
+  TextColumn get goalId =>
+      text().references(WishGoals, #id, onDelete: KeyAction.cascade)();
+  IntColumn get amount =>
+      integer().customConstraint('NOT NULL CHECK (amount <> 0)')();
+  TextColumn get date => text()();
+  TextColumn get note => text().withDefault(const Constant(''))();
+  IntColumn get createdAt => integer()();
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DriftDatabase(
   tables: [
     Accounts,
@@ -123,6 +153,8 @@ class BalanceAdjustments extends Table {
     PurchaseLinks,
     Preferences,
     BalanceAdjustments,
+    WishGoals,
+    GoalContributions,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -138,7 +170,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   Future<void> migrateDebtAccounts() async {
     for (final account in await select(accounts).get()) {
@@ -230,6 +262,9 @@ class AppDatabase extends _$AppDatabase {
       await m.createAll();
       await customStatement('CREATE INDEX entries_date ON entries(date)');
       await customStatement(
+        'CREATE INDEX goal_contributions_goal ON goal_contributions(goal_id)',
+      );
+      await customStatement(
         'CREATE INDEX balance_adjustments_account ON balance_adjustments(account_id)',
       );
       await customStatement(
@@ -277,6 +312,13 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(balanceAdjustments);
         await customStatement(
           'CREATE INDEX balance_adjustments_account ON balance_adjustments(account_id)',
+        );
+      }
+      if (from < 7) {
+        await m.createTable(wishGoals);
+        await m.createTable(goalContributions);
+        await customStatement(
+          'CREATE INDEX goal_contributions_goal ON goal_contributions(goal_id)',
         );
       }
     },

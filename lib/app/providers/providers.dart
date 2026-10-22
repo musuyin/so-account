@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database/app_database.dart';
 import '../../features/ledger/data/ledger_repository.dart';
 import '../../features/inventory/data/inventory_repository.dart';
+import '../../features/goals/data/goals_repository.dart';
 import '../../platform/media/media_store.dart';
 import '../../platform/files/file_delivery.dart';
 
@@ -30,6 +31,9 @@ final ledgerProvider = Provider(
 final inventoryProvider = Provider(
   (ref) => InventoryRepository(ref.watch(databaseProvider)),
 );
+final goalsProvider = Provider(
+  (ref) => GoalsRepository(ref.watch(databaseProvider)),
+);
 final snapshotProvider = StreamProvider((ref) {
   final db = ref.watch(databaseProvider);
   return db
@@ -44,6 +48,8 @@ final snapshotProvider = StreamProvider((ref) {
           db.purchaseLinks,
           db.preferences,
           db.balanceAdjustments,
+          db.wishGoals,
+          db.goalContributions,
         },
       )
       .watch()
@@ -58,6 +64,8 @@ final snapshotProvider = StreamProvider((ref) {
             await db.select(db.purchaseLinks).get(),
             await db.select(db.preferences).get(),
             await db.select(db.balanceAdjustments).get(),
+            await db.select(db.wishGoals).get(),
+            await db.select(db.goalContributions).get(),
           ),
         ),
       );
@@ -79,6 +87,8 @@ class AppSnapshot {
     this.links,
     this.preferences, [
     this.adjustments = const [],
+    this.goals = const [],
+    this.contributions = const [],
   ]);
   final List<Account> accounts;
   final List<Category> categories;
@@ -88,6 +98,8 @@ class AppSnapshot {
   final List<PurchaseLink> links;
   final List<Preference> preferences;
   final List<BalanceAdjustment> adjustments;
+  final List<WishGoal> goals;
+  final List<GoalContribution> contributions;
   Account account(String id) => accounts.firstWhere((a) => a.id == id);
   String category(String? id) =>
       categories.where((c) => c.id == id).firstOrNull?.name ?? '往来';

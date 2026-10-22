@@ -55,6 +55,8 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       data.links,
       data.preferences,
       data.adjustments,
+      data.goals,
+      data.contributions,
     );
   }
 

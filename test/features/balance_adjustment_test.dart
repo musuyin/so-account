@@ -243,6 +243,8 @@ void main() {
         openingBalance: 5000,
       );
       await old.customStatement('DROP TABLE balance_adjustments');
+      await old.customStatement('DROP TABLE goal_contributions');
+      await old.customStatement('DROP TABLE wish_goals');
       await old.customStatement('PRAGMA user_version=5');
       await old.close();
       final next = AppDatabase(NativeDatabase(file));
