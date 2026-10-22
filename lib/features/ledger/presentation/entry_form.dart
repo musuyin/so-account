@@ -22,12 +22,14 @@ class EntryForm extends ConsumerStatefulWidget {
     this.initialDebt,
     this.initialCounterparty,
     this.initialDebtAccountId,
+    this.initialAccountId,
   });
   final Entry? entry;
   final EntryKind? initialKind;
   final Entry? initialDebt;
   final String? initialCounterparty;
   final String? initialDebtAccountId;
+  final String? initialAccountId;
   final DateTime? initialDate;
   @override
   ConsumerState<EntryForm> createState() => _EntryFormState();
@@ -38,7 +40,9 @@ class _EntryFormState extends ConsumerState<EntryForm> {
     widget.entry?.kind ?? widget.initialKind?.name ?? 'expense',
   );
   late String? accountId =
-      widget.entry?.accountId ?? widget.initialDebt?.accountId;
+      widget.entry?.accountId ??
+      widget.initialDebt?.accountId ??
+      widget.initialAccountId;
   late String? targetId = widget.entry?.targetAccountId;
   late String? categoryId = widget.entry?.categoryId;
   late String? debtId = widget.entry?.debtId ?? widget.initialDebt?.id;

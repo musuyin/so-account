@@ -11,6 +11,7 @@ import 'account_avatar.dart';
 import 'people_debts_page.dart';
 import 'balance_adjustment_form.dart';
 import '../../goals/presentation/goals_page.dart';
+import 'account_detail_page.dart';
 
 class AccountsPage extends ConsumerStatefulWidget {
   const AccountsPage({super.key});
@@ -213,7 +214,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                                 ),
                                 onTap: () => openForm(
                                   context,
-                                  AccountForm(account: account),
+                                  AccountDetailPage(id: account.id),
                                 ),
                                 trailing: IconButton(
                                   tooltip: '删除账户',

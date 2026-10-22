@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,14 +10,36 @@ import '../../../core/money/money.dart';
 import '../../../core/time/business_date.dart';
 import '../../../data/database/app_database.dart';
 import '../data/goals_repository.dart';
+import '../data/goals_export.dart';
 
-class GoalsPage extends StatefulWidget {
+class GoalsPage extends ConsumerStatefulWidget {
   const GoalsPage({super.key});
   @override
-  State<GoalsPage> createState() => _GoalsPageState();
+  ConsumerState<GoalsPage> createState() => _GoalsPageState();
 }
 
-class _GoalsPageState extends State<GoalsPage> {
+class _GoalsPageState extends ConsumerState<GoalsPage> {
+  bool exporting = false;
+  Future<void> export(bool details) async {
+    if (exporting) return;
+    setState(() => exporting = true);
+    await perform(context, () async {
+      final csv = await GoalsExport(ref.read(databaseProvider))
+          .create(details: details);
+      final saved = await ref
+          .read(fileDeliveryProvider)
+          .save(
+            'so-account-goals-${details ? 'details' : 'summary'}-${dateKey(DateTime.now())}.csv',
+            Uint8List.fromList(utf8.encode(csv)),
+          );
+      if (saved && mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('已保存全部目标数据（含所有币种及状态）')));
+      }
+    });
+    if (mounted) setState(() => exporting = false);
+  }
+
   String currency = 'CNY',
       status = 'active',
       kind = '',
@@ -22,7 +47,27 @@ class _GoalsPageState extends State<GoalsPage> {
       sort = 'priority';
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('心愿与攒钱')),
+    appBar: AppBar(
+      title: const Text('心愿与攒钱'),
+      actions: [
+        PopupMenuButton<bool>(
+          tooltip: '导出目标数据',
+          enabled: !exporting,
+          onSelected: export,
+          icon: exporting
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.file_download_outlined),
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: false, child: Text('全部目标汇总 CSV')),
+            PopupMenuItem(value: true, child: Text('全部攒钱明细 CSV')),
+          ],
+        ),
+      ],
+    ),
     floatingActionButton: FloatingActionButton.extended(
       onPressed: () => openForm(context, const GoalForm()),
       icon: const Icon(Icons.add),
@@ -288,6 +333,7 @@ class _GoalFormState extends ConsumerState<GoalForm> {
         title: widget.goal == null ? '新增目标' : '编辑目标',
         saving: saving,
         onSave: () async {
+          if (saving) return;
           setState(() => saving = true);
           final ok = await perform(context, () async {
             await ref
@@ -649,6 +695,7 @@ class _ContributionState extends ConsumerState<ContributionForm> {
     title: widget.withdraw ? '取出进度' : '存入进度',
     saving: saving,
     onSave: () async {
+      if (saving) return;
       setState(() => saving = true);
       final ok = await perform(context, () async {
         final value = parseMoney(amount.text, widget.goal.currency);
