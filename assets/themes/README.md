@@ -14,4 +14,3 @@ Use case: stylized-concept. Asset type: wide background illustration for large c
 ## 输入框提示词
 
 Use case: stylized-concept. Asset type: very wide delicate botanical background for small text fields in a mobile personal finance app. A tiny pale yellow five-petal cucumber flower with two small translucent sage leaves and a very fine curling vine confined to the extreme right end, a faint fine vine along the bottom edge. About 3:1 landscape. At least 88 percent empty warm ivory white, especially all of the left and center for text. Summer cucumber garden, refined understated watercolor and fine pencil, pastel sage and butter yellow, extremely low contrast, fresh airy Japanese botanical stationery. No text, no border, no mockup, no dense foliage, no shadows. Production background illustration only.
-
