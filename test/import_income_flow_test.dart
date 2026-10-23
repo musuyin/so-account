@@ -101,7 +101,7 @@ void main() {
       );
       expect(entries.singleWhere((e) => e.kind == 'expense').amount, 800);
       await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump(const Duration(milliseconds: 1));
     },
   );
 }
