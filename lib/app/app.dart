@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import 'providers/providers.dart';
 import 'theme/app_theme.dart';
+import 'theme/botanical_surfaces.dart';
 import '../core/appearance.dart';
 import '../features/ledger/presentation/home_page.dart';
 import '../features/ledger/presentation/accounts_page.dart';
@@ -47,13 +48,14 @@ class SoAccountApp extends ConsumerWidget {
         ref.watch(snapshotProvider).value?.preference('theme', 'system') ??
         'system';
     final palette = AppPalette.parse(
-      ref.watch(snapshotProvider).value?.preference('palette', 'classic'),
+      ref.watch(snapshotProvider).value?.preference('palette', 'cucumber'),
     );
+    final art = ref.watch(botanicalArtProvider).value;
     return MaterialApp.router(
       title: '素帐 · SoAccount',
       debugShowCheckedModeBanner: false,
-      theme: appTheme(Brightness.light, palette: palette),
-      darkTheme: appTheme(Brightness.dark, palette: palette),
+      theme: appTheme(Brightness.light, palette: palette, art: art),
+      darkTheme: appTheme(Brightness.dark, palette: palette, art: art),
       themeMode:
           {'light': ThemeMode.light, 'dark': ThemeMode.dark}[mode] ??
           ThemeMode.system,

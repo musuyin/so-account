@@ -190,6 +190,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Card(
+                    borderOnForeground: false,
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -339,6 +340,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
         Text(title, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 12),
         Card(
+          borderOnForeground: false,
           child: Padding(padding: const EdgeInsets.all(16), child: child),
         ),
       ],

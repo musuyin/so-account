@@ -1,38 +1,47 @@
 import 'package:flutter/material.dart';
 
 import '../../core/appearance.dart';
+import 'botanical_surfaces.dart';
 
 ThemeData appTheme(
   Brightness brightness, {
-  AppPalette palette = AppPalette.classic,
+  AppPalette palette = AppPalette.cucumber,
+  BotanicalArt? art,
 }) {
   final dark = brightness == Brightness.dark;
   final summer = palette == AppPalette.cucumber;
-  final scheme =
-      ColorScheme.fromSeed(
-        seedColor: summer
-            ? const Color(0xFF507348)
-            : dark
-            ? const Color(0xFF82AAFF)
-            : const Color(0xFFC65931),
-        brightness: brightness,
-      ).copyWith(
+  final cool = palette == AppPalette.sky || palette == AppPalette.lavender;
+  final seed = switch (palette) {
+    AppPalette.cucumber => const Color(0xFF507348),
+    AppPalette.sky => const Color(0xFF466E96),
+    AppPalette.lavender => const Color(0xFF806591),
+    AppPalette.classic =>
+      dark ? const Color(0xFF82AAFF) : const Color(0xFFC65931),
+  };
+  final scheme = ColorScheme.fromSeed(seedColor: seed, brightness: brightness)
+      .copyWith(
         surface: summer
             ? (dark ? const Color(0xFF121612) : const Color(0xFFF7F9EF))
             : dark
             ? const Color(0xFF121212)
             : const Color(0xFFFFF8F0),
-        primary: summer
+        primary: cool
+            ? (dark ? Color.lerp(seed, Colors.white, .6)! : seed)
+            : summer
             ? (dark ? const Color(0xFFAFD29F) : const Color(0xFF426638))
             : dark
             ? const Color(0xFF91B6FF)
             : const Color(0xFFAB4523),
-        secondary: summer
+        secondary: cool
+            ? (dark ? const Color(0xFFB9CACC) : const Color(0xFF55777A))
+            : summer
             ? (dark ? const Color(0xFFDCD58F) : const Color(0xFF706522))
             : dark
             ? const Color(0xFF8BD5AC)
             : const Color(0xFF9A6200),
-        tertiary: summer
+        tertiary: cool
+            ? (dark ? const Color(0xFFE3C2CD) : const Color(0xFF906078))
+            : summer
             ? (dark ? const Color(0xFFA5CFCA) : const Color(0xFF396B65))
             : dark
             ? const Color(0xFFC5A3FF)
@@ -87,6 +96,16 @@ ThemeData appTheme(
             .4,
           ),
         );
+  OutlineInputBorder inputBorder(BorderSide side) => summer && art != null
+      ? BotanicalInputBorder(
+          image: art.small,
+          opacity: dark ? .06 : .22,
+          borderSide: side,
+        )
+      : OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: side,
+        );
   return ThemeData(
     fontFamily: 'NotoSansSC',
     useMaterial3: true,
@@ -134,12 +153,18 @@ ThemeData appTheme(
     ),
     cardTheme: CardThemeData(
       elevation: 0,
-      color: summer
+      color: cool
+          ? (dark
+                ? colors.surfaceContainerLow
+                : colors.primaryContainer.withValues(alpha: .4))
+          : summer
           ? (dark ? const Color(0xFF20271F) : const Color(0xFFF1F5E8))
           : dark
           ? const Color(0xFF202024)
           : const Color(0xFFFFF4EA),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: summer && art != null
+          ? BotanicalCardBorder(image: art.large, opacity: dark ? .055 : .23)
+          : RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
@@ -147,17 +172,13 @@ ThemeData appTheme(
           ? colors.surfaceContainerLow
           : Colors.white.withValues(alpha: .75),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: colors.primary, width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: colors.error),
+      border: inputBorder(BorderSide.none),
+      enabledBorder: inputBorder(BorderSide.none),
+      disabledBorder: inputBorder(BorderSide.none),
+      focusedBorder: inputBorder(BorderSide(color: colors.primary, width: 1.5)),
+      errorBorder: inputBorder(BorderSide(color: colors.error)),
+      focusedErrorBorder: inputBorder(
+        BorderSide(color: colors.error, width: 1.5),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(

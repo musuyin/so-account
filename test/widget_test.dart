@@ -62,7 +62,10 @@ void main() {
           .theme!
           .colorScheme
           .surface,
-      appTheme(Brightness.light).colorScheme.surface,
+      appTheme(
+        Brightness.light,
+        palette: AppPalette.classic,
+      ).colorScheme.surface,
     );
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));

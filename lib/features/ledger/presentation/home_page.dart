@@ -112,6 +112,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 100),
           children: [
             Card(
+              borderOnForeground: false,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -232,7 +233,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                     for (var i = 0; i < ((offset + count + 6) ~/ 7) * 7; i++)
                       SizedBox(
                         width: constraints.maxWidth / 7,
-                        height: 84,
+                        height:
+                            68 +
+                            (MediaQuery.textScalerOf(context).scale(14) - 14)
+                                .clamp(0, 32),
                         child: i < offset || i >= offset + count
                             ? null
                             : Builder(
@@ -399,6 +403,7 @@ class EntryTile extends ConsumerWidget {
     final account = data.account(entry.accountId);
     final links = data.links.where((l) => l.entryId == entry.id);
     return Card(
+      borderOnForeground: false,
       child: Column(
         children: [
           ListTile(

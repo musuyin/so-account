@@ -112,6 +112,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
           children: [
             Card(
+              borderOnForeground: false,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -236,6 +237,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
             ],
             for (final item in items)
               Card(
+                borderOnForeground: false,
                 child: ListTile(
                   contentPadding: const EdgeInsets.all(12),
                   leading: ItemThumbnail(item: item),

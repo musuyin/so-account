@@ -137,6 +137,7 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
               ],
             ),
             Card(
+              borderOnForeground: false,
               color: Theme.of(context).colorScheme.primaryContainer,
               child: Padding(
                 padding: const EdgeInsets.all(20),
@@ -189,6 +190,7 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
               const EmptyState('还没有符合条件的目标', '添加一个心愿，或为下一次旅行开始攒钱。'),
             for (final goal in goals)
               Card(
+                borderOnForeground: false,
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(
                   onTap: () => openForm(context, GoalDetailPage(id: goal.id)),

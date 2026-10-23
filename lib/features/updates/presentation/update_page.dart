@@ -63,6 +63,7 @@ class _UpdatePageState extends ConsumerState<UpdatePage> {
               if (update != null) ...[
                 const SizedBox(height: 20),
                 Card(
+                  borderOnForeground: false,
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(

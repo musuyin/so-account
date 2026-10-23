@@ -59,6 +59,7 @@ class _DebtAccountsState extends ConsumerState<PeopleDebtsPage> {
               ),
               for (final account in accounts.where((a) => a.channel == side))
                 Card(
+                  borderOnForeground: false,
                   child: ExpansionTile(
                     title: Text(account.name),
                     subtitle: Text(
