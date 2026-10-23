@@ -14,6 +14,7 @@ class Accounts extends Table {
   TextColumn get channel => text()();
   TextColumn get currency => text()();
   TextColumn get avatar => text().withDefault(const Constant(''))();
+  TextColumn get bank => text().withDefault(const Constant(''))();
   TextColumn get customChannel => text().withDefault(const Constant(''))();
   TextColumn get unitPrice => text().nullable()();
   IntColumn get openingBalance => integer().withDefault(const Constant(0))();
@@ -170,7 +171,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   Future<void> migrateDebtAccounts() async {
     for (final account in await select(accounts).get()) {
@@ -273,6 +274,11 @@ class AppDatabase extends _$AppDatabase {
       await seedDefaults();
     },
     onUpgrade: (m, from, to) async {
+      // Historical debt migrations read Accounts using the current generated
+      // model, so the new field must exist before those reads.
+      if (from < 8) {
+        await m.addColumn(accounts, accounts.bank);
+      }
       if (from < 2) {
         await m.addColumn(accounts, accounts.avatar);
         await m.addColumn(items, items.useType);

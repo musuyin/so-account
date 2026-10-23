@@ -1,6 +1,6 @@
-# 数据规则与 Schema v7
+# 数据规则与 Schema v8
 
-实际表定义位于 `lib/data/database/app_database.dart`，Schema 快照位于 `lib/data/database/migrations/drift_schema_v7.json`。业务校验由相应仓库实现，SQLite 外键、唯一键和金额 CHECK 提供第二道约束。
+实际表定义位于 `lib/data/database/app_database.dart`，Schema 快照位于 `lib/data/database/migrations/drift_schema_v8.json`。业务校验由相应仓库实现，SQLite 外键、唯一键和金额 CHECK 提供第二道约束。
 
 ## 金额、币种与日期
 
@@ -13,7 +13,7 @@
 
 | 表 | 用途 |
 | --- | --- |
-| accounts | 名称、类别、类型、自定义类别名、币种、初始余额、可选买入单价 |
+| accounts | 名称、类别、类型、自定义类别名、币种、初始余额、头像、可选银行 ID、可选买入单价 |
 | balance_adjustments | 账户、调整前后余额、差额、业务日期、原因、创建时间；非交易记录 |
 | wish_goals | 心愿/攒钱目标、币种、目标金额、截止日期、优先级、状态及备注 |
 | goal_contributions | 目标关联、带方向的金额、业务日期、备注、创建时间；独立进度，不改变账户余额 |

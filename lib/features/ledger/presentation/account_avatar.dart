@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/database/app_database.dart';
+import '../domain/banks.dart';
 
 const avatarLabels = {
   '': '首字头像',
@@ -15,6 +16,21 @@ class AccountAvatar extends StatelessWidget {
   final Account account;
   @override
   Widget build(BuildContext context) {
+    if (isBankChannel(account.channel) &&
+        account.bank.isNotEmpty &&
+        (account.avatar.isEmpty || account.avatar == 'bank')) {
+      final label = bankLabels[account.bank] ?? '银行';
+      return Tooltip(
+        message: label,
+        child: Semantics(
+          label: label,
+          child: CircleAvatar(
+            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+            child: const Icon(Icons.account_balance),
+          ),
+        ),
+      );
+    }
     final (Color color, Widget child) = switch (account.avatar) {
       'wechat' => (
         const Color(0xFF168C45),

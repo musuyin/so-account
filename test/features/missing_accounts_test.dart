@@ -44,6 +44,7 @@ void main() {
     expect(missing.first.firstDate, '2026-01-01');
     expect(missing.first.currencies, {'CNY'});
     const account = Account(
+      bank: '',
       customChannel: '',
       id: 'a',
       avatar: '',

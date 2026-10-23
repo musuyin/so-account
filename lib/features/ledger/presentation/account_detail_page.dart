@@ -5,6 +5,7 @@ import '../../../core/money/money.dart';
 import '../../../core/time/business_date.dart';
 import '../domain/account_activity.dart';
 import '../domain/entry_kind.dart';
+import '../domain/banks.dart';
 import 'accounts_page.dart';
 import 'balance_adjustment_form.dart';
 import 'entry_form.dart';
@@ -114,6 +115,7 @@ class _AccountDetailState extends State<AccountDetailPage> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
           children: [
             Card(
+              borderOnForeground: false,
               color: Theme.of(context).colorScheme.primaryContainer,
               child: Padding(
                 padding: const EdgeInsets.all(20),
@@ -121,6 +123,8 @@ class _AccountDetailState extends State<AccountDetailPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('账面余额'),
+                    if (account.bank.isNotEmpty)
+                      Text(bankLabels[account.bank] ?? '其他银行'),
                     Text(
                       money(balance, account.currency),
                       style: Theme.of(context).textTheme.headlineSmall,
@@ -217,6 +221,7 @@ class _AccountDetailState extends State<AccountDetailPage> {
             if (rows.isEmpty) const EmptyState('暂无符合条件的记录', '更换月份、类型或关键词后重试。'),
             for (final row in rows.take(limit))
               Card(
+                borderOnForeground: false,
                 child: ListTile(
                   title: Text(
                     '${row.label} · ${row.delta > 0 ? '+' : ''}${money(row.delta, account.currency)}',

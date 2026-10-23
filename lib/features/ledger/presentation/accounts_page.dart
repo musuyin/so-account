@@ -6,6 +6,7 @@ import '../../../app/widgets.dart';
 import '../../../core/money/money.dart';
 import '../../../data/database/app_database.dart';
 import '../domain/entry_kind.dart';
+import '../domain/banks.dart';
 import '../domain/asset_summary.dart';
 import 'account_avatar.dart';
 import 'people_debts_page.dart';
@@ -26,6 +27,14 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     appBar: AppBar(
       title: const Text('账户'),
       actions: [
+        DropdownButton<String>(
+          value: currency,
+          underline: const SizedBox(),
+          items: currencies
+              .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+              .toList(),
+          onChanged: (v) => setState(() => currency = v!),
+        ),
         IconButton(
           tooltip: '心愿与攒钱',
           onPressed: () =>
@@ -75,17 +84,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
           children: [
-            Align(
-              alignment: Alignment.centerRight,
-              child: DropdownButton<String>(
-                value: currency,
-                items: currencies
-                    .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-                    .toList(),
-                onChanged: (v) => setState(() => currency = v!),
-              ),
-            ),
             Card(
+              borderOnForeground: false,
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
@@ -135,6 +135,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
             for (final kind in accountKinds)
               if (accounts.any((a) => a.kind == kind))
                 Card(
+                  borderOnForeground: false,
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: Column(
@@ -211,7 +212,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                                 leading: AccountAvatar(account: account),
                                 title: Text(account.name),
                                 subtitle: Text(
-                                  '${account.channel == '自定义' && account.customChannel.isNotEmpty ? account.customChannel : account.channel} · ${money(balances[account.id] ?? account.openingBalance, currency)}${account.unitPrice == null ? '' : '\n买入单价 ${account.unitPrice} ${account.currency} · 按成本记录'}',
+                                  '${account.bank.isNotEmpty ? '${bankLabels[account.bank]} · ' : ''}${account.channel == '自定义' && account.customChannel.isNotEmpty ? account.customChannel : account.channel} · ${money(balances[account.id] ?? account.openingBalance, currency)}${account.unitPrice == null ? '' : '\n买入单价 ${account.unitPrice} ${account.currency} · 按成本记录'}',
                                 ),
                                 onTap: () => openForm(
                                   context,
@@ -295,6 +296,7 @@ class _AccountFormState extends ConsumerState<AccountForm> {
         : '',
   );
   late String avatar = widget.account?.avatar ?? '';
+  late String bank = widget.account?.bank ?? '';
   bool saving = false;
   bool get balanceLocked =>
       widget.account != null &&
@@ -342,6 +344,7 @@ class _AccountFormState extends ConsumerState<AccountForm> {
               currency: currency!,
               openingBalance: parseMoney(opening.text, currency!, signed: true),
               avatar: avatar,
+              bank: bank,
               customChannel: custom.text,
               unitPrice: unitPrice.text,
             );
@@ -354,6 +357,7 @@ class _AccountFormState extends ConsumerState<AccountForm> {
     children: [
       if (widget.importContext != null)
         Card(
+          borderOnForeground: false,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Text(
@@ -419,6 +423,16 @@ class _AccountFormState extends ConsumerState<AccountForm> {
             ? null
             : (v) => setState(() => channel = v!),
       ),
+      if (isBankChannel(channel))
+        DropdownButtonFormField<String>(
+          key: ValueKey('bank-$bank'),
+          initialValue: bank,
+          decoration: const InputDecoration(labelText: '银行类型（选填）'),
+          items: bankLabels.entries
+              .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+              .toList(),
+          onChanged: (v) => setState(() => bank = v!),
+        ),
       if (channel == '自定义')
         TextField(
           controller: custom,

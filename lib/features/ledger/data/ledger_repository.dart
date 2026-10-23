@@ -5,6 +5,7 @@ import '../../../core/money/money.dart';
 import '../../../core/time/business_date.dart';
 import '../../../data/database/app_database.dart';
 import '../domain/entry_kind.dart';
+import '../domain/banks.dart';
 
 class LedgerRepository {
   LedgerRepository(this.db);
@@ -29,6 +30,7 @@ class LedgerRepository {
     required String currency,
     required int openingBalance,
     String avatar = '',
+    String bank = '',
     String customChannel = '',
     String? unitPrice,
   }) async {
@@ -42,6 +44,10 @@ class LedgerRepository {
     final type = normalizeAccountType(kind, channel, customChannel.trim());
     kind = type.kind;
     channel = type.channel;
+    if (!bankLabels.containsKey(bank)) {
+      throw const FormatException('无效银行类型');
+    }
+    bank = isBankChannel(channel) ? bank : '';
     customChannel = type.custom;
     unitPrice = kind == '投资理财' ? validateUnitPrice(unitPrice) : null;
     if (openingBalance.abs() > 999999999999) {
@@ -101,6 +107,7 @@ class LedgerRepository {
               currency: currency,
               openingBalance: Value(openingBalance),
               avatar: Value(avatar),
+              bank: Value(bank),
               customChannel: Value(customChannel),
               unitPrice: Value(unitPrice),
             ),

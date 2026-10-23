@@ -71,6 +71,16 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _bankMeta = const VerificationMeta('bank');
+  @override
+  late final GeneratedColumn<String> bank = GeneratedColumn<String>(
+    'bank',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _customChannelMeta = const VerificationMeta(
     'customChannel',
   );
@@ -114,6 +124,7 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     channel,
     currency,
     avatar,
+    bank,
     customChannel,
     unitPrice,
     openingBalance,
@@ -173,6 +184,12 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         avatar.isAcceptableOrUnknown(data['avatar']!, _avatarMeta),
       );
     }
+    if (data.containsKey('bank')) {
+      context.handle(
+        _bankMeta,
+        bank.isAcceptableOrUnknown(data['bank']!, _bankMeta),
+      );
+    }
     if (data.containsKey('custom_channel')) {
       context.handle(
         _customChannelMeta,
@@ -230,6 +247,10 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         DriftSqlType.string,
         data['${effectivePrefix}avatar'],
       )!,
+      bank: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bank'],
+      )!,
       customChannel: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}custom_channel'],
@@ -258,6 +279,7 @@ class Account extends DataClass implements Insertable<Account> {
   final String channel;
   final String currency;
   final String avatar;
+  final String bank;
   final String customChannel;
   final String? unitPrice;
   final int openingBalance;
@@ -268,6 +290,7 @@ class Account extends DataClass implements Insertable<Account> {
     required this.channel,
     required this.currency,
     required this.avatar,
+    required this.bank,
     required this.customChannel,
     this.unitPrice,
     required this.openingBalance,
@@ -281,6 +304,7 @@ class Account extends DataClass implements Insertable<Account> {
     map['channel'] = Variable<String>(channel);
     map['currency'] = Variable<String>(currency);
     map['avatar'] = Variable<String>(avatar);
+    map['bank'] = Variable<String>(bank);
     map['custom_channel'] = Variable<String>(customChannel);
     if (!nullToAbsent || unitPrice != null) {
       map['unit_price'] = Variable<String>(unitPrice);
@@ -297,6 +321,7 @@ class Account extends DataClass implements Insertable<Account> {
       channel: Value(channel),
       currency: Value(currency),
       avatar: Value(avatar),
+      bank: Value(bank),
       customChannel: Value(customChannel),
       unitPrice: unitPrice == null && nullToAbsent
           ? const Value.absent()
@@ -317,6 +342,7 @@ class Account extends DataClass implements Insertable<Account> {
       channel: serializer.fromJson<String>(json['channel']),
       currency: serializer.fromJson<String>(json['currency']),
       avatar: serializer.fromJson<String>(json['avatar']),
+      bank: serializer.fromJson<String>(json['bank']),
       customChannel: serializer.fromJson<String>(json['customChannel']),
       unitPrice: serializer.fromJson<String?>(json['unitPrice']),
       openingBalance: serializer.fromJson<int>(json['openingBalance']),
@@ -332,6 +358,7 @@ class Account extends DataClass implements Insertable<Account> {
       'channel': serializer.toJson<String>(channel),
       'currency': serializer.toJson<String>(currency),
       'avatar': serializer.toJson<String>(avatar),
+      'bank': serializer.toJson<String>(bank),
       'customChannel': serializer.toJson<String>(customChannel),
       'unitPrice': serializer.toJson<String?>(unitPrice),
       'openingBalance': serializer.toJson<int>(openingBalance),
@@ -345,6 +372,7 @@ class Account extends DataClass implements Insertable<Account> {
     String? channel,
     String? currency,
     String? avatar,
+    String? bank,
     String? customChannel,
     Value<String?> unitPrice = const Value.absent(),
     int? openingBalance,
@@ -355,6 +383,7 @@ class Account extends DataClass implements Insertable<Account> {
     channel: channel ?? this.channel,
     currency: currency ?? this.currency,
     avatar: avatar ?? this.avatar,
+    bank: bank ?? this.bank,
     customChannel: customChannel ?? this.customChannel,
     unitPrice: unitPrice.present ? unitPrice.value : this.unitPrice,
     openingBalance: openingBalance ?? this.openingBalance,
@@ -367,6 +396,7 @@ class Account extends DataClass implements Insertable<Account> {
       channel: data.channel.present ? data.channel.value : this.channel,
       currency: data.currency.present ? data.currency.value : this.currency,
       avatar: data.avatar.present ? data.avatar.value : this.avatar,
+      bank: data.bank.present ? data.bank.value : this.bank,
       customChannel: data.customChannel.present
           ? data.customChannel.value
           : this.customChannel,
@@ -386,6 +416,7 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('channel: $channel, ')
           ..write('currency: $currency, ')
           ..write('avatar: $avatar, ')
+          ..write('bank: $bank, ')
           ..write('customChannel: $customChannel, ')
           ..write('unitPrice: $unitPrice, ')
           ..write('openingBalance: $openingBalance')
@@ -401,6 +432,7 @@ class Account extends DataClass implements Insertable<Account> {
     channel,
     currency,
     avatar,
+    bank,
     customChannel,
     unitPrice,
     openingBalance,
@@ -415,6 +447,7 @@ class Account extends DataClass implements Insertable<Account> {
           other.channel == this.channel &&
           other.currency == this.currency &&
           other.avatar == this.avatar &&
+          other.bank == this.bank &&
           other.customChannel == this.customChannel &&
           other.unitPrice == this.unitPrice &&
           other.openingBalance == this.openingBalance);
@@ -427,6 +460,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<String> channel;
   final Value<String> currency;
   final Value<String> avatar;
+  final Value<String> bank;
   final Value<String> customChannel;
   final Value<String?> unitPrice;
   final Value<int> openingBalance;
@@ -438,6 +472,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.channel = const Value.absent(),
     this.currency = const Value.absent(),
     this.avatar = const Value.absent(),
+    this.bank = const Value.absent(),
     this.customChannel = const Value.absent(),
     this.unitPrice = const Value.absent(),
     this.openingBalance = const Value.absent(),
@@ -450,6 +485,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     required String channel,
     required String currency,
     this.avatar = const Value.absent(),
+    this.bank = const Value.absent(),
     this.customChannel = const Value.absent(),
     this.unitPrice = const Value.absent(),
     this.openingBalance = const Value.absent(),
@@ -466,6 +502,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<String>? channel,
     Expression<String>? currency,
     Expression<String>? avatar,
+    Expression<String>? bank,
     Expression<String>? customChannel,
     Expression<String>? unitPrice,
     Expression<int>? openingBalance,
@@ -478,6 +515,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (channel != null) 'channel': channel,
       if (currency != null) 'currency': currency,
       if (avatar != null) 'avatar': avatar,
+      if (bank != null) 'bank': bank,
       if (customChannel != null) 'custom_channel': customChannel,
       if (unitPrice != null) 'unit_price': unitPrice,
       if (openingBalance != null) 'opening_balance': openingBalance,
@@ -492,6 +530,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Value<String>? channel,
     Value<String>? currency,
     Value<String>? avatar,
+    Value<String>? bank,
     Value<String>? customChannel,
     Value<String?>? unitPrice,
     Value<int>? openingBalance,
@@ -504,6 +543,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       channel: channel ?? this.channel,
       currency: currency ?? this.currency,
       avatar: avatar ?? this.avatar,
+      bank: bank ?? this.bank,
       customChannel: customChannel ?? this.customChannel,
       unitPrice: unitPrice ?? this.unitPrice,
       openingBalance: openingBalance ?? this.openingBalance,
@@ -532,6 +572,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (avatar.present) {
       map['avatar'] = Variable<String>(avatar.value);
     }
+    if (bank.present) {
+      map['bank'] = Variable<String>(bank.value);
+    }
     if (customChannel.present) {
       map['custom_channel'] = Variable<String>(customChannel.value);
     }
@@ -556,6 +599,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('channel: $channel, ')
           ..write('currency: $currency, ')
           ..write('avatar: $avatar, ')
+          ..write('bank: $bank, ')
           ..write('customChannel: $customChannel, ')
           ..write('unitPrice: $unitPrice, ')
           ..write('openingBalance: $openingBalance, ')
@@ -4773,6 +4817,7 @@ typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   required String channel,
   required String currency,
   Value<String> avatar,
+  Value<String> bank,
   Value<String> customChannel,
   Value<String?> unitPrice,
   Value<int> openingBalance,
@@ -4785,6 +4830,7 @@ typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<String> channel,
   Value<String> currency,
   Value<String> avatar,
+  Value<String> bank,
   Value<String> customChannel,
   Value<String?> unitPrice,
   Value<int> openingBalance,
@@ -4853,6 +4899,11 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<String> get avatar => $composableBuilder(
     column: $table.avatar,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bank => $composableBuilder(
+    column: $table.bank,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4936,6 +4987,11 @@ class $$AccountsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get bank => $composableBuilder(
+    column: $table.bank,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get customChannel => $composableBuilder(
     column: $table.customChannel,
     builder: (column) => ColumnOrderings(column),
@@ -4978,6 +5034,9 @@ class $$AccountsTableAnnotationComposer
 
   GeneratedColumn<String> get avatar =>
       $composableBuilder(column: $table.avatar, builder: (column) => column);
+
+  GeneratedColumn<String> get bank =>
+      $composableBuilder(column: $table.bank, builder: (column) => column);
 
   GeneratedColumn<String> get customChannel => $composableBuilder(
     column: $table.customChannel,
@@ -5053,6 +5112,7 @@ class $$AccountsTableTableManager
                 Value<String> channel = const Value.absent(),
                 Value<String> currency = const Value.absent(),
                 Value<String> avatar = const Value.absent(),
+                Value<String> bank = const Value.absent(),
                 Value<String> customChannel = const Value.absent(),
                 Value<String?> unitPrice = const Value.absent(),
                 Value<int> openingBalance = const Value.absent(),
@@ -5064,6 +5124,7 @@ class $$AccountsTableTableManager
                 channel: channel,
                 currency: currency,
                 avatar: avatar,
+                bank: bank,
                 customChannel: customChannel,
                 unitPrice: unitPrice,
                 openingBalance: openingBalance,
@@ -5077,6 +5138,7 @@ class $$AccountsTableTableManager
                 required String channel,
                 required String currency,
                 Value<String> avatar = const Value.absent(),
+                Value<String> bank = const Value.absent(),
                 Value<String> customChannel = const Value.absent(),
                 Value<String?> unitPrice = const Value.absent(),
                 Value<int> openingBalance = const Value.absent(),
@@ -5088,6 +5150,7 @@ class $$AccountsTableTableManager
                 channel: channel,
                 currency: currency,
                 avatar: avatar,
+                bank: bank,
                 customChannel: customChannel,
                 unitPrice: unitPrice,
                 openingBalance: openingBalance,

@@ -77,6 +77,7 @@ class BackupService {
           currency: a.currency,
           openingBalance: a.openingBalance,
           avatar: a.avatar,
+          bank: a.bank,
           customChannel: a.customChannel,
           unitPrice: a.unitPrice,
         );
@@ -291,6 +292,7 @@ class _Snapshot {
         'accounts',
         (r) => Account.fromJson({
           'avatar': '',
+          'bank': '',
           'customChannel': '',
           'unitPrice': null,
           ...r,
