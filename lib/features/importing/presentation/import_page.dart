@@ -274,6 +274,24 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     if (mounted) setState(() => busy = false);
   }
 
+  Future<void> createMissingCategories(EntryKind kind) async {
+    setState(() => busy = true);
+    await perform(context, () async {
+      final db = ref.read(databaseProvider);
+      await db.transaction(() async {
+        final categories = await db.select(db.categories).get();
+        for (final name in mapping.categoryValuesFor(tables[sheet], kind)) {
+          if (mapping.categories.containsKey('${kind.name}:$name') ||
+              categories.any((c) => c.kind == kind.name && c.name == name)) {
+            continue;
+          }
+          await ref.read(ledgerProvider).saveCategory(name, kind.name);
+        }
+      });
+    }, success: '已按原名称创建缺失分类');
+    if (mounted) setState(() => busy = false);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -751,6 +769,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                               data.accounts,
                             ).isNotEmpty)
                               Card(
+                                borderOnForeground: false,
                                 child: Padding(
                                   padding: const EdgeInsets.all(16),
                                   child: Text(
@@ -1077,8 +1096,32 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                             for (final kind in [
                               'expense',
                               'income',
-                            ].where(activeKinds.contains))
-                              for (final value in categoryValues.take(100))
+                            ].where(activeKinds.contains)) ...[
+                              Text(
+                                kind == 'expense' ? '支出分类关联' : '收入分类关联',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: TextButton.icon(
+                                  onPressed: busy
+                                      ? null
+                                      : () => createMissingCategories(
+                                          EntryKind.values.byName(kind),
+                                        ),
+                                  icon: const Icon(Icons.add),
+                                  label: Text(
+                                    '按原名称创建缺失的${kind == 'expense' ? '支出' : '收入'}分类',
+                                  ),
+                                ),
+                              ),
+                              for (final value
+                                  in mapping
+                                      .categoryValuesFor(
+                                        table,
+                                        EntryKind.values.byName(kind),
+                                      )
+                                      .take(100))
                                 select(
                                   '${kind == 'expense' ? '支出' : '收入'}分类内容：$value',
                                   mapping.categories['$kind:$value'] ??
@@ -1107,6 +1150,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                     }
                                   },
                                 ),
+                            ],
                             if ([
                               kindValues.length,
                               accountValues.length,

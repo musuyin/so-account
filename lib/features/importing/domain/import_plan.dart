@@ -82,6 +82,12 @@ class ImportMapping {
     return source.isEmpty ? defaultKind : detectedKind(kinds[source] ?? source);
   }
 
+  Set<String> categoryValuesFor(ImportTable table, EntryKind kind) => table.rows
+      .where((row) => kindFor(row) == kind)
+      .map((row) => value(row, ImportField.category))
+      .where((value) => value.isNotEmpty)
+      .toSet();
+
   bool get hasTransferAccounts =>
       columns.containsKey(ImportField.source) &&
       columns.containsKey(ImportField.target);
@@ -336,7 +342,10 @@ List<ImportResult> previewImport(
             account.currency,
             signed: true,
           ).abs();
-          if (amount == 0 || amount > 999999999999) {
+          if (amount == 0) {
+            throw const FormatException('金额为 0，无需入账；请核对原文件，此行不会导入');
+          }
+          if (amount > 999999999999) {
             throw const FormatException('金额须大于零且不超出上限');
           }
           String? categoryId;
