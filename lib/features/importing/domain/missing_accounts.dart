@@ -93,6 +93,7 @@ List<MissingImportAccount> importAccountSources(
   final sources = <String, MissingImportAccount>{};
   for (var i = 0; i < table.rows.length; i++) {
     final row = table.rows[i];
+    if (mapping.ignoredReason(row) != null) continue;
     final kind = mapping.kindFor(row);
     // Resolve the meaning before treating either side as a funds account.
     if (kind == null) continue;

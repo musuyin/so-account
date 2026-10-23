@@ -39,6 +39,7 @@ enum ImportField {
 }
 
 class ImportMapping {
+  String? ignoredReason(List<String> row) => null;
   final Map<ImportField, int> columns = {};
   final Map<String, String> accounts = {},
       categories = {},
@@ -83,6 +84,7 @@ class ImportMapping {
   }
 
   Set<String> categoryValuesFor(ImportTable table, EntryKind kind) => table.rows
+      .where((row) => ignoredReason(row) == null)
       .where((row) => kindFor(row) == kind)
       .map((row) => value(row, ImportField.category))
       .where((value) => value.isNotEmpty)
@@ -140,6 +142,42 @@ class ImportMapping {
           ? ImportField.source
           : ImportField.target,
     );
+  }
+}
+
+/// Current file-import scope. The app only accepts ordinary income/expense.
+class IncomeExpenseImportMapping extends ImportMapping {
+  static const fields = {
+    ImportField.date,
+    ImportField.kind,
+    ImportField.amount,
+    ImportField.account,
+    ImportField.category,
+    ImportField.currency,
+    ImportField.note,
+  };
+
+  @override
+  void detect(ImportTable table) {
+    super.detect(table);
+    columns.removeWhere((field, _) => !fields.contains(field));
+  }
+
+  @override
+  String? ignoredReason(List<String> row) {
+    final amount = value(row, ImportField.amount);
+    if (RegExp(r'^-?(?:0+|0{1,3}(?:,000)+)(?:\.0+)?$').hasMatch(amount)) {
+      return '零金额';
+    }
+    final sourceKind = value(row, ImportField.kind);
+    final original = detectedKind(sourceKind);
+    if ((original != null && !original.needsCategory) || sourceKind == '还款') {
+      return '暂不支持的交易类型';
+    }
+    if (value(row, ImportField.account).isEmpty) return '空账户';
+    final kind = kindFor(row);
+    if (kind != null && !kind.needsCategory) return '暂不支持的交易类型';
+    return null;
   }
 }
 
@@ -237,10 +275,12 @@ class ImportEntry {
 }
 
 class ImportResult {
-  ImportResult(this.row, this.entry, this.error);
+  ImportResult(this.row, this.entry, this.error, {this.ignoredReason});
   final int row;
   final ImportEntry? entry;
   final String? error;
+  final String? ignoredReason;
+  bool get ignored => ignoredReason != null;
 }
 
 String _signature(
@@ -301,9 +341,13 @@ List<ImportResult> previewImport(
       (() {
         try {
           final row = table.rows[i];
+          final ignored = mapping.ignoredReason(row);
+          if (ignored != null) {
+            return ImportResult(i + 2, null, null, ignoredReason: ignored);
+          }
           final kind = mapping.kindFor(row);
           if (kind == null) {
-            throw const FormatException('请关联交易类型；信贷账户还款可明确选择“转账”');
+            throw const FormatException('请关联交易类型');
           }
           Account resolveAccount(String value, {bool target = false}) {
             final id = value.isEmpty
@@ -540,6 +584,18 @@ List<ImportResult> previewImport(
         }
       })(),
   ];
+}
+
+Future<int> commitIncomeExpenseImport(
+  AppDatabase db,
+  List<ImportEntry> entries,
+) async {
+  if (entries.any(
+    (e) => !e.kind.needsCategory || e.fee != null || e.targetId != null,
+  )) {
+    throw const FormatException('目前仅支持导入收入和支出');
+  }
+  return commitImport(db, entries);
 }
 
 Future<int> commitImport(AppDatabase db, List<ImportEntry> entries) =>

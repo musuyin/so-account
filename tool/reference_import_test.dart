@@ -24,10 +24,7 @@ void main() {
     final repo = LedgerRepository(db);
     for (final file in files) {
       for (final table in readImportTables(file.path, file.readAsBytesSync())) {
-        final mapping = ImportMapping()..detect(table);
-        // Explicit acceptance scenario: all '还款' rows are credit repayments.
-        // The app still asks the user to confirm this meaning.
-        mapping.kinds['还款'] = 'transfer';
+        final mapping = IncomeExpenseImportMapping()..detect(table);
         for (final source in importAccountSources(table, mapping)) {
           if ((await db.select(db.accounts).get()).any(
             (a) => a.name == source.name,
@@ -52,32 +49,15 @@ void main() {
             await repo.saveCategory(name, kind.name);
           }
         }
-        if (table.rows.any(
-          (r) => mapping.sourceAccountValue(r, mapping.kindFor(r)).isEmpty,
-        )) {
-          mapping.defaultAccount = await repo.saveAccount(
-            name: '参考验证默认账户',
-            kind: '资金账户',
-            channel: '现金',
-            currency: 'CNY',
-            openingBalance: 0,
-          );
-        }
         final accounts = await db.select(db.accounts).get();
         final categories = await db.select(db.categories).get();
         final plan = previewImport(table, mapping, accounts, categories, []);
         final errors = plan.where((r) => r.error != null).toList();
-        final zeroRows = table.rows.indexed
-            .where(
-              (r) =>
-                  double.tryParse(mapping.value(r.$2, ImportField.amount)) == 0,
-            )
-            .map((r) => r.$1 + 2)
-            .toSet();
+        expect(errors, isEmpty);
+        final ignored = plan.where((r) => r.ignored).toList();
         expect(
-          errors.map((r) => r.row).toSet(),
-          zeroRows,
-          reason: 'Only zero-amount rows may be excluded',
+          ignored.length,
+          table.rows.where((r) => mapping.ignoredReason(r) != null).length,
         );
         final valid = plan.where((r) => r.entry != null).toList();
         for (final result in valid) {
@@ -97,7 +77,9 @@ void main() {
             .where((e) => !e.suspectedDuplicate)
             .toList();
         final before = (await db.select(db.entries).get()).length;
-        final count = await commitImport(db, selected);
+        final count = selected.isEmpty
+            ? 0
+            : await commitIncomeExpenseImport(db, selected);
         expect(count, selected.length);
         final stored = await db.select(db.entries).get();
         expect(
@@ -119,7 +101,7 @@ void main() {
             .where((r) => r.entry!.kind == EntryKind.income)
             .length;
         print(
-          '${table.name}: ${valid.length} valid rows, ${zeroRows.length} zero rows excluded, $income income rows, $count committed records; repeat detection passed',
+          '${table.name}: ${valid.length} valid rows, ${ignored.length} rows ignored, $income income rows, $count committed records; repeat detection passed',
         );
       }
     }
