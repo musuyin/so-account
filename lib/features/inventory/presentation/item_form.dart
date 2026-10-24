@@ -19,10 +19,12 @@ class ItemForm extends ConsumerStatefulWidget {
     this.item,
     this.initialEntry,
     this.recoveredPhoto,
+    this.initialCurrency = 'CNY',
   });
   final Item? item;
   final Entry? initialEntry;
   final String? recoveredPhoto;
+  final String initialCurrency;
   @override
   ConsumerState<ItemForm> createState() => _ItemFormState();
 }
@@ -60,7 +62,7 @@ class _ItemFormState extends ConsumerState<ItemForm> {
         currency =
             widget.item?.currency ??
             (widget.initialEntry == null
-                ? 'CNY'
+                ? widget.initialCurrency
                 : data.account(widget.initialEntry!.accountId).currency);
         if (widget.item?.price != null) {
           price.text = decimalMoney(widget.item!.price!, currency);

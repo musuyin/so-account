@@ -32,11 +32,15 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
       await perform(context, () async {
         final store = await ref.read(mediaProvider.future);
         final recovered = await store.recover();
         if (recovered != null && mounted) {
-          await openForm(context, ItemForm(recoveredPhoto: recovered));
+          await openForm(
+            context,
+            ItemForm(recoveredPhoto: recovered, initialCurrency: currency),
+          );
         }
       });
     });
@@ -85,7 +89,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                       (status == 'all' || i.status == status) &&
                       '${i.name} ${i.note} ${itemTags(i.category).join(' ')} ${i.unit ?? ''}'
                           .toLowerCase()
-                          .contains(search.toLowerCase()),
+                          .contains(search.trim().toLowerCase()),
                 )
                 .toList()
               ..sort(
@@ -109,12 +113,12 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
             .toList();
         final factor = currency == 'JPY' ? 1 : 100;
         return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
           children: [
             Card(
               borderOnForeground: false,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -135,19 +139,19 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             ClearableSearch(
               value: search,
               hint: '搜索名称、种类或备注',
               onChanged: (value) => setState(() => search = value),
             ),
-            Row(
+            Wrap(
+              spacing: 12,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Expanded(
-                  child: Text(
-                    '${items.length} 件物品',
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
+                Text(
+                  '${items.length} 件物品',
+                  style: Theme.of(context).textTheme.labelLarge,
                 ),
                 DropdownButton<String>(
                   value: sort,
@@ -161,63 +165,74 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
             Wrap(
-              spacing: 8,
+              spacing: 6,
               children: [
-                for (final entry in {
-                  '': '全部属性',
-                  'durable': '长期使用物',
-                  'consumable': '消耗品',
-                }.entries)
-                  ChoiceChip(
-                    label: Text(entry.value),
-                    selected: useType == entry.key,
-                    onSelected: (_) => setState(() => useType = entry.key),
-                  ),
-              ],
-            ),
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final entry in {
-                  'active': '使用中',
-                  'unused': '未使用',
-                  'completed': '使用完',
-                  'all': '全部状态',
-                }.entries)
-                  ChoiceChip(
-                    label: Text(entry.value),
-                    selected: status == entry.key,
-                    onSelected: (_) => setState(() => status = entry.key),
-                  ),
-              ],
-            ),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (final c in ['', ...categories])
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: FilterChip(
-                        label: Text(c.isEmpty ? '全部种类' : c),
-                        selected: c.isEmpty
+                ChoiceFilter(
+                  value: useType,
+                  options: const {
+                    '': '全部属性',
+                    'durable': '长期使用物',
+                    'consumable': '消耗品',
+                  },
+                  onSelected: (v) => setState(() => useType = v),
+                ),
+                ChoiceFilter(
+                  value: status,
+                  options: const {
+                    'all': '全部状态',
+                    'active': '使用中',
+                    'unused': '未使用',
+                    'completed': '使用完',
+                  },
+                  onSelected: (v) => setState(() => status = v),
+                ),
+                PopupMenuButton<String>(
+                  tooltip: '筛选物品种类',
+                  onSelected: (c) => setState(() {
+                    if (c.isEmpty) {
+                      selectedCategories.clear();
+                    } else if (!selectedCategories.add(c)) {
+                      selectedCategories.remove(c);
+                    }
+                  }),
+                  itemBuilder: (_) => [
+                    for (final c in ['', ...categories])
+                      CheckedPopupMenuItem(
+                        value: c,
+                        checked: c.isEmpty
                             ? selectedCategories.isEmpty
                             : selectedCategories.contains(c),
-                        onSelected: (selected) => setState(() {
-                          if (c.isEmpty) {
-                            selectedCategories.clear();
-                          } else if (selected) {
-                            selectedCategories.add(c);
-                          } else {
-                            selectedCategories.remove(c);
-                          }
-                        }),
+                        child: Text(c.isEmpty ? '全部种类' : c),
                       ),
+                  ],
+                  child: Chip(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          selectedCategories.isEmpty
+                              ? '全部种类'
+                              : '种类 ${selectedCategories.length}',
+                        ),
+                        const Icon(Icons.arrow_drop_down, size: 16),
+                      ],
                     ),
-                ],
-              ),
+                  ),
+                ),
+                if (useType.isNotEmpty ||
+                    status != 'all' ||
+                    selectedCategories.isNotEmpty)
+                  IconButton(
+                    tooltip: '清除物品筛选',
+                    onPressed: () => setState(() {
+                      useType = '';
+                      status = 'all';
+                      selectedCategories.clear();
+                    }),
+                    icon: const Icon(Icons.filter_alt_off_outlined, size: 20),
+                  ),
+              ],
             ),
             if (items.isEmpty) ...[
               EmptyState(
@@ -239,10 +254,19 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
               Card(
                 borderOnForeground: false,
                 child: ListTile(
-                  contentPadding: const EdgeInsets.all(12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   leading: ItemThumbnail(item: item),
-                  title: Text(item.name),
+                  title: Text(
+                    item.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   subtitle: Text(
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                     '${itemTags(item.category).join('、')} · ${item.useType == 'durable' ? '长期使用物' : '消耗品'} · ${itemStatuses[item.status]}${item.quantity == null ? '' : ' · ${item.quantity}${item.unit ?? ''}'}\n${item.price == null ? '价格未记录' : money(item.price!, currency)}${dailyCost(item.price, item.purchasedOn, item.archivedOn, DateTime.now()) == null ? '' : ' · 日均 ${(dailyCost(item.price, item.purchasedOn, item.archivedOn, DateTime.now())! / factor).toStringAsFixed(2)}'}',
                   ),
                   onTap: () => openForm(context, ItemForm(item: item)),
@@ -305,7 +329,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
       },
     ),
     floatingActionButton: FloatingActionButton.extended(
-      onPressed: () => openForm(context, const ItemForm()),
+      onPressed: () => openForm(context, ItemForm(initialCurrency: currency)),
       icon: const Icon(Icons.add),
       label: const Text('记录物品'),
     ),

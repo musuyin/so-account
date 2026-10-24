@@ -48,7 +48,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
         ),
         IconButton(
           tooltip: '新增账户',
-          onPressed: () => openForm(context, const AccountForm()),
+          onPressed: () =>
+              openForm(context, AccountForm(initialCurrency: currency)),
           icon: const Icon(Icons.add),
         ),
       ],
@@ -82,21 +83,21 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
           ),
         );
         return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
           children: [
             Card(
               borderOnForeground: false,
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('净资产'),
                     Text(
                       decimalMoney(totals.net, currency),
-                      style: Theme.of(context).textTheme.headlineLarge,
+                      style: Theme.of(context).textTheme.headlineSmall,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
@@ -137,7 +138,10 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                 Card(
                   borderOnForeground: false,
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     child: Column(
                       children: [
                         Padding(
@@ -248,7 +252,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
       },
     ),
     floatingActionButton: FloatingActionButton.extended(
-      onPressed: () => openForm(context, const AccountForm()),
+      onPressed: () =>
+          openForm(context, AccountForm(initialCurrency: currency)),
       icon: const Icon(Icons.add),
       label: const Text('添加账户'),
     ),
@@ -263,11 +268,13 @@ class AccountForm extends ConsumerStatefulWidget {
     this.importContext,
     this.initialKind,
     this.initialChannel,
+    this.initialCurrency,
   });
   final Account? account;
   final String? initialName;
   final String? importContext;
   final String? initialKind, initialChannel;
+  final String? initialCurrency;
   @override
   ConsumerState<AccountForm> createState() => _AccountFormState();
 }
@@ -277,7 +284,9 @@ class _AccountFormState extends ConsumerState<AccountForm> {
     text: widget.account?.name ?? widget.initialName,
   );
   late String? currency =
-      widget.account?.currency ?? (widget.importContext == null ? 'CNY' : null);
+      widget.account?.currency ??
+      widget.initialCurrency ??
+      (widget.importContext == null ? 'CNY' : null);
   late String? kind =
       widget.account?.kind ??
       widget.initialKind ??

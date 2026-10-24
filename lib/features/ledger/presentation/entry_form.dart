@@ -23,6 +23,7 @@ class EntryForm extends ConsumerStatefulWidget {
     this.initialCounterparty,
     this.initialDebtAccountId,
     this.initialAccountId,
+    this.initialCurrency,
   });
   final Entry? entry;
   final EntryKind? initialKind;
@@ -30,6 +31,7 @@ class EntryForm extends ConsumerStatefulWidget {
   final String? initialCounterparty;
   final String? initialDebtAccountId;
   final String? initialAccountId;
+  final String? initialCurrency;
   final DateTime? initialDate;
   @override
   ConsumerState<EntryForm> createState() => _EntryFormState();
@@ -73,18 +75,32 @@ class _EntryFormState extends ConsumerState<EntryForm> {
       final funds = data.accounts
           .where((a) => kind == EntryKind.transfer || a.kind != '债务')
           .toList();
-      if (funds.isEmpty) {
+      if (funds.isEmpty ||
+          (!initialized &&
+              accountId == null &&
+              widget.initialCurrency != null &&
+              !funds.any((a) => a.currency == widget.initialCurrency))) {
         return Scaffold(
           appBar: AppBar(title: const Text('记一笔')),
           body: Center(
             child: FilledButton(
-              onPressed: () => openForm(context, const AccountForm()),
-              child: const Text('先添加账户'),
+              onPressed: () => openForm(
+                context,
+                AccountForm(initialCurrency: widget.initialCurrency),
+              ),
+              child: Text('先添加${widget.initialCurrency ?? ''}账户'),
             ),
           ),
         );
       }
-      if (!funds.any((a) => a.id == accountId)) accountId = funds.first.id;
+      if (!funds.any((a) => a.id == accountId)) {
+        accountId =
+            funds
+                .where((a) => a.currency == widget.initialCurrency)
+                .firstOrNull
+                ?.id ??
+            funds.first.id;
+      }
       final account = data.account(accountId!);
       if (!initialized) {
         if (widget.entry != null) {
@@ -177,13 +193,18 @@ class _EntryFormState extends ConsumerState<EntryForm> {
           ),
 
           DropdownButtonFormField<String>(
+            key: ValueKey('account-$accountId'),
+            isExpanded: true,
             initialValue: accountId,
             decoration: const InputDecoration(labelText: '账户'),
             items: funds
                 .map(
                   (a) => DropdownMenuItem(
                     value: a.id,
-                    child: Text('${a.name} · ${a.currency}'),
+                    child: Text(
+                      '${a.name} · ${a.currency}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 )
                 .toList(),
@@ -294,6 +315,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                       initialKind: '债务',
                       initialChannel: debtSide,
                       initialName: widget.initialCounterparty,
+                      initialCurrency: account.currency,
                     ),
                   ),
                 );
@@ -328,6 +350,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
           TextField(
             controller: note,
             maxLength: 2000,
+            minLines: 1,
             maxLines: 3,
             decoration: const InputDecoration(labelText: '备注'),
           ),

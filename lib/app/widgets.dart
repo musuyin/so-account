@@ -85,15 +85,15 @@ class EmptyState extends StatelessWidget {
   final String title, subtitle;
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(32),
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
     child: Column(
       children: [
         Icon(
           Icons.spa_outlined,
-          size: 44,
+          size: 32,
           color: Theme.of(context).colorScheme.secondary,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
         Text(title, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         Text(subtitle, textAlign: TextAlign.center),
@@ -124,9 +124,10 @@ class FormFrame extends StatelessWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 640),
             child: ListView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(12),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               children: [
-                ...children.expand((w) => [w, const SizedBox(height: 16)]),
+                ...children.expand((w) => [w, const SizedBox(height: 10)]),
               ],
             ),
           ),
@@ -134,7 +135,7 @@ class FormFrame extends StatelessWidget {
       ),
       bottomNavigationBar: KeyboardActionBar(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+          padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
           child: Center(
             heightFactor: 1,
             child: ConstrainedBox(
@@ -185,6 +186,43 @@ class ClearableSearch extends StatefulWidget {
   final ValueChanged<String> onChanged;
   @override
   State<ClearableSearch> createState() => _ClearableSearchState();
+}
+
+/// A compact single-choice filter with the full choices available in its menu.
+class ChoiceFilter extends StatelessWidget {
+  const ChoiceFilter({
+    super.key,
+    required this.value,
+    required this.options,
+    required this.onSelected,
+  });
+  final String value;
+  final Map<String, String> options;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) => PopupMenuButton<String>(
+    tooltip: options.values.first,
+    initialValue: value,
+    onSelected: onSelected,
+    itemBuilder: (_) => [
+      for (final option in options.entries)
+        CheckedPopupMenuItem(
+          value: option.key,
+          checked: value == option.key,
+          child: Text(option.value),
+        ),
+    ],
+    child: Chip(
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(options[value]!),
+          const Icon(Icons.arrow_drop_down, size: 16),
+        ],
+      ),
+    ),
+  );
 }
 
 class _ClearableSearchState extends State<ClearableSearch> {

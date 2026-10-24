@@ -148,7 +148,7 @@ void main() {
                   .toImage();
           final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
           await Directory('.tooling/screenshots').create(recursive: true);
-          await File('.tooling/screenshots/home-$theme.png')
+          await File('.tooling/screenshots/home-$theme-${width.toInt()}.png')
               .writeAsBytes(bytes!.buffer.asUint8List());
           image.dispose();
         });

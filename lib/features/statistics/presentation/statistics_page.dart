@@ -97,7 +97,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         children: [
           Row(
             children: [
@@ -192,7 +192,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                   Card(
                     borderOnForeground: false,
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(12),
                       child: Column(
                         children: [
                           Row(
@@ -202,7 +202,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                               metric('$prefix结余', data.surplus),
                             ],
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 10),
                           Row(
                             children: [
                               Expanded(
@@ -341,7 +341,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
         const SizedBox(height: 12),
         Card(
           borderOnForeground: false,
-          child: Padding(padding: const EdgeInsets.all(16), child: child),
+          child: Padding(padding: const EdgeInsets.all(12), child: child),
         ),
       ],
     ),

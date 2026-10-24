@@ -21,6 +21,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   String? day, category;
   EntryKind? kind;
   String currency = 'CNY', search = '';
+  bool calendarExpanded = true;
   void moveMonth(int delta) => setState(() {
     month = DateTime(month.year, month.month + delta);
     day = null;
@@ -83,7 +84,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   (search.isEmpty ||
                       '${e.note} ${e.counterparty} ${data.category(e.categoryId)} ${data.account(e.accountId).name}'
                           .toLowerCase()
-                          .contains(search.toLowerCase())),
+                          .contains(search.trim().toLowerCase())),
             )
             .toList();
         final green = Theme.of(context).brightness == Brightness.dark
@@ -108,92 +109,93 @@ class _HomePageState extends ConsumerState<HomePage> {
             ],
           ),
         );
+        final dailyTotals = <String, Map<String, int>>{};
+        for (final entry in entries) {
+          if (entry.kind == 'income' || entry.kind == 'expense') {
+            final values = dailyTotals.putIfAbsent(entry.date, () => {});
+            values.update(
+              entry.kind,
+              (v) => v + entry.amount,
+              ifAbsent: () => entry.amount,
+            );
+          }
+        }
         return ListView(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 100),
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           children: [
             Card(
+              key: const ValueKey('monthly-summary'),
               borderOnForeground: false,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '${month.year} 年 ${month.month} 月',
-                      style: Theme.of(context).textTheme.labelLarge,
-                    ),
-                    const SizedBox(height: 12),
                     Row(
                       children: [
                         metric('收入', income, color: green),
                         metric('支出', expense, color: red),
-                        metric('借入', total('borrow')),
-                        metric('借出', total('lend')),
-                      ],
-                    ),
-                    const Divider(height: 28),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
                         metric('结余', income - expense),
-                        Expanded(
-                          child: InkWell(
-                            onTap: () => editBudget(
-                              context,
-                              ref,
-                              monthKey(month),
-                              currency,
-                              budget,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('预算  ›'),
-                                Text(
-                                  budget == null
-                                      ? '未设置'
-                                      : decimalMoney(budget, currency),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      '剩余 ${budget == null ? '—' : decimalMoney(budget - expense, currency)}',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: budget != null && expense > budget
-                                ? red
-                                : null,
-                          ),
-                    ),
-                    if (budget != null && budget > 0) ...[
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                          value: (expense / budget).clamp(0, 1),
-                          minHeight: 6,
-                          color: expense > budget
-                              ? red
-                              : Theme.of(context).colorScheme.primary,
-                          semanticsLabel: '预算使用',
-                          semanticsValue:
-                              '已使用 ${(expense / budget * 100).toStringAsFixed(0)}%',
+                    const Divider(height: 16),
+                    InkWell(
+                      onTap: () => editBudget(
+                        context,
+                        ref,
+                        monthKey(month),
+                        currency,
+                        budget,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Wrap(
+                          spacing: 16,
+                          runSpacing: 4,
+                          children: [
+                            Text(
+                              budget == null
+                                  ? '预算：未设置  ›'
+                                  : '预算 ${decimalMoney(budget, currency)}  ›',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            if (budget != null)
+                              Text(
+                                '剩余 ${decimalMoney(budget - expense, currency)}',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: expense > budget ? red : null,
+                                    ),
+                              ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '预算已用 ${(expense / budget * 100).toStringAsFixed(0)}%',
-                        style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    if (budget != null && budget > 0)
+                      LinearProgressIndicator(
+                        value: (expense / budget).clamp(0, 1),
+                        minHeight: 3,
+                        color: expense > budget ? red : null,
+                        semanticsLabel:
+                            '预算已使用 ${(expense / budget * 100).toStringAsFixed(0)}%',
                       ),
-                    ],
+                    if (total('borrow') != 0 || total('lend') != 0)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          '借入 ${money(total('borrow'), currency)} · 借出 ${money(total('lend'), currency)}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
                     if (totals.isLoading) const LinearProgressIndicator(),
-                    if (totals.hasError) const Text('统计读取失败'),
+                    if (totals.hasError)
+                      TextButton(
+                        onPressed: () =>
+                            ref.invalidate(monthlyProvider(monthKey(month))),
+                        child: const Text('统计读取失败，点击重试'),
+                      ),
                   ],
                 ),
               ),
@@ -212,122 +214,146 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ),
                 ),
                 IconButton(
+                  tooltip: calendarExpanded ? '收起月历' : '展开月历',
+                  onPressed: () =>
+                      setState(() => calendarExpanded = !calendarExpanded),
+                  icon: Icon(
+                    calendarExpanded
+                        ? Icons.unfold_less
+                        : Icons.calendar_month_outlined,
+                  ),
+                ),
+                IconButton(
                   tooltip: '下个月',
                   onPressed: () => moveMonth(1),
                   icon: const Icon(Icons.chevron_right),
                 ),
               ],
             ),
-            Row(
-              children: [
-                for (final label in ['一', '二', '三', '四', '五', '六', '日'])
-                  Expanded(child: Center(child: Text(label))),
-              ],
-            ),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final offset = month.weekday - 1,
-                    count = DateTime(month.year, month.month + 1, 0).day;
-                return Wrap(
-                  children: [
-                    for (var i = 0; i < ((offset + count + 6) ~/ 7) * 7; i++)
-                      SizedBox(
-                        width: constraints.maxWidth / 7,
-                        height:
-                            68 +
-                            (MediaQuery.textScalerOf(context).scale(14) - 14)
-                                .clamp(0, 32),
-                        child: i < offset || i >= offset + count
-                            ? null
-                            : Builder(
-                                builder: (context) {
-                                  final key = dateKey(
-                                    DateTime(
-                                      month.year,
-                                      month.month,
-                                      i - offset + 1,
-                                    ),
-                                  );
-                                  int daily(String kind) => entries
-                                      .where(
-                                        (e) => e.date == key && e.kind == kind,
-                                      )
-                                      .fold<int>(0, (s, e) => s + e.amount);
-                                  final inc = daily('income'),
-                                      out = daily('expense');
-                                  Widget amount(
-                                    int value,
-                                    String sign,
-                                    Color color,
-                                  ) => Tooltip(
-                                    message:
-                                        '$key $sign${money(value, currency)}',
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 2,
+            if (calendarExpanded) ...[
+              Row(
+                children: [
+                  for (final label in ['一', '二', '三', '四', '五', '六', '日'])
+                    Expanded(child: Center(child: Text(label))),
+                ],
+              ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final offset = month.weekday - 1,
+                      count = DateTime(month.year, month.month + 1, 0).day;
+                  return Wrap(
+                    children: [
+                      for (var i = 0; i < ((offset + count + 6) ~/ 7) * 7; i++)
+                        SizedBox(
+                          width: constraints.maxWidth / 7,
+                          height:
+                              (MediaQuery.textScalerOf(context).scale(12) *
+                                          1.2 +
+                                      MediaQuery.textScalerOf(context)
+                                              .scale(10) *
+                                          2 *
+                                          1.2 +
+                                      8)
+                                  .clamp(48, double.infinity),
+                          child: i < offset || i >= offset + count
+                              ? null
+                              : Builder(
+                                  builder: (context) {
+                                    final key = dateKey(
+                                      DateTime(
+                                        month.year,
+                                        month.month,
+                                        i - offset + 1,
                                       ),
-                                      child: FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        child: Text(
-                                          '$sign${decimalMoney(value, currency)}',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: color,
+                                    );
+                                    int daily(String kind) =>
+                                        dailyTotals[key]?[kind] ?? 0;
+                                    final inc = daily('income'),
+                                        out = daily('expense');
+                                    Widget amount(
+                                      int value,
+                                      String sign,
+                                      Color color,
+                                    ) => Tooltip(
+                                      message:
+                                          '$key $sign${money(value, currency)}',
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 2,
+                                        ),
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(
+                                            '$sign${decimalMoney(value, currency)}',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              height: 1.2,
+                                              color: color,
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  );
-                                  return Semantics(
-                                    label: key,
-                                    selected: day == key,
-                                    button: true,
-                                    child: InkWell(
-                                      onTap: () => setState(
-                                        () => day = day == key ? null : key,
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Container(
-                                        margin: const EdgeInsets.all(2),
-                                        decoration: BoxDecoration(
-                                          color: day == key
-                                              ? Theme.of(context)
-                                                    .colorScheme
-                                                    .primaryContainer
-                                              : null,
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          border: key == dateKey(DateTime.now())
-                                              ? Border.all(
-                                                  color: Theme.of(context)
+                                    );
+                                    return Semantics(
+                                      key: ValueKey('calendar-$key'),
+                                      label: key,
+                                      selected: day == key,
+                                      button: true,
+                                      child: InkWell(
+                                        onTap: () => setState(
+                                          () => day = day == key ? null : key,
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Container(
+                                          margin: const EdgeInsets.all(2),
+                                          decoration: BoxDecoration(
+                                            color: day == key
+                                                ? Theme.of(context)
                                                       .colorScheme
-                                                      .primary,
-                                                )
-                                              : null,
-                                        ),
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Text('${i - offset + 1}'),
-                                            const SizedBox(height: 2),
-                                            if (inc > 0)
-                                              amount(inc, '+', green),
-                                            if (out > 0) amount(out, '-', red),
-                                          ],
+                                                      .primaryContainer
+                                                : null,
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            border:
+                                                key == dateKey(DateTime.now())
+                                                ? Border.all(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .primary,
+                                                  )
+                                                : null,
+                                          ),
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                '${i - offset + 1}',
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  height: 1.2,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              if (inc > 0)
+                                                amount(inc, '+', green),
+                                              if (out > 0)
+                                                amount(out, '-', red),
+                                            ],
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  );
-                                },
-                              ),
-                      ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 12),
+                                    );
+                                  },
+                                ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ],
+            const SizedBox(height: 6),
             ClearableSearch(
               value: search,
               hint: '搜索备注、往来人、分类或账户',
@@ -337,11 +363,12 @@ class _HomePageState extends ConsumerState<HomePage> {
             Wrap(
               spacing: 8,
               children: [
-                FilterChip(
-                  label: Text(day ?? '整月'),
-                  selected: day != null,
-                  onSelected: (_) => setState(() => day = null),
-                ),
+                if (day != null)
+                  FilterChip(
+                    label: Text(day!),
+                    selected: day != null,
+                    onSelected: (_) => setState(() => day = null),
+                  ),
                 PopupMenuButton<String>(
                   onSelected: (v) => setState(
                     () => kind = v.isEmpty ? null : EntryKind.values.byName(v),
@@ -352,7 +379,15 @@ class _HomePageState extends ConsumerState<HomePage> {
                       (k) => PopupMenuItem(value: k.name, child: Text(k.label)),
                     ),
                   ],
-                  child: Chip(label: Text('${kind?.label ?? '全部类型'} ▾')),
+                  child: Chip(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(kind?.label ?? '全部类型'),
+                        const Icon(Icons.arrow_drop_down, size: 16),
+                      ],
+                    ),
+                  ),
                 ),
                 PopupMenuButton<String>(
                   onSelected: (v) =>
@@ -369,14 +404,46 @@ class _HomePageState extends ConsumerState<HomePage> {
                     ),
                   ],
                   child: Chip(
-                    label: Text(
-                      '${category == null ? '全部分类' : data.category(category)} ▾',
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          category == null ? '全部分类' : data.category(category),
+                        ),
+                        const Icon(Icons.arrow_drop_down, size: 16),
+                      ],
                     ),
                   ),
                 ),
               ],
             ),
-            if (filtered.isEmpty) const EmptyState('暂无账目', '点击“记一笔”添加。'),
+            Padding(
+              key: const ValueKey('ledger-list-heading'),
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text(
+                '${day ?? monthKey(month)} · ${filtered.length} 笔',
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+            ),
+            if (filtered.isEmpty) ...[
+              EmptyState(
+                entries.isEmpty ? '暂无账目' : '没有匹配的账目',
+                entries.isEmpty ? '点击“记一笔”添加。' : '可清除筛选，查看本月其他账目。',
+              ),
+              if (day != null ||
+                  kind != null ||
+                  category != null ||
+                  search.isNotEmpty)
+                TextButton(
+                  onPressed: () => setState(() {
+                    day = null;
+                    kind = null;
+                    category = null;
+                    search = '';
+                  }),
+                  child: const Text('清除筛选'),
+                ),
+            ],
             for (final entry in filtered) EntryTile(entry: entry, data: data),
           ],
         );
@@ -385,7 +452,10 @@ class _HomePageState extends ConsumerState<HomePage> {
     floatingActionButton: FloatingActionButton.extended(
       onPressed: () => openForm(
         context,
-        EntryForm(initialDate: day == null ? null : parseDate(day!)),
+        EntryForm(
+          initialDate: day == null ? null : parseDate(day!),
+          initialCurrency: currency,
+        ),
       ),
       icon: const Icon(Icons.add),
       label: const Text('记一笔'),
@@ -408,18 +478,58 @@ class EntryTile extends ConsumerWidget {
         children: [
           ListTile(
             leading: CircleAvatar(
+              radius: 16,
               child: Icon(
                 kind.direction > 0 ? Icons.south_west : Icons.north_east,
               ),
             ),
-            title: Text(
-              kind.needsCategory ? data.category(entry.categoryId) : kind.label,
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    kind.needsCategory
+                        ? data.category(entry.categoryId)
+                        : kind.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '${kind.direction > 0 ? '+' : '-'}${decimalMoney(entry.amount, account.currency)}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
             ),
             subtitle: Text(
               '${entry.date} · ${account.name}${entry.targetAccountId == null ? '' : ' → ${data.account(entry.targetAccountId!).name}'}${entry.counterparty.isEmpty ? '' : ' · ${entry.counterparty}'}${entry.note.isEmpty ? '' : '\n${entry.note}'}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            trailing: Text(
-              '${kind.direction > 0 ? '+' : '-'}${decimalMoney(entry.amount, account.currency)}',
+            trailing: PopupMenuButton<String>(
+              tooltip: '账目操作',
+              onSelected: (action) async {
+                if (action == 'item') {
+                  await openForm(context, ItemForm(initialEntry: entry));
+                } else if (await confirm(context, '删除这笔账目？', '关联会解除，物品仍保留。') &&
+                    context.mounted) {
+                  await perform(
+                    context,
+                    () => ref.read(ledgerProvider).deleteEntry(entry.id),
+                  );
+                }
+              },
+              itemBuilder: (_) => [
+                if (kind == EntryKind.expense)
+                  const PopupMenuItem(value: 'item', child: Text('记物')),
+                const PopupMenuItem(value: 'delete', child: Text('删除账目')),
+              ],
             ),
             onTap: () => openForm(context, EntryForm(entry: entry)),
           ),
@@ -447,31 +557,6 @@ class EntryTile extends ConsumerWidget {
                 ],
               ),
             ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              if (kind == EntryKind.expense)
-                TextButton.icon(
-                  onPressed: () =>
-                      openForm(context, ItemForm(initialEntry: entry)),
-                  icon: const Icon(Icons.add_box_outlined, size: 18),
-                  label: const Text('记物'),
-                ),
-              IconButton(
-                tooltip: '删除账目',
-                onPressed: () async {
-                  if (await confirm(context, '删除这笔账目？', '关联会解除，物品仍保留。') &&
-                      context.mounted) {
-                    await perform(
-                      context,
-                      () => ref.read(ledgerProvider).deleteEntry(entry.id),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.delete_outline, size: 20),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -488,34 +573,48 @@ Future<void> editBudget(
   final controller = TextEditingController(
     text: current == null ? '' : decimalMoney(current, currency),
   );
-  final input = await showDialog<String>(
+  String? error;
+  final input = await showDialog<int>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text('$month 预算 · $currency'),
-      content: TextField(
-        controller: controller,
-        autofocus: true,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: const InputDecoration(labelText: '预算金额'),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, controller.text),
-          child: const Text('保存'),
-        ),
-      ],
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) {
+        void submit() {
+          try {
+            final value = parseMoney(controller.text, currency);
+            Navigator.pop(context, value);
+          } on FormatException catch (e) {
+            setState(() => error = e.message);
+          }
+        }
+
+        return AlertDialog(
+          title: Text('$month 预算 · $currency'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => submit(),
+            onChanged: (_) {
+              if (error != null) setState(() => error = null);
+            },
+            decoration: InputDecoration(labelText: '预算金额', errorText: error),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            FilledButton(onPressed: submit, child: const Text('保存')),
+          ],
+        );
+      },
     ),
   );
   if (input != null && context.mounted) {
     await perform(
       context,
-      () => ref
-          .read(ledgerProvider)
-          .setBudget(month, currency, parseMoney(input, currency)),
+      () => ref.read(ledgerProvider).setBudget(month, currency, input),
     );
   }
   // Dialog exit animations still reference its controller; disposal is deferred.

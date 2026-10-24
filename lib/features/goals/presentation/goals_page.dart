@@ -112,7 +112,7 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
                 return value != 0 ? value : b.createdAt.compareTo(a.createdAt);
               });
         return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 80),
           children: [
             Wrap(
               spacing: 12,
@@ -140,7 +140,7 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
               borderOnForeground: false,
               color: Theme.of(context).colorScheme.primaryContainer,
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -195,7 +195,7 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
                 child: InkWell(
                   onTap: () => openForm(context, GoalDetailPage(id: goal.id)),
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(12),
                     child: GoalProgress(
                       goal: goal,
                       saved: totals[goal.id] ?? 0,
@@ -552,7 +552,7 @@ class _GoalDetailState extends ConsumerState<GoalDetailPage> {
           ],
         ),
         body: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(12),
           children: [
             GoalProgress(goal: goal, saved: saved),
             if (goal.note.isNotEmpty)
@@ -562,7 +562,7 @@ class _GoalDetailState extends ConsumerState<GoalDetailPage> {
               ),
             const SizedBox(height: 12),
             const Text('进度独立记录，不影响账户、交易或预算。实际购买请另行记账。'),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
             if (goal.status == 'active') ...[
               Wrap(
                 spacing: 12,

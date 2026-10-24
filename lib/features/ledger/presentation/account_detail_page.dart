@@ -104,6 +104,7 @@ class _AccountDetailState extends State<AccountDetailPage> {
                         ? EntryKind.borrow
                         : EntryKind.lend)
                   : EntryKind.expense,
+              initialCurrency: account.currency,
               initialDebtAccountId: account.kind == '债务' ? account.id : null,
               initialCounterparty: account.kind == '债务' ? account.name : null,
             ),
@@ -112,13 +113,13 @@ class _AccountDetailState extends State<AccountDetailPage> {
           label: Text(account.kind == '债务' ? '新增借贷' : '记一笔'),
         ),
         body: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 80),
           children: [
             Card(
               borderOnForeground: false,
               color: Theme.of(context).colorScheme.primaryContainer,
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

@@ -109,13 +109,15 @@ ThemeData appTheme(
   return ThemeData(
     fontFamily: 'NotoSansSC',
     useMaterial3: true,
+    visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
     colorScheme: colors,
     scaffoldBackgroundColor: colors.surface,
     dividerTheme: DividerThemeData(
       color: colors.outlineVariant.withValues(alpha: .45),
-      space: 24,
+      space: 12,
     ),
     navigationBarTheme: NavigationBarThemeData(
+      height: 64,
       backgroundColor: colors.surface,
       elevation: 0,
       indicatorColor: colors.secondaryContainer,
@@ -129,6 +131,7 @@ ThemeData appTheme(
       ),
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
+      extendedSizeConstraints: const BoxConstraints.tightFor(height: 48),
       elevation: 0,
       highlightElevation: 0,
       focusElevation: 0,
@@ -144,14 +147,22 @@ ThemeData appTheme(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       side: BorderSide(color: colors.outlineVariant.withValues(alpha: .5)),
       selectedColor: colors.primaryContainer,
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
     ),
     appBarTheme: AppBarTheme(
+      toolbarHeight: 48,
+      titleTextStyle: TextStyle(
+        fontFamily: 'NotoSansSC',
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: colors.onSurface,
+      ),
       backgroundColor: colors.surface,
       scrolledUnderElevation: 0,
       centerTitle: false,
     ),
     cardTheme: CardThemeData(
+      margin: const EdgeInsets.symmetric(vertical: 3),
       elevation: 0,
       color: cool
           ? (dark
@@ -164,14 +175,21 @@ ThemeData appTheme(
           : const Color(0xFFFFF4EA),
       shape: summer && art != null
           ? BotanicalCardBorder(image: art.large, opacity: dark ? .055 : .23)
-          : RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          : RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+    ),
+    listTileTheme: const ListTileThemeData(
+      minTileHeight: 56,
+      horizontalTitleGap: 10,
+      minVerticalPadding: 6,
+      contentPadding: EdgeInsets.symmetric(horizontal: 12),
     ),
     inputDecorationTheme: InputDecorationTheme(
+      isDense: true,
       filled: true,
       fillColor: dark
           ? colors.surfaceContainerLow
           : Colors.white.withValues(alpha: .75),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       border: inputBorder(BorderSide.none),
       enabledBorder: inputBorder(BorderSide.none),
       disabledBorder: inputBorder(BorderSide.none),
@@ -183,7 +201,7 @@ ThemeData appTheme(
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        minimumSize: const Size(48, 50),
+        minimumSize: const Size(48, 44),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     ),
