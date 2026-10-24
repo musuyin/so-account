@@ -516,7 +516,10 @@ class EntryTile extends ConsumerWidget {
               tooltip: '账目操作',
               onSelected: (action) async {
                 if (action == 'item') {
-                  await openForm(context, ItemForm(initialEntry: entry));
+                  await openForm(
+                    context,
+                    EntryForm(entry: entry, initialRecordItem: true),
+                  );
                 } else if (await confirm(context, '删除这笔账目？', '关联会解除，物品仍保留。') &&
                     context.mounted) {
                   await perform(

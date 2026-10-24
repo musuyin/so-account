@@ -4,6 +4,9 @@ import 'package:uuid/uuid.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/business_date.dart';
 import '../../../data/database/app_database.dart';
+import '../../inventory/data/inventory_repository.dart';
+import '../../inventory/domain/item_categories.dart';
+import '../../inventory/domain/new_purchase_item.dart';
 import '../domain/entry_kind.dart';
 import '../domain/banks.dart';
 
@@ -230,7 +233,16 @@ class LedgerRepository {
     String? debtAccountId,
     required String date,
     String note = '',
+    NewPurchaseItem? newItem,
   }) => db.transaction(() async {
+    if (newItem != null) {
+      if (kind != EntryKind.expense) {
+        throw const FormatException('只有支出可以同步记物');
+      }
+      if (newItem.category.trim().isEmpty) {
+        throw const FormatException('请选择物品类型');
+      }
+    }
     if (amount <= 0 || amount > 999999999999) {
       throw const FormatException('金额必须大于零且不超出上限');
     }
@@ -410,6 +422,19 @@ class LedgerRepository {
             updatedAt: now,
           ),
         );
+    if (newItem != null) {
+      await InventoryRepository(db).save(
+        name: newItem.name,
+        category: encodeItemTags([newItem.category.trim()]),
+        currency: account.currency,
+        price: newItem.price,
+        purchasedOn: date,
+        useType: newItem.useType,
+        quantity: newItem.quantity,
+        unit: newItem.unit,
+        entryIds: [entryId],
+      );
+    }
     return entryId;
   });
 

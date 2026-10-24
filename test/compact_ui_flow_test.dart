@@ -341,7 +341,11 @@ void main() {
             w.key == ValueKey('account-${usd.id}'),
       );
       expect(accountField, findsOneWidget);
-      await t.ensureVisible(find.text('7').first);
+      await t.scrollUntilVisible(
+        find.text('7'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       await t.pumpAndSettle();
       await t.tap(find.text('7').first);
       await t.tap(find.text('保存'));

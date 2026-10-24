@@ -6,6 +6,8 @@ import '../../../app/widgets.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/business_date.dart';
 import '../../../data/database/app_database.dart';
+import '../../inventory/domain/item_categories.dart';
+import '../../inventory/domain/new_purchase_item.dart';
 import '../domain/entry_kind.dart';
 import '../domain/debt_relationship.dart';
 import 'accounts_page.dart';
@@ -24,6 +26,7 @@ class EntryForm extends ConsumerStatefulWidget {
     this.initialDebtAccountId,
     this.initialAccountId,
     this.initialCurrency,
+    this.initialRecordItem = false,
   });
   final Entry? entry;
   final EntryKind? initialKind;
@@ -32,6 +35,7 @@ class EntryForm extends ConsumerStatefulWidget {
   final String? initialDebtAccountId;
   final String? initialAccountId;
   final String? initialCurrency;
+  final bool initialRecordItem;
   final DateTime? initialDate;
   @override
   ConsumerState<EntryForm> createState() => _EntryFormState();
@@ -56,6 +60,13 @@ class _EntryFormState extends ConsumerState<EntryForm> {
       ? widget.initialDate ?? DateTime.now()
       : parseDate(widget.entry!.date);
   final amount = TextEditingController();
+  final itemName = TextEditingController();
+  final itemPrice = TextEditingController();
+  final itemQuantity = TextEditingController();
+  final itemUnit = TextEditingController();
+  late bool recordItem = widget.initialRecordItem;
+  String? itemCategory;
+  String itemUseType = 'durable';
   late final note = TextEditingController(text: widget.entry?.note);
   late final counterparty = TextEditingController(
     text: widget.entry?.counterparty ?? widget.initialCounterparty,
@@ -64,6 +75,10 @@ class _EntryFormState extends ConsumerState<EntryForm> {
   @override
   void dispose() {
     amount.dispose();
+    itemName.dispose();
+    itemPrice.dispose();
+    itemQuantity.dispose();
+    itemUnit.dispose();
     note.dispose();
     counterparty.dispose();
     super.dispose();
@@ -147,6 +162,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
         title: widget.entry == null ? '记一笔' : '编辑账目',
         saving: saving,
         onSave: () async {
+          if (saving) return;
           setState(() => saving = true);
           final ok = await perform(context, () async {
             if ([EntryKind.borrow, EntryKind.lend].contains(kind) &&
@@ -167,6 +183,22 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                   debtAccountId: debtAccountId,
                   date: dateKey(date),
                   note: note.text,
+                  newItem: kind == EntryKind.expense && recordItem
+                      ? NewPurchaseItem(
+                          name: itemName.text,
+                          category: itemCategory ?? '',
+                          useType: itemUseType,
+                          price: itemPrice.text.trim().isEmpty
+                              ? null
+                              : parseMoney(itemPrice.text, account.currency),
+                          quantity: itemUseType == 'consumable'
+                              ? itemQuantity.text
+                              : null,
+                          unit: itemUseType == 'consumable'
+                              ? itemUnit.text
+                              : null,
+                        )
+                      : null,
                 );
           });
           if (mounted && context.mounted) {
@@ -360,9 +392,120 @@ class _EntryFormState extends ConsumerState<EntryForm> {
             const Text('需要再添加一个同币种账户才能转账。'),
           if (kind.isSettlement && debts.isEmpty)
             const Text('暂无对应币种的原始借贷，请先记录借入或借出。'),
+          if (kind == EntryKind.expense) ...[
+            SwitchListTile.adaptive(
+              key: const ValueKey('record-item-switch'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('同步记物'),
+              subtitle: Text(
+                widget.entry == null
+                    ? '保存支出时，同时创建并关联一件物品'
+                    : '新增一件物品并关联此支出，已有物品不变',
+              ),
+              value: recordItem,
+              onChanged: saving
+                  ? null
+                  : (value) => setState(() => recordItem = value),
+            ),
+            if (recordItem) _buildItemFields(data, account.currency),
+          ],
           AmountPad(controller: amount, currency: account.currency),
         ],
       );
     },
+  );
+
+  Widget _buildItemFields(AppSnapshot data, String currency) => Card(
+    key: const ValueKey('inline-purchase-item'),
+    borderOnForeground: false,
+    child: Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: itemName,
+            maxLength: 100,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
+              labelText: '物品名称',
+              counterText: '',
+            ),
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            key: const ValueKey('inline-item-category'),
+            initialValue: itemCategory,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: '物品类型',
+              hintText: '请选择物品类型',
+            ),
+            items: [
+              for (final category in {
+                ...configuredItemCategories(
+                  data.preferences
+                      .where((p) => p.key == 'item_categories')
+                      .firstOrNull
+                      ?.value,
+                ),
+                ...data.items.expand((item) => itemTags(item.category)),
+                ?itemCategory,
+                '未分类',
+              })
+                DropdownMenuItem(
+                  value: category,
+                  child: Text(category, overflow: TextOverflow.ellipsis),
+                ),
+            ],
+            onChanged: (value) => setState(() => itemCategory = value),
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            key: const ValueKey('inline-item-use-type'),
+            initialValue: itemUseType,
+            decoration: const InputDecoration(labelText: '使用属性'),
+            items: const [
+              DropdownMenuItem(value: 'durable', child: Text('长期使用物')),
+              DropdownMenuItem(value: 'consumable', child: Text('消耗品')),
+            ],
+            onChanged: (value) => setState(() => itemUseType = value!),
+          ),
+          if (itemUseType == 'consumable') ...[
+            const SizedBox(height: 10),
+            TextField(
+              controller: itemQuantity,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(labelText: '数量 / 容量 · 可留空'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: itemUnit,
+              maxLength: 20,
+              decoration: const InputDecoration(
+                labelText: '单位 · 可留空',
+                counterText: '',
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          TextField(
+            controller: itemPrice,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: '物品价格 · $currency · 可留空',
+              helperText: '单独填写这件物品的价格，不自动分配整笔支出。',
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '购入日期 ${dateKey(date)} · 币种 $currency',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    ),
   );
 }
