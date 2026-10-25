@@ -9,6 +9,7 @@ import '../../../data/database/app_database.dart';
 import '../../inventory/presentation/item_form.dart';
 import '../domain/entry_kind.dart';
 import 'entry_form.dart';
+import 'calendar_heatmap.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -87,12 +88,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                           .contains(search.trim().toLowerCase())),
             )
             .toList();
-        final green = Theme.of(context).brightness == Brightness.dark
-            ? const Color(0xFF81C995)
-            : const Color(0xFF237A43);
-        final red = Theme.of(context).brightness == Brightness.dark
-            ? const Color(0xFFF28B82)
-            : const Color(0xFFB3261E);
+        final green = calendarIncomeColor(Theme.of(context).brightness);
+        final red = calendarExpenseColor(Theme.of(context).brightness);
         Widget metric(String label, int amount, {Color? color}) => Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -120,6 +117,11 @@ class _HomePageState extends ConsumerState<HomePage> {
             );
           }
         }
+        final maximumNet = dailyTotals.values.fold<int>(0, (maximum, values) {
+          final value = ((values['income'] ?? 0) - (values['expense'] ?? 0))
+              .abs();
+          return value > maximum ? value : maximum;
+        });
         return ListView(
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -247,13 +249,13 @@ class _HomePageState extends ConsumerState<HomePage> {
                         SizedBox(
                           width: constraints.maxWidth / 7,
                           height:
-                              (MediaQuery.textScalerOf(context).scale(12) *
+                              (MediaQuery.textScalerOf(context).scale(14) *
                                           1.2 +
                                       MediaQuery.textScalerOf(context)
                                               .scale(10) *
                                           2 *
                                           1.2 +
-                                      8)
+                                      10)
                                   .clamp(48, double.infinity),
                           child: i < offset || i >= offset + count
                               ? null
@@ -296,7 +298,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                                     );
                                     return Semantics(
                                       key: ValueKey('calendar-$key'),
-                                      label: key,
+                                      label:
+                                          '$key，收入 ${money(inc, currency)}，支出 ${money(out, currency)}，净额 ${money(inc - out, currency)}',
                                       selected: day == key,
                                       button: true,
                                       child: InkWell(
@@ -307,20 +310,29 @@ class _HomePageState extends ConsumerState<HomePage> {
                                         child: Container(
                                           margin: const EdgeInsets.all(2),
                                           decoration: BoxDecoration(
-                                            color: day == key
-                                                ? Theme.of(context)
-                                                      .colorScheme
-                                                      .primaryContainer
-                                                : null,
+                                            color: calendarHeatColor(
+                                              Theme.of(context).colorScheme,
+                                              inc,
+                                              out,
+                                              maximumNet,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                          foregroundDecoration: BoxDecoration(
                                             borderRadius: BorderRadius.circular(
                                               12,
                                             ),
                                             border:
-                                                key == dateKey(DateTime.now())
+                                                day == key ||
+                                                    key ==
+                                                        dateKey(DateTime.now())
                                                 ? Border.all(
                                                     color: Theme.of(context)
                                                         .colorScheme
                                                         .primary,
+                                                    width: day == key ? 2 : 1,
                                                   )
                                                 : null,
                                           ),
@@ -330,16 +342,23 @@ class _HomePageState extends ConsumerState<HomePage> {
                                             children: [
                                               Text(
                                                 '${i - offset + 1}',
-                                                style: const TextStyle(
-                                                  fontSize: 12,
+                                                style: TextStyle(
+                                                  fontSize: 14,
                                                   height: 1.2,
+                                                  fontWeight:
+                                                      key ==
+                                                          dateKey(
+                                                            DateTime.now(),
+                                                          )
+                                                      ? FontWeight.w700
+                                                      : FontWeight.w500,
                                                 ),
                                               ),
                                               const SizedBox(height: 2),
-                                              if (inc > 0)
-                                                amount(inc, '+', green),
-                                              if (out > 0)
+                                              if (inc > 0 || out > 0) ...[
                                                 amount(out, '-', red),
+                                                amount(inc, '+', green),
+                                              ],
                                             ],
                                           ),
                                         ),
@@ -352,6 +371,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   );
                 },
               ),
+              const CalendarHeatLegend(),
             ],
             const SizedBox(height: 6),
             ClearableSearch(

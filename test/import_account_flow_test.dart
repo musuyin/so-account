@@ -56,26 +56,16 @@ void main() {
           await tester.pumpAndSettle();
           expect(find.text('请选择账户类型、渠道和币种'), findsOneWidget);
           await tester.enterText(nameField, '旅行现金');
-          for (final entry in {
-            '账户类型': '资金账户',
-            '类别': '现金',
-            '币种': 'CNY',
-          }.entries) {
-            final dropdown = find.byWidgetPredicate(
-              (w) =>
-                  w is DropdownButtonFormField<String> &&
-                  w.decoration.labelText == entry.key,
-            );
-            await tester.scrollUntilVisible(
-              dropdown,
-              200,
-              scrollable: find.byType(Scrollable).last,
-            );
-            await tester.tap(dropdown);
-            await tester.pumpAndSettle();
-            await tester.tap(find.text(entry.value).last);
-            await tester.pumpAndSettle();
-          }
+          final cash = find.byKey(const ValueKey('account-type-资金账户-现金'));
+          await tester.ensureVisible(cash);
+          await tester.pumpAndSettle();
+          await tester.tap(cash);
+          await tester.pumpAndSettle();
+          final currency = find.byKey(const ValueKey('account-currency-CNY'));
+          await tester.ensureVisible(currency);
+          await tester.pumpAndSettle();
+          await tester.tap(currency);
+          await tester.pumpAndSettle();
           final opening = find.byWidgetPredicate(
             (w) => w is TextField && w.decoration?.labelText == '初始余额',
           );

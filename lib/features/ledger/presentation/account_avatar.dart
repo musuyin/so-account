@@ -12,8 +12,9 @@ const avatarLabels = {
 };
 
 class AccountAvatar extends StatelessWidget {
-  const AccountAvatar({super.key, required this.account});
+  const AccountAvatar({super.key, required this.account, this.radius = 20});
   final Account account;
+  final double radius;
   @override
   Widget build(BuildContext context) {
     if (isBankChannel(account.channel) &&
@@ -25,6 +26,7 @@ class AccountAvatar extends StatelessWidget {
         child: Semantics(
           label: label,
           child: CircleAvatar(
+            radius: radius,
             backgroundColor: Theme.of(context).colorScheme.primaryContainer,
             child: const Icon(Icons.account_balance),
           ),
@@ -58,7 +60,7 @@ class AccountAvatar extends StatelessWidget {
     };
     return Semantics(
       label: avatarLabels[account.avatar] ?? '账户头像',
-      child: CircleAvatar(backgroundColor: color, child: child),
+      child: CircleAvatar(radius: radius, backgroundColor: color, child: child),
     );
   }
 }
