@@ -24,7 +24,7 @@ class _DebtAccountsState extends ConsumerState<PeopleDebtsPage> {
     body: DataView(
       builder: (data) {
         final balances = ref.watch(balancesProvider).value ?? {};
-        final accounts = data.accounts
+        final accounts = data.activeAccounts
             .where((a) => a.kind == '债务' && a.currency == currency)
             .toList();
         return ListView(

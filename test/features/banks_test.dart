@@ -58,7 +58,7 @@ void main() {
     },
   );
 
-  test('v7 account data upgrades to v8 with no bank selected', () async {
+  test('v7 account data upgrades with no bank selected', () async {
     final dir = await Directory.systemTemp.createTemp('so_bank_migration_');
     final file = File('${dir.path}/v7.sqlite');
     final old = AppDatabase(NativeDatabase(file));
@@ -70,8 +70,9 @@ void main() {
       openingBalance: -12345,
       avatar: 'bank',
     );
-    // v8 differs from v7 only by this column. Recreate the exact v7 shape.
+    // Recreate the exact v7 shape, without bank or archive fields.
     await old.customStatement('ALTER TABLE accounts DROP COLUMN bank');
+    await old.customStatement('ALTER TABLE accounts DROP COLUMN is_archived');
     await old.customStatement('PRAGMA user_version = 7');
     await old.close();
     final next = AppDatabase(NativeDatabase(file));
@@ -86,7 +87,7 @@ void main() {
             .data
             .values
             .single,
-        8,
+        9,
       );
       expect(
         await next.customSelect('PRAGMA foreign_key_check').get(),

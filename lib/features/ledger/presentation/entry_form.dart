@@ -87,7 +87,59 @@ class _EntryFormState extends ConsumerState<EntryForm> {
   @override
   Widget build(BuildContext context) => DataView(
     builder: (data) {
-      final funds = data.accounts
+      final historical = widget.entry ?? widget.initialDebt;
+      if (historical != null && data.hasArchivedAccount(historical)) {
+        return Scaffold(
+          appBar: AppBar(title: const Text('历史账目')),
+          body: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              const Text('关联账户已归档，历史记录只读。如需修改或结算，请先在设置 → 归档账户中恢复。'),
+              const SizedBox(height: 16),
+              Text(
+                '${EntryKind.values.byName(historical.kind).label} · ${money(historical.amount, data.account(historical.accountId).currency)}',
+              ),
+              Text(historical.date),
+              Text('账户：${data.account(historical.accountId).name}'),
+              if (historical.targetAccountId != null)
+                Text('转入：${data.account(historical.targetAccountId!).name}'),
+              if (historical.debtAccountId != null)
+                Text('债务账户：${data.account(historical.debtAccountId!).name}'),
+              Text(data.category(historical.categoryId)),
+              if (historical.note.isNotEmpty) Text(historical.note),
+            ],
+          ),
+        );
+      }
+      final archivedSelection = data.accounts.any(
+        (a) =>
+            a.isArchived &&
+            [
+              accountId,
+              if (kind == EntryKind.transfer) targetId,
+              if (kind == EntryKind.borrow || kind == EntryKind.lend)
+                debtAccountId,
+            ].contains(a.id),
+      );
+      if (archivedSelection) {
+        return Scaffold(
+          appBar: AppBar(title: const Text('记一笔')),
+          body: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              const Text('所选账户已归档。请重新选择账户，或在设置 → 归档账户中恢复。'),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () => setState(() {
+                  accountId = targetId = debtAccountId = debtId = null;
+                }),
+                child: const Text('重新选择账户'),
+              ),
+            ],
+          ),
+        );
+      }
+      final funds = data.activeAccounts
           .where((a) => kind == EntryKind.transfer || a.kind != '债务')
           .toList();
       if (funds.isEmpty ||
@@ -129,7 +181,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
       if (!categories.any((c) => c.id == categoryId)) {
         categoryId = categories.firstOrNull?.id;
       }
-      final targets = data.accounts
+      final targets = data.activeAccounts
           .where((a) => a.id != accountId && a.currency == account.currency)
           .toList();
       if (!targets.any((a) => a.id == targetId)) {
@@ -139,6 +191,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
           .where(
             (e) =>
                 e.id != widget.entry?.id &&
+                !data.hasArchivedAccount(e) &&
                 e.kind == (kind == EntryKind.repay ? 'borrow' : 'lend') &&
                 (debtRemaining(e, data.entries, excludingId: widget.entry?.id) >
                         0 ||
@@ -148,7 +201,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
           .toList();
       if (!debts.any((e) => e.id == debtId)) debtId = null;
       final debtSide = kind == EntryKind.borrow ? '应付款' : '应收款';
-      final debtAccounts = data.accounts
+      final debtAccounts = data.activeAccounts
           .where(
             (a) =>
                 a.kind == '债务' &&

@@ -76,9 +76,13 @@ List<MissingImportAccount> missingImportAccounts(
 ) {
   return importAccountSources(table, mapping).where((source) {
     final mapped = mapping.accounts[source.name];
-    if (mapped != null && accounts.any((a) => a.id == mapped)) return false;
+    if (mapped != null &&
+        accounts.any((a) => !a.isArchived && a.id == mapped)) {
+      return false;
+    }
     return !accounts.any(
       (a) =>
+          !a.isArchived &&
           a.name == source.name &&
           (source.currencies.length != 1 ||
               source.currencies.contains(a.currency)),

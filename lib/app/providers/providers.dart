@@ -100,6 +100,17 @@ class AppSnapshot {
   final List<BalanceAdjustment> adjustments;
   final List<WishGoal> goals;
   final List<GoalContribution> contributions;
+  List<Account> get activeAccounts =>
+      accounts.where((a) => !a.isArchived).toList();
+  bool hasArchivedAccount(Entry entry) => accounts.any(
+    (a) =>
+        a.isArchived &&
+        [
+          entry.accountId,
+          entry.targetAccountId,
+          entry.debtAccountId,
+        ].contains(a.id),
+  );
   Account account(String id) => accounts.firstWhere((a) => a.id == id);
   String category(String? id) =>
       categories.where((c) => c.id == id).firstOrNull?.name ?? '往来';

@@ -14,6 +14,7 @@ import '../../../platform/files/file_delivery.dart';
 import '../../statistics/data/csv_export.dart';
 import 'categories_page.dart';
 import 'item_categories_page.dart';
+import 'archived_accounts_page.dart';
 import '../../importing/presentation/import_page.dart';
 import '../../backup/presentation/backup_page.dart';
 import '../../updates/presentation/update_page.dart';
@@ -109,6 +110,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           children: [
             section('常用功能'),
             tiles([
+              _SettingsTile(
+                label: '归档账户',
+                icon: Icons.archive_outlined,
+                onTap: () => openForm(context, const ArchivedAccountsPage()),
+              ),
               _SettingsTile(
                 label: '心愿与攒钱',
                 icon: Icons.savings_outlined,

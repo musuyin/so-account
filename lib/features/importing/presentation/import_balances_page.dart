@@ -16,7 +16,7 @@ class ImportBalancesPage extends ConsumerWidget {
     body: DataView(
       builder: (data) {
         final balances = ref.watch(balancesProvider);
-        final accounts = data.accounts
+        final accounts = data.activeAccounts
             .where((a) => accountIds.contains(a.id))
             .toList();
         return ListView(
@@ -30,7 +30,8 @@ class ImportBalancesPage extends ConsumerWidget {
             const SizedBox(height: 16),
             if (balances.isLoading) const LinearProgressIndicator(),
             if (balances.hasError) const Text('余额读取失败，请返回后重试。'),
-            if (accounts.isEmpty) const EmptyState('没有需要核对的账户', '相关账户可能已被删除。'),
+            if (accounts.isEmpty)
+              const EmptyState('没有需要核对的账户', '相关账户可能已归档或删除。'),
             for (final account in accounts)
               ListTile(
                 contentPadding: EdgeInsets.zero,

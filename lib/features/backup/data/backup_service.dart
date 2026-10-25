@@ -64,6 +64,11 @@ class BackupService {
       );
       await _replace(stage, snapshot);
       snapshot = await _Snapshot.read(stage);
+      // Validate historical records with active accounts in isolation. The
+      // original snapshot keeps the archived state for the final restore.
+      await stage
+          .update(stage.accounts)
+          .write(const AccountsCompanion(isArchived: Value(false)));
       final ledger = LedgerRepository(stage);
       for (final a in snapshot.accounts) {
         if (a.openingBalance.abs() > 999999999999) {
@@ -295,6 +300,7 @@ class _Snapshot {
           'bank': '',
           'customChannel': '',
           'unitPrice': null,
+          'isArchived': false,
           ...r,
         }),
       ),

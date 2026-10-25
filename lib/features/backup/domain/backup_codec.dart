@@ -19,7 +19,7 @@ Uint8List encodeBackup(Map<String, Uint8List> files) {
   final archive = Archive();
   final manifest = <String, Object?>{
     'format': 1,
-    'schema': 8,
+    'schema': 9,
     'app': 'so_account',
     'createdAt': DateTime.now().toUtc().toIso8601String(),
     'files': {
@@ -98,7 +98,7 @@ Map<String, Uint8List> decodeBackup(Uint8List bytes) {
     final manifest =
         jsonDecode(utf8.decode(manifestFile.content)) as Map<String, dynamic>;
     if (manifest['format'] != 1 ||
-        ![1, 2, 3, 4, 5, 6, 7, 8].contains(manifest['schema']) ||
+        ![1, 2, 3, 4, 5, 6, 7, 8, 9].contains(manifest['schema']) ||
         manifest['app'] != 'so_account') {
       throw const FormatException('不支持的备份版本');
     }

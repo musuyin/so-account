@@ -246,6 +246,7 @@ void main() {
       await old.customStatement('DROP TABLE goal_contributions');
       await old.customStatement('DROP TABLE wish_goals');
       await old.customStatement('ALTER TABLE accounts DROP COLUMN bank');
+      await old.customStatement('ALTER TABLE accounts DROP COLUMN is_archived');
       await old.customStatement('PRAGMA user_version=5');
       await old.close();
       final next = AppDatabase(NativeDatabase(file));

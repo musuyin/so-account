@@ -9,6 +9,7 @@ import '../domain/banks.dart';
 import 'accounts_page.dart';
 import 'balance_adjustment_form.dart';
 import 'entry_form.dart';
+import 'account_actions.dart';
 
 class AccountDetailPage extends StatefulWidget {
   const AccountDetailPage({super.key, required this.id});
@@ -79,42 +80,57 @@ class _AccountDetailState extends State<AccountDetailPage> {
         appBar: AppBar(
           title: Text(account.name),
           actions: [
-            IconButton(
-              tooltip: '余额调整',
-              onPressed: () => openForm(
-                context,
-                BalanceAdjustmentForm(account: account, balance: balance),
+            if (!account.isArchived)
+              IconButton(
+                tooltip: '余额调整',
+                onPressed: () => openForm(
+                  context,
+                  BalanceAdjustmentForm(account: account, balance: balance),
+                ),
+                icon: const Icon(Icons.balance_outlined),
               ),
-              icon: const Icon(Icons.balance_outlined),
-            ),
-            IconButton(
-              tooltip: '编辑账户',
-              onPressed: () => openForm(context, AccountForm(account: account)),
-              icon: const Icon(Icons.edit_outlined),
-            ),
+            if (!account.isArchived)
+              IconButton(
+                tooltip: '编辑账户',
+                onPressed: () =>
+                    openForm(context, AccountForm(account: account)),
+                icon: const Icon(Icons.edit_outlined),
+              ),
+            AccountActionsButton(account: account),
           ],
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () => openForm(
-            context,
-            EntryForm(
-              initialAccountId: account.kind == '债务' ? null : account.id,
-              initialKind: account.kind == '债务'
-                  ? (account.channel == '应付款'
-                        ? EntryKind.borrow
-                        : EntryKind.lend)
-                  : EntryKind.expense,
-              initialCurrency: account.currency,
-              initialDebtAccountId: account.kind == '债务' ? account.id : null,
-              initialCounterparty: account.kind == '债务' ? account.name : null,
-            ),
-          ),
-          icon: const Icon(Icons.add),
-          label: Text(account.kind == '债务' ? '新增借贷' : '记一笔'),
-        ),
+        floatingActionButton: account.isArchived
+            ? null
+            : FloatingActionButton.extended(
+                onPressed: () => openForm(
+                  context,
+                  EntryForm(
+                    initialAccountId: account.kind == '债务' ? null : account.id,
+                    initialKind: account.kind == '债务'
+                        ? (account.channel == '应付款'
+                              ? EntryKind.borrow
+                              : EntryKind.lend)
+                        : EntryKind.expense,
+                    initialCurrency: account.currency,
+                    initialDebtAccountId: account.kind == '债务'
+                        ? account.id
+                        : null,
+                    initialCounterparty: account.kind == '债务'
+                        ? account.name
+                        : null,
+                  ),
+                ),
+                icon: const Icon(Icons.add),
+                label: Text(account.kind == '债务' ? '新增借贷' : '记一笔'),
+              ),
         body: ListView(
           padding: const EdgeInsets.fromLTRB(12, 4, 12, 80),
           children: [
+            if (account.isArchived)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: Text('此账户已归档，历史记录只读。可通过右上角账户操作或设置中的归档账户恢复。'),
+              ),
             Card(
               borderOnForeground: false,
               color: Theme.of(context).colorScheme.primaryContainer,

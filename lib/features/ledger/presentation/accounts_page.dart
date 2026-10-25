@@ -14,6 +14,7 @@ import 'people_debts_page.dart';
 import 'balance_adjustment_form.dart';
 import '../../goals/presentation/goals_page.dart';
 import 'account_detail_page.dart';
+import 'account_actions.dart';
 
 class AccountsPage extends ConsumerStatefulWidget {
   const AccountsPage({super.key});
@@ -69,7 +70,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
           );
         }
         final balances = state.value ?? {};
-        final accounts = data.accounts
+        final accounts = data.activeAccounts
             .where((a) => a.currency == currency)
             .toList();
         int balance(Account a) => balances[a.id] ?? a.openingBalance;
@@ -397,30 +398,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                               context,
                               AccountDetailPage(id: account.id),
                             ),
-                            trailing: PopupMenuButton<String>(
-                              tooltip: '账户操作',
-                              onSelected: (_) async {
-                                if (await confirm(
-                                      context,
-                                      '删除账户？',
-                                      '已有流水的账户不能删除。',
-                                    ) &&
-                                    context.mounted) {
-                                  await perform(
-                                    context,
-                                    () => ref
-                                        .read(ledgerProvider)
-                                        .deleteAccount(account.id),
-                                  );
-                                }
-                              },
-                              itemBuilder: (_) => const [
-                                PopupMenuItem(
-                                  value: 'delete',
-                                  child: Text('删除账户'),
-                                ),
-                              ],
-                            ),
+                            trailing: AccountActionsButton(account: account),
                           ),
                       ],
                     ],

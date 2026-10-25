@@ -40,7 +40,7 @@ dart run build_runner build
 dart run drift_dev schema dump lib/data/database/app_database.dart lib/data/database/migrations
 ```
 
-提交生成的 `.g.dart`、Schema 快照和依赖锁。新增 Schema 版本时同时写迁移及旧库升级测试；当前为 v8，保留 v1–v7 升级路径。
+提交生成的 `.g.dart`、Schema 快照和依赖锁。新增 Schema 版本时同时写迁移及旧库升级测试；当前为 v9，保留 v1–v8 升级路径。v9 新增账户归档状态，详见 [账户归档与永久删除](../product/account-archive.md)。
 
 ## 设备与 iOS
 

@@ -116,6 +116,21 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _isArchivedMeta = const VerificationMeta(
+    'isArchived',
+  );
+  @override
+  late final GeneratedColumn<bool> isArchived = GeneratedColumn<bool>(
+    'is_archived',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_archived" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -128,6 +143,7 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     customChannel,
     unitPrice,
     openingBalance,
+    isArchived,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -214,6 +230,12 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         ),
       );
     }
+    if (data.containsKey('is_archived')) {
+      context.handle(
+        _isArchivedMeta,
+        isArchived.isAcceptableOrUnknown(data['is_archived']!, _isArchivedMeta),
+      );
+    }
     return context;
   }
 
@@ -263,6 +285,10 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         DriftSqlType.int,
         data['${effectivePrefix}opening_balance'],
       )!,
+      isArchived: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_archived'],
+      )!,
     );
   }
 
@@ -283,6 +309,7 @@ class Account extends DataClass implements Insertable<Account> {
   final String customChannel;
   final String? unitPrice;
   final int openingBalance;
+  final bool isArchived;
   const Account({
     required this.id,
     required this.name,
@@ -294,6 +321,7 @@ class Account extends DataClass implements Insertable<Account> {
     required this.customChannel,
     this.unitPrice,
     required this.openingBalance,
+    required this.isArchived,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -310,6 +338,7 @@ class Account extends DataClass implements Insertable<Account> {
       map['unit_price'] = Variable<String>(unitPrice);
     }
     map['opening_balance'] = Variable<int>(openingBalance);
+    map['is_archived'] = Variable<bool>(isArchived);
     return map;
   }
 
@@ -327,6 +356,7 @@ class Account extends DataClass implements Insertable<Account> {
           ? const Value.absent()
           : Value(unitPrice),
       openingBalance: Value(openingBalance),
+      isArchived: Value(isArchived),
     );
   }
 
@@ -346,6 +376,7 @@ class Account extends DataClass implements Insertable<Account> {
       customChannel: serializer.fromJson<String>(json['customChannel']),
       unitPrice: serializer.fromJson<String?>(json['unitPrice']),
       openingBalance: serializer.fromJson<int>(json['openingBalance']),
+      isArchived: serializer.fromJson<bool>(json['isArchived']),
     );
   }
   @override
@@ -362,6 +393,7 @@ class Account extends DataClass implements Insertable<Account> {
       'customChannel': serializer.toJson<String>(customChannel),
       'unitPrice': serializer.toJson<String?>(unitPrice),
       'openingBalance': serializer.toJson<int>(openingBalance),
+      'isArchived': serializer.toJson<bool>(isArchived),
     };
   }
 
@@ -376,6 +408,7 @@ class Account extends DataClass implements Insertable<Account> {
     String? customChannel,
     Value<String?> unitPrice = const Value.absent(),
     int? openingBalance,
+    bool? isArchived,
   }) => Account(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -387,6 +420,7 @@ class Account extends DataClass implements Insertable<Account> {
     customChannel: customChannel ?? this.customChannel,
     unitPrice: unitPrice.present ? unitPrice.value : this.unitPrice,
     openingBalance: openingBalance ?? this.openingBalance,
+    isArchived: isArchived ?? this.isArchived,
   );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
@@ -404,6 +438,9 @@ class Account extends DataClass implements Insertable<Account> {
       openingBalance: data.openingBalance.present
           ? data.openingBalance.value
           : this.openingBalance,
+      isArchived: data.isArchived.present
+          ? data.isArchived.value
+          : this.isArchived,
     );
   }
 
@@ -419,7 +456,8 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('bank: $bank, ')
           ..write('customChannel: $customChannel, ')
           ..write('unitPrice: $unitPrice, ')
-          ..write('openingBalance: $openingBalance')
+          ..write('openingBalance: $openingBalance, ')
+          ..write('isArchived: $isArchived')
           ..write(')'))
         .toString();
   }
@@ -436,6 +474,7 @@ class Account extends DataClass implements Insertable<Account> {
     customChannel,
     unitPrice,
     openingBalance,
+    isArchived,
   );
   @override
   bool operator ==(Object other) =>
@@ -450,7 +489,8 @@ class Account extends DataClass implements Insertable<Account> {
           other.bank == this.bank &&
           other.customChannel == this.customChannel &&
           other.unitPrice == this.unitPrice &&
-          other.openingBalance == this.openingBalance);
+          other.openingBalance == this.openingBalance &&
+          other.isArchived == this.isArchived);
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
@@ -464,6 +504,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<String> customChannel;
   final Value<String?> unitPrice;
   final Value<int> openingBalance;
+  final Value<bool> isArchived;
   final Value<int> rowid;
   const AccountsCompanion({
     this.id = const Value.absent(),
@@ -476,6 +517,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.customChannel = const Value.absent(),
     this.unitPrice = const Value.absent(),
     this.openingBalance = const Value.absent(),
+    this.isArchived = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   AccountsCompanion.insert({
@@ -489,6 +531,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.customChannel = const Value.absent(),
     this.unitPrice = const Value.absent(),
     this.openingBalance = const Value.absent(),
+    this.isArchived = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -506,6 +549,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<String>? customChannel,
     Expression<String>? unitPrice,
     Expression<int>? openingBalance,
+    Expression<bool>? isArchived,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -519,6 +563,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (customChannel != null) 'custom_channel': customChannel,
       if (unitPrice != null) 'unit_price': unitPrice,
       if (openingBalance != null) 'opening_balance': openingBalance,
+      if (isArchived != null) 'is_archived': isArchived,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -534,6 +579,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Value<String>? customChannel,
     Value<String?>? unitPrice,
     Value<int>? openingBalance,
+    Value<bool>? isArchived,
     Value<int>? rowid,
   }) {
     return AccountsCompanion(
@@ -547,6 +593,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       customChannel: customChannel ?? this.customChannel,
       unitPrice: unitPrice ?? this.unitPrice,
       openingBalance: openingBalance ?? this.openingBalance,
+      isArchived: isArchived ?? this.isArchived,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -584,6 +631,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (openingBalance.present) {
       map['opening_balance'] = Variable<int>(openingBalance.value);
     }
+    if (isArchived.present) {
+      map['is_archived'] = Variable<bool>(isArchived.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -603,6 +653,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('customChannel: $customChannel, ')
           ..write('unitPrice: $unitPrice, ')
           ..write('openingBalance: $openingBalance, ')
+          ..write('isArchived: $isArchived, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4821,6 +4872,7 @@ typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   Value<String> customChannel,
   Value<String?> unitPrice,
   Value<int> openingBalance,
+  Value<bool> isArchived,
   Value<int> rowid,
 });
 typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
@@ -4834,6 +4886,7 @@ typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<String> customChannel,
   Value<String?> unitPrice,
   Value<int> openingBalance,
+  Value<bool> isArchived,
   Value<int> rowid,
 });
 
@@ -4922,6 +4975,11 @@ class $$AccountsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> balanceAdjustmentsRefs(
     Expression<bool> Function($$BalanceAdjustmentsTableFilterComposer f) f,
   ) {
@@ -5006,6 +5064,11 @@ class $$AccountsTableOrderingComposer
     column: $table.openingBalance,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AccountsTableAnnotationComposer
@@ -5048,6 +5111,11 @@ class $$AccountsTableAnnotationComposer
 
   GeneratedColumn<int> get openingBalance => $composableBuilder(
     column: $table.openingBalance,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
     builder: (column) => column,
   );
 
@@ -5116,6 +5184,7 @@ class $$AccountsTableTableManager
                 Value<String> customChannel = const Value.absent(),
                 Value<String?> unitPrice = const Value.absent(),
                 Value<int> openingBalance = const Value.absent(),
+                Value<bool> isArchived = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsCompanion(
                 id: id,
@@ -5128,6 +5197,7 @@ class $$AccountsTableTableManager
                 customChannel: customChannel,
                 unitPrice: unitPrice,
                 openingBalance: openingBalance,
+                isArchived: isArchived,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -5142,6 +5212,7 @@ class $$AccountsTableTableManager
                 Value<String> customChannel = const Value.absent(),
                 Value<String?> unitPrice = const Value.absent(),
                 Value<int> openingBalance = const Value.absent(),
+                Value<bool> isArchived = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsCompanion.insert(
                 id: id,
@@ -5154,6 +5225,7 @@ class $$AccountsTableTableManager
                 customChannel: customChannel,
                 unitPrice: unitPrice,
                 openingBalance: openingBalance,
+                isArchived: isArchived,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

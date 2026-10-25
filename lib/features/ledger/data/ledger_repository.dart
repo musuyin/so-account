@@ -72,6 +72,9 @@ class LedgerRepository {
                 ))
                 .get();
         if (duplicate.isNotEmpty) {
+          if (duplicate.any((a) => a.isArchived)) {
+            throw const FormatException('同名账户已归档，请在设置 → 归档账户中恢复，或使用其他名称');
+          }
           throw const FormatException('此币种已有同名账户，请使用已有账户或修改名称');
         }
       }
@@ -79,6 +82,9 @@ class LedgerRepository {
         final old = await (db.select(
           db.accounts,
         )..where((a) => a.id.equals(id))).getSingle();
+        if (old.isArchived) {
+          throw const FormatException('账户已归档，请先在设置中恢复');
+        }
         final used =
             await (db.select(db.entries)..where(
                   (e) =>
@@ -123,13 +129,38 @@ class LedgerRepository {
     });
   }
 
-  Future<void> deleteAccount(String id) async {
-    try {
-      await (db.delete(db.accounts)..where((a) => a.id.equals(id))).go();
-    } on Exception {
-      throw const FormatException('账户仍有流水，请先处理流水');
-    }
+  Future<void> archiveAccount(String id) => _setArchived(id, true);
+
+  Future<void> restoreAccount(String id) => _setArchived(id, false);
+
+  Future<void> _setArchived(String id, bool archived) async {
+    final changed =
+        await (db.update(db.accounts)..where((a) => a.id.equals(id))).write(
+          AccountsCompanion(isArchived: Value(archived)),
+        );
+    if (changed == 0) throw const FormatException('账户已不存在');
   }
+
+  Future<void> deleteAccount(String id) => db.transaction(() async {
+    // Include settlements of deleted principals even when another funds account
+    // received or paid them. One statement keeps self-referencing FKs valid and
+    // avoids a variable per historical entry for large imported ledgers.
+    await db.customUpdate(
+      '''WITH RECURSIVE related(id) AS (
+        SELECT id FROM entries
+        WHERE account_id = ? OR target_account_id = ? OR debt_account_id = ?
+        UNION
+        SELECT e.id FROM entries e JOIN related r ON e.debt_id = r.id
+      ) DELETE FROM entries WHERE id IN (SELECT id FROM related)''',
+      variables: [Variable(id), Variable(id), Variable(id)],
+      updates: {db.entries, db.purchaseLinks},
+      updateKind: UpdateKind.delete,
+    );
+    await (db.delete(
+      db.balanceAdjustments,
+    )..where((a) => a.accountId.equals(id))).go();
+    await (db.delete(db.accounts)..where((a) => a.id.equals(id))).go();
+  });
 
   static void validateAdjustment(BalanceAdjustment adjustment) {
     parseDate(adjustment.date);
@@ -158,6 +189,7 @@ class LedgerRepository {
       db.accounts,
     )..where((a) => a.id.equals(accountId))).getSingleOrNull();
     if (account == null) throw const FormatException('账户已不存在');
+    if (account.isArchived) throw const FormatException('账户已归档，请先在设置中恢复');
     if (expectedCurrency != null && account.currency != expectedCurrency) {
       throw const FormatException('账户币种已变化，请重新打开余额调整');
     }
@@ -254,6 +286,7 @@ class LedgerRepository {
       db.accounts,
     )..where((a) => a.id.equals(accountId))).getSingleOrNull();
     if (account == null) throw const FormatException('请选择账户');
+    if (account.isArchived) throw const FormatException('账户已归档，请先在设置中恢复');
     if (kind != EntryKind.transfer && account.kind == '债务') {
       throw const FormatException('请选择实际收付款的资金账户，债务账户需单独关联');
     }
@@ -288,6 +321,9 @@ class LedgerRepository {
           )..where((a) => a.id.equals(id))).getSingle();
         }
       }
+      if (debtAccount?.isArchived == true) {
+        throw const FormatException('债务账户已归档，请先在设置中恢复');
+      }
       if (debtAccount == null ||
           debtAccount.kind != '债务' ||
           debtAccount.currency != account.currency ||
@@ -304,6 +340,7 @@ class LedgerRepository {
             db.entries,
           )..where((e) => e.id.equals(id))).getSingle();
     if (old != null) {
+      await _checkEntryAccountsActive(old);
       final settlements = await (db.select(
         db.entries,
       )..where((e) => e.debtId.equals(old.id))).get();
@@ -351,6 +388,7 @@ class LedgerRepository {
           target.currency != account.currency) {
         throw const FormatException('转账需选择另一个同币种账户');
       }
+      if (target.isArchived) throw const FormatException('转入账户已归档，请先在设置中恢复');
       for (final side in [account, target].where((a) => a.kind == '债务')) {
         final loans = await (db.select(
           db.entries,
@@ -373,6 +411,7 @@ class LedgerRepository {
           debt.kind != (kind == EntryKind.repay ? 'borrow' : 'lend')) {
         throw const FormatException('请选择对应的原始借贷');
       }
+      await _checkEntryAccountsActive(debt);
       if (counterparty.isNotEmpty && counterparty != debt.counterparty) {
         throw const FormatException('还款往来人须与原始借贷一致');
       }
@@ -438,13 +477,32 @@ class LedgerRepository {
     return entryId;
   });
 
-  Future<void> deleteEntry(String id) async {
+  Future<void> _checkEntryAccountsActive(Entry entry) async {
+    final archived =
+        await (db.select(db.accounts)..where(
+              (a) =>
+                  a.isArchived.equals(true) &
+                  a.id.isIn([
+                    entry.accountId,
+                    if (entry.targetAccountId != null) entry.targetAccountId!,
+                    if (entry.debtAccountId != null) entry.debtAccountId!,
+                  ]),
+            ))
+            .get();
+    if (archived.isNotEmpty) throw const FormatException('关联账户已归档，请先在设置中恢复');
+  }
+
+  Future<void> deleteEntry(String id) => db.transaction(() async {
+    final entry = await (db.select(
+      db.entries,
+    )..where((e) => e.id.equals(id))).getSingleOrNull();
+    if (entry != null) await _checkEntryAccountsActive(entry);
     try {
       await (db.delete(db.entries)..where((e) => e.id.equals(id))).go();
     } on Exception {
       throw const FormatException('此借贷已有还款，请先删除还款记录');
     }
-  }
+  });
 
   Future<void> setBudget(String month, String currency, int amount) async {
     parseDate('$month-01');

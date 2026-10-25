@@ -93,7 +93,6 @@ void main() {
     () async {
       final a = (await db.select(db.accounts).get()).first;
       await add(EntryKind.expense, 100);
-      await expectLater(repo.deleteAccount(a.id), throwsFormatException);
       await expectLater(
         repo.saveAccount(
           id: a.id,

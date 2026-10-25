@@ -354,6 +354,7 @@ List<ImportResult> previewImport(
                 ? (target ? null : mapping.defaultAccount)
                 : mapping.accounts[value];
             final matches = accounts
+                .where((a) => !a.isArchived)
                 .where((a) => id != null ? a.id == id : a.name == value)
                 .where((a) => kind == EntryKind.transfer || a.kind != '债务')
                 .toList();
@@ -607,8 +608,9 @@ Future<int> commitImport(AppDatabase db, List<ImportEntry> entries) =>
           account.id: account,
       };
       for (final entry in entries.expand((e) => e.recordsToImport)) {
-        if (accounts[entry.accountId]?.currency != entry.currency) {
-          throw const FormatException('账户币种已变化或账户已删除，请重新预览');
+        if (accounts[entry.accountId]?.currency != entry.currency ||
+            accounts[entry.accountId]?.isArchived == true) {
+          throw const FormatException('账户币种已变化、已归档或已删除，请重新预览');
         }
         await ledger.saveEntry(
           kind: entry.kind,

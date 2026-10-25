@@ -66,6 +66,7 @@ void main() {
     json.remove('adjustments');
     for (final row in json['accounts'] as List) {
       (row as Map).remove('avatar');
+      row.remove('isArchived');
     }
     for (final row in json['entries'] as List) {
       (row as Map).remove('counterparty');
@@ -93,6 +94,7 @@ void main() {
     }
     await service.restore(Uint8List.fromList(ZipEncoder().encode(legacy)));
     expect((await db.select(db.accounts).get()).single.avatar, '');
+    expect((await db.select(db.accounts).get()).single.isArchived, isFalse);
     expect((await db.select(db.items).get()).single.useType, 'durable');
     expect((await db.select(db.items).get()).single.status, 'active');
     expect((await db.select(db.entries).get()).single.counterparty, '');

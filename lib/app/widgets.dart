@@ -31,11 +31,13 @@ class DataView extends ConsumerWidget {
 Future<bool> confirm(
   BuildContext context,
   String title,
-  String message,
-) async =>
+  String message, {
+  String confirmLabel = '确认',
+}) async =>
     await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        scrollable: true,
         title: Text(title),
         content: Text(message),
         actions: [
@@ -45,7 +47,7 @@ Future<bool> confirm(
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('确认'),
+            child: Text(confirmLabel),
           ),
         ],
       ),

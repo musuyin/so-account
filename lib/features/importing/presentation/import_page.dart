@@ -46,7 +46,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     );
     return AppSnapshot(
       {
-        for (final a in data.accounts) a.id: a,
+        for (final a in data.activeAccounts) a.id: a,
         ...createdAccounts,
       }.values.toList(),
       data.categories,
@@ -200,7 +200,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       final missing = missingImportAccounts(
         tables[sheet],
         mapping,
-        data.accounts,
+        data.activeAccounts,
       );
       final accountDb = ref.read(databaseProvider);
       for (final source in missing) {
@@ -605,7 +605,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                             final result = visible[index - 1],
                                 entry = result.entry;
                             String accountName(String id) =>
-                                data.accounts
+                                data.activeAccounts
                                     .where((a) => a.id == id)
                                     .firstOrNull
                                     ?.name ??
@@ -749,14 +749,14 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                             if (missingImportAccounts(
                               table,
                               mapping,
-                              data.accounts,
+                              data.activeAccounts,
                             ).isNotEmpty)
                               Card(
                                 borderOnForeground: false,
                                 child: Padding(
                                   padding: const EdgeInsets.all(16),
                                   child: Text(
-                                    '有 ${missingImportAccounts(table, mapping, data.accounts).length} 个来源账户待关联。可先关联已有账户，点击预览时将逐个创建缺失账户。',
+                                    '有 ${missingImportAccounts(table, mapping, data.activeAccounts).length} 个来源账户待关联。可先关联已有账户，点击预览时将逐个创建缺失账户。',
                                   ),
                                 ),
                               ),
@@ -830,13 +830,13 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                   select(
                                     '账户内容：$value',
                                     mapping.accounts[value] ??
-                                        data.accounts
+                                        data.activeAccounts
                                             .where((a) => a.name == value)
                                             .singleOrNull
                                             ?.id,
                                     {
                                       '': '请关联',
-                                      for (final account in data.accounts)
+                                      for (final account in data.activeAccounts)
                                         account.id:
                                             '${account.name} · ${account.currency}',
                                     },
@@ -848,7 +848,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                       }
                                     },
                                   ),
-                                  if (!data.accounts.any(
+                                  if (!data.activeAccounts.any(
                                         (a) => a.name == value,
                                       ) &&
                                       !mapping.accounts.containsKey(value))
@@ -860,7 +860,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                                   missingImportAccounts(
                                                         table,
                                                         mapping,
-                                                        data.accounts,
+                                                        data.activeAccounts,
                                                       )
                                                       .where(
                                                         (m) => m.name == value,
