@@ -25,6 +25,7 @@ class _BalanceAdjustmentState extends ConsumerState<BalanceAdjustmentForm> {
   );
   final reason = TextEditingController();
   bool saving = false;
+  bool createEntry = false;
   @override
   void dispose() {
     amount.dispose();
@@ -42,7 +43,7 @@ class _BalanceAdjustmentState extends ConsumerState<BalanceAdjustmentForm> {
             ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       String change() {
         try {
-          return money(
+          return decimalMoney(
             parseMoney(amount.text, widget.account.currency, signed: true) -
                 widget.balance,
             widget.account.currency,
@@ -53,7 +54,7 @@ class _BalanceAdjustmentState extends ConsumerState<BalanceAdjustmentForm> {
       }
 
       return FormFrame(
-        title: '余额调整',
+        title: '修改余额 · ${widget.account.currency}',
         saving: saving,
         onSave: () async {
           setState(() => saving = true);
@@ -71,6 +72,7 @@ class _BalanceAdjustmentState extends ConsumerState<BalanceAdjustmentForm> {
                   expectedBalance: widget.balance,
                   expectedCurrency: widget.account.currency,
                   reason: reason.text,
+                  createEntry: createEntry,
                 ),
           );
           if (mounted && context.mounted) {
@@ -83,8 +85,24 @@ class _BalanceAdjustmentState extends ConsumerState<BalanceAdjustmentForm> {
             widget.account.name,
             style: Theme.of(context).textTheme.titleLarge,
           ),
-          Text('调整前余额 ${money(widget.balance, widget.account.currency)}'),
-          const Text('直接校正余额，不生成收入、支出或转账流水，不影响预算。调整记录会单独保留。'),
+          Text(
+            '调整前余额 ${decimalMoney(widget.balance, widget.account.currency)}',
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('生成收支条目'),
+            subtitle: Text(
+              widget.account.kind == '债务'
+                  ? '债务账户仅对齐余额，收支记入资金账户'
+                  : createEntry
+                  ? '差额计入收入或支出及统计'
+                  : '仅对齐余额，不影响收支统计',
+            ),
+            value: createEntry,
+            onChanged: saving || widget.account.kind == '债务'
+                ? null
+                : (value) => setState(() => createEntry = value),
+          ),
           if (widget.account.kind == '债务')
             const Text('调整债务账户只校正汇总余额，不改写各笔借贷的本金和已还金额。'),
           TextField(
@@ -111,7 +129,7 @@ class _BalanceAdjustmentState extends ConsumerState<BalanceAdjustmentForm> {
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(
-                  '${money(adjustment.beforeBalance, widget.account.currency)} → ${money(adjustment.afterBalance, widget.account.currency)}',
+                  '${decimalMoney(adjustment.beforeBalance, widget.account.currency)} → ${decimalMoney(adjustment.afterBalance, widget.account.currency)}',
                 ),
                 subtitle: Text(
                   '${adjustment.date}${adjustment.reason.isEmpty ? '' : ' · ${adjustment.reason}'}',

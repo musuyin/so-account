@@ -85,6 +85,14 @@ void main() {
           [status, status, status, status == 'active' ? null : '2026-10-01'],
         );
       }
+      await old.runCustom(
+        'CREATE TABLE preferences (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
+        [],
+      );
+      await old.runCustom(
+        'CREATE TABLE categories (id TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL)',
+        [],
+      );
       await old.runCustom('PRAGMA user_version = 2', []);
       await old.close();
       final next = AppDatabase(NativeDatabase(file));

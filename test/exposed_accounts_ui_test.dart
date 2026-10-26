@@ -267,7 +267,7 @@ void main() {
         );
         await t.tap(find.text('新增'));
         await settle(t);
-        expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+        expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
         for (final kind in accountKinds) {
           expect(find.text(kind), findsOneWidget);
         }
@@ -360,8 +360,9 @@ void main() {
           t.getSemantics(find.byType(Scaffold).first).toStringDeep(),
           isNot(contains('2355.00')),
         );
-        await show(t, key('asset-currency-USD'));
-        await t.tap(key('asset-currency-USD'));
+        await t.tap(key('asset-currency'));
+        await t.pumpAndSettle();
+        await t.tap(find.text('USD').last);
         await t.pumpAndSettle();
         expect(find.text('••••'), findsWidgets);
         await t.tap(find.byTooltip('显示金额'));
@@ -397,8 +398,9 @@ void main() {
       await settle(t);
       await t.tap(key('account-type-资金账户-现金'));
       await t.pumpAndSettle();
-      await show(t, key('account-currency-JPY'));
-      await t.tap(key('account-currency-JPY'));
+      await t.tap(find.byType(DropdownButtonFormField<String>));
+      await t.pumpAndSettle();
+      await t.tap(find.text('JPY').last);
       await t.pumpAndSettle();
       await show(t, field('账户名称'));
       await t.enterText(field('账户名称'), '日元零钱');
@@ -445,9 +447,13 @@ void main() {
         );
         await t.tap(find.text('编辑'));
         await settle(t);
-        await show(t, key('account-currency-USD'));
+        await show(t, find.byType(DropdownButtonFormField<String>));
         expect(
-          t.widget<ChoiceChip>(key('account-currency-USD')).onSelected,
+          t
+              .widget<DropdownButtonFormField<String>>(
+                find.byType(DropdownButtonFormField<String>),
+              )
+              .onChanged,
           isNull,
         );
         await show(t, find.text('更换'));

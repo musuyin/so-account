@@ -111,25 +111,53 @@ class FormFrame extends StatelessWidget {
     required this.children,
     required this.onSave,
     this.saving = false,
+    this.header,
+    this.footer,
+    this.currency,
   });
   final String title;
   final List<Widget> children;
   final VoidCallback onSave;
   final bool saving;
+  final Widget? header, footer;
+  final String? currency;
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !saving,
     child: Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(
+        title: Text(title),
+        actions: [
+          if (currency != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Center(child: Text(currency!)),
+            ),
+        ],
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 640),
-            child: ListView(
-              padding: const EdgeInsets.all(12),
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child: Column(
               children: [
-                ...children.expand((w) => [w, const SizedBox(height: 10)]),
+                if (header != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: header!,
+                  ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.all(12),
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    children: [
+                      ...children.expand(
+                        (w) => [w, const SizedBox(height: 10)],
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -144,16 +172,25 @@ class FormFrame extends StatelessWidget {
               constraints: const BoxConstraints(maxWidth: 600),
               child: SizedBox(
                 width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: saving ? null : onSave,
-                  icon: saving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.check),
-                  label: Text(saving ? '保存中…' : '保存'),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (footer != null &&
+                        MediaQuery.viewInsetsOf(context).bottom == 0)
+                      footer!,
+                    FilledButton.icon(
+                      onPressed: saving ? null : onSave,
+                      icon: saving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.check),
+                      label: Text(saving ? '保存中…' : '保存'),
+                    ),
+                  ],
                 ),
               ),
             ),

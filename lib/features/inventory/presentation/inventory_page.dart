@@ -23,6 +23,7 @@ class InventoryPage extends ConsumerStatefulWidget {
 
 class _InventoryPageState extends ConsumerState<InventoryPage> {
   final Set<String> selectedCategories = {};
+  bool filtersExpanded = true;
   String search = '',
       useType = '',
       status = 'all',
@@ -52,10 +53,10 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
       title: const Text('物品'),
       actions: [
         IconButton(
-          tooltip: '心愿单',
+          tooltip: '心愿',
           onPressed: () =>
               openForm(context, GoalsPage(initialCurrency: currency)),
-          icon: const Icon(Icons.favorite_outline),
+          icon: const Icon(Icons.savings_outlined),
         ),
         DropdownButton(
           value: currency,
@@ -122,14 +123,14 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('全部物品买入价'),
+                    const Text('物品总值'),
                     Text(
-                      money(total, currency),
+                      decimalMoney(total, currency),
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '日均合计 $currency ${(costs.fold<double>(0, (s, c) => s + c) / factor).toStringAsFixed(2)}',
+                      '日均 ${(costs.fold<double>(0, (s, c) => s + c) / factor).toStringAsFixed(2)}',
                     ),
                     Text(
                       '${all.length} 件 · ${all.where((i) => i.price == null).length} 件价格未记录 · ${all.length - costs.length} 件未计算日均',
@@ -165,75 +166,95 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                 ),
               ],
             ),
-            Wrap(
-              spacing: 6,
+            Row(
               children: [
-                ChoiceFilter(
-                  value: useType,
-                  options: const {
-                    '': '全部属性',
-                    'durable': '长期使用物',
-                    'consumable': '消耗品',
-                  },
-                  onSelected: (v) => setState(() => useType = v),
-                ),
-                ChoiceFilter(
-                  value: status,
-                  options: const {
-                    'all': '全部状态',
-                    'active': '使用中',
-                    'unused': '未使用',
-                    'completed': '使用完',
-                  },
-                  onSelected: (v) => setState(() => status = v),
-                ),
-                PopupMenuButton<String>(
-                  tooltip: '筛选物品种类',
-                  onSelected: (c) => setState(() {
-                    if (c.isEmpty) {
-                      selectedCategories.clear();
-                    } else if (!selectedCategories.add(c)) {
-                      selectedCategories.remove(c);
-                    }
-                  }),
-                  itemBuilder: (_) => [
-                    for (final c in ['', ...categories])
-                      CheckedPopupMenuItem(
-                        value: c,
-                        checked: c.isEmpty
-                            ? selectedCategories.isEmpty
-                            : selectedCategories.contains(c),
-                        child: Text(c.isEmpty ? '全部种类' : c),
-                      ),
-                  ],
-                  child: Chip(
-                    label: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          selectedCategories.isEmpty
-                              ? '全部种类'
-                              : '种类 ${selectedCategories.length}',
-                        ),
-                        const Icon(Icons.arrow_drop_down, size: 16),
-                      ],
-                    ),
+                Expanded(
+                  child: Text(
+                    [
+                      if (useType.isNotEmpty)
+                        useType == 'durable' ? '长期使用物' : '消耗品',
+                      if (status != 'all')
+                        {
+                          'active': '使用中',
+                          'unused': '未使用',
+                          'completed': '使用完',
+                        }[status]!,
+                      ...selectedCategories,
+                    ].join(' · '),
                   ),
+                ),
+                TextButton.icon(
+                  onPressed: () =>
+                      setState(() => filtersExpanded = !filtersExpanded),
+                  icon: Icon(filtersExpanded ? Icons.expand_less : Icons.tune),
+                  label: Text(filtersExpanded ? '收起筛选' : '展开筛选'),
                 ),
                 if (useType.isNotEmpty ||
                     status != 'all' ||
                     selectedCategories.isNotEmpty)
                   IconButton(
                     tooltip: '清除物品筛选',
+                    icon: const Icon(Icons.filter_alt_off_outlined),
                     onPressed: () => setState(() {
                       useType = '';
                       status = 'all';
                       selectedCategories.clear();
                     }),
-                    icon: const Icon(Icons.filter_alt_off_outlined, size: 20),
                   ),
               ],
             ),
+            if (filtersExpanded) ...[
+              Wrap(
+                spacing: 6,
+                children: [
+                  for (final entry in {
+                    '': '全部属性',
+                    'durable': '长期使用物',
+                    'consumable': '消耗品',
+                  }.entries)
+                    ChoiceChip(
+                      label: Text(entry.value),
+                      selected: useType == entry.key,
+                      onSelected: (_) => setState(() => useType = entry.key),
+                    ),
+                ],
+              ),
+              Wrap(
+                spacing: 6,
+                children: [
+                  for (final entry in {
+                    'all': '全部状态',
+                    'active': '使用中',
+                    'unused': '未使用',
+                    'completed': '使用完',
+                  }.entries)
+                    ChoiceChip(
+                      label: Text(entry.value),
+                      selected: status == entry.key,
+                      onSelected: (_) => setState(() => status = entry.key),
+                    ),
+                ],
+              ),
+              Wrap(
+                spacing: 6,
+                children: [
+                  for (final c in ['', ...categories])
+                    FilterChip(
+                      label: Text(c.isEmpty ? '全部种类' : c),
+                      selected: c.isEmpty
+                          ? selectedCategories.isEmpty
+                          : selectedCategories.contains(c),
+                      onSelected: (_) => setState(() {
+                        if (c.isEmpty) {
+                          selectedCategories.clear();
+                        } else if (!selectedCategories.add(c)) {
+                          selectedCategories.remove(c);
+                        }
+                      }),
+                    ),
+                ],
+              ),
+            ],
             if (items.isEmpty) ...[
               EmptyState(
                 all.isEmpty ? '暂无物品' : '没有匹配的物品',
@@ -267,7 +288,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                   subtitle: Text(
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    '${itemTags(item.category).join('、')} · ${item.useType == 'durable' ? '长期使用物' : '消耗品'} · ${itemStatuses[item.status]}${item.quantity == null ? '' : ' · ${item.quantity}${item.unit ?? ''}'}\n${item.price == null ? '价格未记录' : money(item.price!, currency)}${dailyCost(item.price, item.purchasedOn, item.archivedOn, DateTime.now()) == null ? '' : ' · 日均 ${(dailyCost(item.price, item.purchasedOn, item.archivedOn, DateTime.now())! / factor).toStringAsFixed(2)}'}',
+                    '${itemTags(item.category).join('、')} · ${item.useType == 'durable' ? '长期使用物' : '消耗品'} · ${itemStatuses[item.status]}${item.quantity == null ? '' : ' · ${item.quantity}${item.unit ?? ''}'}\n${item.price == null ? '价格未记录' : decimalMoney(item.price!, currency)}${dailyCost(item.price, item.purchasedOn, item.archivedOn, DateTime.now()) == null ? '' : ' · 日均 ${(dailyCost(item.price, item.purchasedOn, item.archivedOn, DateTime.now())! / factor).toStringAsFixed(2)}'}',
                   ),
                   onTap: () => openForm(context, ItemForm(item: item)),
                   trailing: PopupMenuButton<String>(

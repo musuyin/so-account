@@ -409,7 +409,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                       const SizedBox(height: 20),
                       const Text(
                         '导入后如何调整账户余额？',
-                        style: TextStyle(fontSize: 18),
+                        style: TextStyle(fontSize: 20),
                       ),
                       const SizedBox(height: 8),
                       const Text(

@@ -152,7 +152,7 @@ void main() {
         expect(find.text('保存'), findsNothing);
         await t.tap(find.text('重新选择账户'));
         await qa.settle(t);
-        expect(find.text('合成日常卡 · CNY'), findsOneWidget);
+        expect(find.text('合成日常卡'), findsOneWidget);
         await t.runAsync(() => repo.restoreAccount(id));
         await mount(AccountDetailPage(id: id));
         expect(find.byTooltip('编辑账户'), findsOneWidget);

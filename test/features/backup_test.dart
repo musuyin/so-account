@@ -59,6 +59,29 @@ void main() {
     await db.close();
     await root.delete(recursive: true);
   });
+  test('backup preserves account order and category upgrade marker', () async {
+    final account = (await db.select(db.accounts).get()).single;
+    final order = jsonEncode([account.id]);
+    await db
+        .into(db.preferences)
+        .insert(
+          PreferencesCompanion.insert(key: 'account_order', value: order),
+        );
+    final bytes = await service.export();
+    await db.delete(db.preferences).go();
+    await service.restore(bytes);
+    final preferences = await db.select(db.preferences).get();
+    expect(
+      preferences.singleWhere((p) => p.key == 'account_order').value,
+      order,
+    );
+    expect(
+      preferences
+          .singleWhere((p) => p.key == 'category_defaults_20261025')
+          .value,
+      'done',
+    );
+  });
   test('v1 backups default avatar and lifecycle fields', () async {
     final files = decodeBackup(await service.export());
     final json =

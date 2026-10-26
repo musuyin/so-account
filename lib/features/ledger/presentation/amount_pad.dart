@@ -45,6 +45,7 @@ class AmountPad extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
     children: [
       TextField(
         controller: controller,
@@ -52,7 +53,7 @@ class AmountPad extends StatelessWidget {
         showCursor: true,
         style: Theme.of(context).textTheme.headlineSmall,
         decoration: InputDecoration(
-          labelText: '金额 · $currency',
+          labelText: '金额',
           hintText: '0.00',
           suffixIcon: IconButton(
             tooltip: '退格',
@@ -63,10 +64,10 @@ class AmountPad extends StatelessWidget {
       ),
       const SizedBox(height: 8),
       for (final row in [
-        ['7', '8', '9', '÷'],
+        ['1', '2', '3', '÷'],
         ['4', '5', '6', '×'],
-        ['1', '2', '3', '-'],
-        ['C', '0', '.', '+'],
+        ['7', '8', '9', '-'],
+        ['C', '0', '.', '+', '='],
       ])
         Padding(
           padding: const EdgeInsets.only(bottom: 4),
@@ -91,13 +92,6 @@ class AmountPad extends StatelessWidget {
             ],
           ),
         ),
-      Align(
-        alignment: Alignment.centerRight,
-        child: TextButton(
-          onPressed: () => keyPress(context, '='),
-          child: const Text('='),
-        ),
-      ),
     ],
   );
 }

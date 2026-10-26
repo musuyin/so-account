@@ -52,7 +52,7 @@ class FlowBars extends StatelessWidget {
                         width: unit,
                         child: Tooltip(
                           message:
-                              '${points[i].label}\n收入 ${money(points[i].income, currency)}\n支出 ${money(points[i].expense, currency)}',
+                              '${points[i].label}\n收入 ${decimalMoney(points[i].income, currency)}\n支出 ${decimalMoney(points[i].expense, currency)}',
                           child: Semantics(
                             label:
                                 '${points[i].label} 收入 ${points[i].income} 支出 ${points[i].expense}',
@@ -138,7 +138,7 @@ class FlowBars extends StatelessWidget {
           },
         ),
         Text(
-          '纵轴最高 ${money(maxAmount, currency)} · 长按柱形查看数值',
+          '纵轴最高 ${decimalMoney(maxAmount, currency)} · 长按柱形查看数值',
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
@@ -205,7 +205,7 @@ class CategoryPie extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(child: Text(rows[i].name)),
                 Text(
-                  '${money(rows[i].amount, currency)} · ${(rows[i].amount / total * 100).toStringAsFixed(1)}%',
+                  '${decimalMoney(rows[i].amount, currency)} · ${(rows[i].amount / total * 100).toStringAsFixed(1)}%',
                 ),
               ],
             ),
@@ -262,11 +262,13 @@ class AssetLine extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('期末净资产 ${money(points.last.netAssets, currency)}'),
+        Text('期末净资产 ${decimalMoney(points.last.netAssets, currency)}'),
         const SizedBox(height: 12),
         Semantics(
           label: points
-              .map((p) => '${p.label} 净资产 ${money(p.netAssets, currency)}')
+              .map(
+                (p) => '${p.label} 净资产 ${decimalMoney(p.netAssets, currency)}',
+              )
               .join('，'),
           child: SizedBox(
             height: 160,
@@ -293,7 +295,7 @@ class AssetLine extends StatelessWidget {
           ],
         ),
         Text(
-          '最低 ${money(values.reduce(math.min).toInt(), currency)} · 最高 ${money(values.reduce(math.max).toInt(), currency)}',
+          '最低 ${decimalMoney(values.reduce(math.min).toInt(), currency)} · 最高 ${decimalMoney(values.reduce(math.max).toInt(), currency)}',
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],

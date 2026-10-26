@@ -56,7 +56,7 @@ void main() {
         () => Future<void>.delayed(const Duration(milliseconds: 100)),
       );
       await t.pumpAndSettle();
-      expect(find.text('CNY 125.00'), findsOneWidget);
+      expect(find.text('125.00'), findsOneWidget);
       expect(t.takeException(), isNull);
       final search = find.byType(TextField);
       await t.ensureVisible(search);

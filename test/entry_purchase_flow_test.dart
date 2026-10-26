@@ -40,7 +40,12 @@ Future<void> showField(WidgetTester t, Finder finder) async {
   await t.scrollUntilVisible(
     finder,
     180,
-    scrollable: find.byType(Scrollable).first,
+    scrollable: find
+        .descendant(
+          of: find.byType(ListView).first,
+          matching: find.byType(Scrollable),
+        )
+        .first,
   );
   await t.ensureVisible(finder);
   await t.pumpAndSettle();
@@ -178,7 +183,7 @@ void main() {
         for (final input in {
           '数量 / 容量 · 可留空': '500',
           '单位 · 可留空': 'ml',
-          '物品价格 · USD · 可留空': '12.50',
+          '物品价格（选填）': '12.50',
         }.entries) {
           await showField(t, field(input.key));
           await t.enterText(field(input.key), input.value);

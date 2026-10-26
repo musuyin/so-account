@@ -141,7 +141,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         metric('结余', income - expense),
                       ],
                     ),
-                    const Divider(height: 16),
+                    const Divider(height: 6),
                     InkWell(
                       onTap: () => editBudget(
                         context,
@@ -152,7 +152,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ),
                       borderRadius: BorderRadius.circular(8),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        padding: const EdgeInsets.symmetric(vertical: 2),
                         child: Wrap(
                           spacing: 16,
                           runSpacing: 4,
@@ -187,7 +187,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
-                          '借入 ${money(total('borrow'), currency)} · 借出 ${money(total('lend'), currency)}',
+                          '借入 ${decimalMoney(total('borrow'), currency)} · 借出 ${decimalMoney(total('lend'), currency)}',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
@@ -252,7 +252,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                               (MediaQuery.textScalerOf(context).scale(14) *
                                           1.2 +
                                       MediaQuery.textScalerOf(context)
-                                              .scale(10) *
+                                              .scale(12) *
                                           2 *
                                           1.2 +
                                       10)
@@ -278,7 +278,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                                       Color color,
                                     ) => Tooltip(
                                       message:
-                                          '$key $sign${money(value, currency)}',
+                                          '$key $sign${decimalMoney(value, currency)}',
                                       child: Padding(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 2,
@@ -288,7 +288,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                                           child: Text(
                                             '$sign${decimalMoney(value, currency)}',
                                             style: TextStyle(
-                                              fontSize: 10,
+                                              fontSize: 12,
                                               height: 1.2,
                                               color: color,
                                             ),
@@ -299,7 +299,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                                     return Semantics(
                                       key: ValueKey('calendar-$key'),
                                       label:
-                                          '$key，收入 ${money(inc, currency)}，支出 ${money(out, currency)}，净额 ${money(inc - out, currency)}',
+                                          '$key，收入 ${decimalMoney(inc, currency)}，支出 ${decimalMoney(out, currency)}，净额 ${decimalMoney(inc - out, currency)}',
                                       selected: day == key,
                                       button: true,
                                       child: InkWell(

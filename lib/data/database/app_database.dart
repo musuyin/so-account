@@ -334,6 +334,37 @@ class AppDatabase extends _$AppDatabase {
     },
     beforeOpen: (_) async {
       await customStatement('PRAGMA foreign_keys = ON');
+      // Data-only upgrade: never restore categories that a user later deletes.
+      await transaction(() async {
+        const key = 'category_defaults_20261025';
+        if (await (select(
+              preferences,
+            )..where((p) => p.key.equals(key))).getSingleOrNull() !=
+            null) {
+          return;
+        }
+        for (final (kind, names) in [
+          ('expense', additionalExpenseDefaults),
+          ('income', additionalIncomeDefaults),
+        ]) {
+          for (final name in names) {
+            final existing = await (select(
+              categories,
+            )..where((c) => c.kind.equals(kind) & c.name.equals(name))).get();
+            if (existing.isEmpty) {
+              await into(categories).insert(
+                CategoriesCompanion.insert(
+                  id: 'default-20261025-$kind-$name',
+                  name: name,
+                  kind: kind,
+                ),
+              );
+            }
+          }
+        }
+        await into(preferences)
+            .insert(PreferencesCompanion.insert(key: key, value: 'done'));
+      });
     },
   );
 }

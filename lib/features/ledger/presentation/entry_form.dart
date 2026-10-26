@@ -214,6 +214,24 @@ class _EntryFormState extends ConsumerState<EntryForm> {
       return FormFrame(
         title: widget.entry == null ? '记一笔' : '编辑账目',
         saving: saving,
+        currency: account.currency,
+        header: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (final value in EntryKind.values)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(value.label),
+                    selected: kind == value,
+                    onSelected: (_) => setState(() => kind = value),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        footer: AmountPad(controller: amount, currency: account.currency),
         onSave: () async {
           if (saving) return;
           setState(() => saving = true);
@@ -260,28 +278,15 @@ class _EntryFormState extends ConsumerState<EntryForm> {
           }
         },
         children: [
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final value in EntryKind.values)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(value.label),
-                      selected: kind == value,
-                      onSelected: (_) => setState(() => kind = value),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
           DropdownButtonFormField<String>(
             key: ValueKey('account-$accountId'),
             isExpanded: true,
             initialValue: accountId,
             decoration: const InputDecoration(labelText: '账户'),
+            selectedItemBuilder: (_) => [
+              for (final a in funds)
+                Text(a.name, overflow: TextOverflow.ellipsis),
+            ],
             items: funds
                 .map(
                   (a) => DropdownMenuItem(
@@ -450,11 +455,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
               key: const ValueKey('record-item-switch'),
               contentPadding: EdgeInsets.zero,
               title: const Text('同步记物'),
-              subtitle: Text(
-                widget.entry == null
-                    ? '保存支出时，同时创建并关联一件物品'
-                    : '新增一件物品并关联此支出，已有物品不变',
-              ),
+              subtitle: widget.entry == null ? null : const Text('新增物品并关联此笔支出'),
               value: recordItem,
               onChanged: saving
                   ? null
@@ -462,7 +463,6 @@ class _EntryFormState extends ConsumerState<EntryForm> {
             ),
             if (recordItem) _buildItemFields(data, account.currency),
           ],
-          AmountPad(controller: amount, currency: account.currency),
         ],
       );
     },
@@ -548,13 +548,13 @@ class _EntryFormState extends ConsumerState<EntryForm> {
             controller: itemPrice,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              labelText: '物品价格 · $currency · 可留空',
+              labelText: '物品价格（选填）',
               helperText: '单独填写这件物品的价格，不自动分配整笔支出。',
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            '购入日期 ${dateKey(date)} · 币种 $currency',
+            '购入日期 ${dateKey(date)}',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],

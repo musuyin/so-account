@@ -18,5 +18,36 @@ const expenseDefaults = [
   '理财亏损',
   '其他损耗',
   'AI-Token',
+  ...additionalExpenseDefaults,
 ];
-const incomeDefaults = ['工资', '补贴', '副业', '投资', '奖金', '中奖', '闲置', '人情', '报销'];
+const incomeDefaults = [
+  '工资',
+  '补贴',
+  '副业',
+  '投资',
+  '奖金',
+  '中奖',
+  '闲置',
+  '人情',
+  '报销',
+  ...additionalIncomeDefaults,
+];
+
+// Only these new top-level categories are added to existing ledgers once.
+const additionalExpenseDefaults = [
+  '买菜',
+  '水果零食',
+  '咖啡茶饮',
+  '日用品',
+  '服饰鞋包',
+  '数码电器',
+  '旅行',
+  '宠物',
+  '美容护理',
+  '会员订阅',
+  '通讯网络',
+  '汽车养护',
+  '育儿',
+  '手续费',
+];
+const additionalIncomeDefaults = ['利息', '分红', '租金', '稿费', '退款', '其他收入'];

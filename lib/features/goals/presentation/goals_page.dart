@@ -46,8 +46,16 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('心愿与攒钱'),
+      title: const Text('心愿'),
       actions: [
+        DropdownButton<String>(
+          value: currency,
+          onChanged: (v) => setState(() => currency = v!),
+          items: currencies
+              .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+              .toList(),
+        ),
+
         PopupMenuButton<bool>(
           tooltip: '导出目标数据',
           enabled: !exporting,
@@ -119,13 +127,6 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 DropdownButton<String>(
-                  value: currency,
-                  onChanged: (v) => setState(() => currency = v!),
-                  items: currencies
-                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                      .toList(),
-                ),
-                DropdownButton<String>(
                   value: sort,
                   onChanged: (v) => setState(() => sort = v!),
                   items: const [
@@ -147,10 +148,10 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
                     Text('进行中 · ${active.length} 个目标'),
                     const SizedBox(height: 8),
                     Text(
-                      money(saved, currency),
+                      decimalMoney(saved, currency),
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
-                    Text('已记录进度 / 目标 ${money(target, currency)}'),
+                    Text('已记录进度 / 目标 ${decimalMoney(target, currency)}'),
                     const SizedBox(height: 8),
                     const Text('进度手动记录，不锁定账户资金，不重复计入资产或收支。'),
                   ],
@@ -227,9 +228,7 @@ class GoalProgress extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(
-              goal.kind == 'wish'
-                  ? Icons.favorite_outline
-                  : Icons.savings_outlined,
+              Icons.savings_outlined,
               color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(width: 10),
@@ -253,7 +252,7 @@ class GoalProgress extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         Text(
-          '${money(saved, goal.currency)} / ${decimalMoney(goal.target, goal.currency)}',
+          '${decimalMoney(saved, goal.currency)} / ${decimalMoney(goal.target, goal.currency)}',
         ),
         const SizedBox(height: 8),
         Semantics(
@@ -268,8 +267,8 @@ class GoalProgress extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           remaining == 0
-              ? '已达到目标${saved > goal.target ? ' · 超出 ${money(saved - goal.target, goal.currency)}' : ''}'
-              : '还差 ${money(remaining, goal.currency)}',
+              ? '已达到目标${saved > goal.target ? ' · 超出 ${decimalMoney(saved - goal.target, goal.currency)}' : ''}'
+              : '还差 ${decimalMoney(remaining, goal.currency)}',
         ),
         if (days != null) ...[
           const SizedBox(height: 4),
@@ -287,7 +286,7 @@ class GoalProgress extends StatelessWidget {
           ),
           if (goal.status == 'active' && remaining > 0 && days >= 0)
             Text(
-              '按期完成，每天记录 ${money(goalDailyAmount(goal, saved, DateTime.now()), goal.currency)}',
+              '按期完成，每天记录 ${decimalMoney(goalDailyAmount(goal, saved, DateTime.now()), goal.currency)}',
             ),
         ],
       ],
@@ -508,7 +507,7 @@ class _GoalDetailState extends ConsumerState<GoalDetailPage> {
       final saved = goalSaved(goal.id, records);
       return Scaffold(
         appBar: AppBar(
-          title: const Text('目标详情'),
+          title: Text('心愿 · ${goal.currency}'),
           actions: [
             IconButton(
               tooltip: '编辑目标',
@@ -628,7 +627,7 @@ class _GoalDetailState extends ConsumerState<GoalDetailPage> {
                   row.amount > 0 ? Icons.south_west : Icons.north_east,
                 ),
                 title: Text(
-                  '${row.amount > 0 ? '+' : '−'} ${money(row.amount.abs(), goal.currency)}',
+                  '${row.amount > 0 ? '+' : '−'} ${decimalMoney(row.amount.abs(), goal.currency)}',
                 ),
                 subtitle: Text(
                   '${row.date}${row.note.isEmpty ? '' : ' · ${row.note}'}',
@@ -695,6 +694,7 @@ class _ContributionState extends ConsumerState<ContributionForm> {
   Widget build(BuildContext context) => FormFrame(
     title: widget.withdraw ? '取出进度' : '存入进度',
     saving: saving,
+    currency: widget.goal.currency,
     onSave: () async {
       if (saving) return;
       setState(() => saving = true);
@@ -721,7 +721,7 @@ class _ContributionState extends ConsumerState<ContributionForm> {
         controller: amount,
         autofocus: true,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: InputDecoration(labelText: '金额 · ${widget.goal.currency}'),
+        decoration: const InputDecoration(labelText: '金额'),
       ),
       ListTile(
         contentPadding: EdgeInsets.zero,

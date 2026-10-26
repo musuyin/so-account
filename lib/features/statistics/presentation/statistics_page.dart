@@ -318,7 +318,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                           const SizedBox(height: 8),
                           const Text(
                             '根据账户初始余额和历史收支推算；借贷和转账不改变净资产。',
-                            style: TextStyle(fontSize: 11),
+                            style: TextStyle(fontSize: 12),
                           ),
                         ],
                       ),

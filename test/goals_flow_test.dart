@@ -66,7 +66,7 @@ void main() {
         await t.ensureVisible(find.text(button));
         await t.tap(find.text(button));
         await settle(t);
-        await enter(t, '金额 · CNY', amount);
+        await enter(t, '金额', amount);
         await t.tap(find.text('保存'));
         await settle(t);
       }
@@ -74,7 +74,7 @@ void main() {
       await contribution('存入', '300');
       await contribution('取出', '500');
       expect(find.textContaining('取出金额超过已攒金额'), findsOneWidget);
-      await enter(t, '金额 · CNY', '50');
+      await enter(t, '金额', '50');
       await t.tap(find.text('保存'));
       await settle(t);
       var rows = await t.runAsync(() => db.select(db.goalContributions).get());

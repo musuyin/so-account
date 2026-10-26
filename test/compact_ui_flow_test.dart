@@ -384,13 +384,8 @@ void main() {
     await t.enterText(field('账户名称'), '日元钱包');
     await t.tap(find.text('保存'));
     await settle(t);
-    await t.scrollUntilVisible(
-      field('金额 · JPY'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
     await t.pumpAndSettle();
-    expect(field('金额 · JPY'), findsOneWidget);
+    expect(field('金额'), findsOneWidget);
     expect(t.takeException(), isNull);
     await t.pumpWidget(const SizedBox.shrink());
     await t.pump(const Duration(milliseconds: 1));
@@ -433,16 +428,14 @@ void main() {
       );
       await settle(t);
       expect(find.text('2 件物品'), findsOneWidget);
-      await t.tap(find.byType(ChoiceFilter).first);
-      await t.pumpAndSettle();
-      await t.tap(find.widgetWithText(CheckedPopupMenuItem<String>, '消耗品'));
+      await t.tap(find.widgetWithText(ChoiceChip, '消耗品'));
       await settle(t);
       expect(find.text('1 件物品'), findsOneWidget);
-      await t.tap(find.byTooltip('筛选物品种类'));
-      await t.pumpAndSettle();
-      await t.tap(find.widgetWithText(CheckedPopupMenuItem<String>, '数码产品'));
+      await t.ensureVisible(find.widgetWithText(FilterChip, '数码产品'));
+      await t.tap(find.widgetWithText(FilterChip, '数码产品'));
       await settle(t);
       expect(find.text('0 件物品'), findsOneWidget);
+      await t.ensureVisible(find.byTooltip('清除物品筛选'));
       await t.tap(find.byTooltip('清除物品筛选'));
       await settle(t);
       expect(find.text('2 件物品'), findsOneWidget);

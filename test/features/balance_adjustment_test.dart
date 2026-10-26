@@ -33,6 +33,68 @@ void main() {
   Future<FinanceReport> report() =>
       StatisticsRepository(db)
           .load(ReportRange.at(ReportPeriod.month, at), 'CNY');
+  test('optional ledger reconciliation applies each signed difference exactly once', () async {
+    await repo.adjustBalance(
+      accountId: cash,
+      expectedBalance: 10000,
+      desiredBalance: 12500,
+      createEntry: true,
+      at: at,
+    );
+    expect((await repo.balances())[cash], 12500);
+    expect((await report()).income, 2500);
+    await repo.adjustBalance(
+      accountId: cash,
+      expectedBalance: 12500,
+      desiredBalance: -500,
+      createEntry: true,
+      at: at,
+    );
+    expect((await repo.balances())[cash], -500);
+    expect((await report()).expense, 13000);
+    expect(await db.select(db.balanceAdjustments).get(), isEmpty);
+    expect((await db.select(db.entries).get()).length, 2);
+    await repo.adjustBalance(
+      accountId: cash,
+      expectedBalance: -500,
+      desiredBalance: -500,
+      createEntry: true,
+      at: at,
+    );
+    expect((await db.select(db.entries).get()).length, 2);
+    await expectLater(
+      repo.adjustBalance(
+        accountId: cash,
+        expectedBalance: 12500,
+        desiredBalance: 0,
+        createEntry: true,
+        at: at,
+      ),
+      throwsFormatException,
+    );
+    expect((await repo.balances())[cash], -500);
+    expect((await db.select(db.entries).get()).length, 2);
+  });
+  test('debt reconciliation cannot manufacture income or expense', () async {
+    final debt = await repo.saveAccount(
+      name: '待收测试',
+      kind: '债务',
+      channel: '应收款',
+      currency: 'CNY',
+      openingBalance: 1000,
+    );
+    await expectLater(
+      repo.adjustBalance(
+        accountId: debt,
+        expectedBalance: 1000,
+        desiredBalance: 0,
+        createEntry: true,
+      ),
+      throwsFormatException,
+    );
+    expect((await repo.balances())[debt], 1000);
+    expect(await db.select(db.entries).get(), isEmpty);
+  });
   test('adjustment keeps ledger, opening balance and budget intact; assets change from its date', () async {
     final categories = await db.select(db.categories).get();
     await repo.saveEntry(

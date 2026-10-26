@@ -106,7 +106,31 @@ ThemeData appTheme(
           borderRadius: BorderRadius.circular(16),
           borderSide: side,
         );
+  const small = TextStyle(fontFamily: 'NotoSansSC', fontSize: 12);
+  const body = TextStyle(fontFamily: 'NotoSansSC', fontSize: 14);
+  const title = TextStyle(
+    fontFamily: 'NotoSansSC',
+    fontSize: 20,
+    fontWeight: FontWeight.w600,
+  );
   return ThemeData(
+    textTheme: const TextTheme(
+      displayLarge: title,
+      displayMedium: title,
+      displaySmall: title,
+      headlineLarge: title,
+      headlineMedium: title,
+      headlineSmall: title,
+      titleLarge: title,
+      titleMedium: body,
+      titleSmall: body,
+      bodyLarge: body,
+      bodyMedium: body,
+      bodySmall: small,
+      labelLarge: body,
+      labelMedium: small,
+      labelSmall: small,
+    ),
     fontFamily: 'NotoSansSC',
     useMaterial3: true,
     visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
@@ -153,7 +177,7 @@ ThemeData appTheme(
       toolbarHeight: 48,
       titleTextStyle: TextStyle(
         fontFamily: 'NotoSansSC',
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: FontWeight.w600,
         color: colors.onSurface,
       ),

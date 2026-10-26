@@ -49,6 +49,16 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('收回借出'));
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('往来人：小林'),
+        100,
+        scrollable: find
+            .descendant(
+              of: find.byType(ListView).first,
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
       expect(find.text('往来人：小林'), findsOneWidget);
       expect(
         find.textContaining('小林 · 2026-10-01 · 剩余 CNY 20.00'),

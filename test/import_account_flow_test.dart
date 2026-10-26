@@ -61,10 +61,21 @@ void main() {
           await tester.pumpAndSettle();
           await tester.tap(cash);
           await tester.pumpAndSettle();
-          final currency = find.byKey(const ValueKey('account-currency-CNY'));
-          await tester.ensureVisible(currency);
+          final currency = find.byType(DropdownButtonFormField<String>);
+          await tester.scrollUntilVisible(
+            currency,
+            -250,
+            scrollable: find
+                .descendant(
+                  of: find.byType(ListView).last,
+                  matching: find.byType(Scrollable),
+                )
+                .first,
+          );
           await tester.pumpAndSettle();
           await tester.tap(currency);
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('CNY').last);
           await tester.pumpAndSettle();
           final opening = find.byWidgetPredicate(
             (w) => w is TextField && w.decoration?.labelText == '初始余额',
@@ -72,14 +83,24 @@ void main() {
           await tester.scrollUntilVisible(
             opening,
             200,
-            scrollable: find.byType(Scrollable).last,
+            scrollable: find
+                .descendant(
+                  of: find.byType(ListView).last,
+                  matching: find.byType(Scrollable),
+                )
+                .first,
           );
           expect(tester.widget<TextField>(opening).controller!.text, '');
           await tester.enterText(opening, '100');
           await tester.scrollUntilVisible(
             find.text('保存'),
             200,
-            scrollable: find.byType(Scrollable).last,
+            scrollable: find
+                .descendant(
+                  of: find.byType(ListView).last,
+                  matching: find.byType(Scrollable),
+                )
+                .first,
           );
           await tester.tap(find.text('保存'));
           await settleData();

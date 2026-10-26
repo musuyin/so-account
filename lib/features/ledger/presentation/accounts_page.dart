@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -26,9 +28,12 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
   String currency = 'CNY';
   bool hidden = false;
   final collapsed = <String>{};
+  List<String>? pendingOrder;
+  bool ordering = false;
   String number(int value) => hidden ? '••••' : decimalMoney(value, currency);
   Widget amount(BuildContext context, int value, {TextStyle? style}) => Tooltip(
-    message: hidden ? '金额已隐藏' : money(value, currency),
+    message: hidden ? '金额已隐藏' : decimalMoney(value, currency),
+    triggerMode: TooltipTriggerMode.manual,
     child: FittedBox(
       fit: BoxFit.scaleDown,
       alignment: Alignment.centerRight,
@@ -41,8 +46,17 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     appBar: AppBar(
       title: const Text('账户'),
       actions: [
+        DropdownButton<String>(
+          key: const ValueKey('asset-currency'),
+          value: currency,
+          items: [
+            for (final value in currencies)
+              DropdownMenuItem(value: value, child: Text(value)),
+          ],
+          onChanged: (value) => setState(() => currency = value!),
+        ),
         IconButton(
-          tooltip: '心愿与攒钱',
+          tooltip: '心愿',
           icon: const Icon(Icons.savings_outlined),
           onPressed: () =>
               openForm(context, GoalsPage(initialCurrency: currency)),
@@ -73,6 +87,59 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
         final accounts = data.activeAccounts
             .where((a) => a.currency == currency)
             .toList();
+        List<String> order;
+        try {
+          order =
+              pendingOrder ??
+              (jsonDecode(data.preference('account_order', '[]')) as List)
+                  .cast<String>();
+        } catch (_) {
+          order = [];
+        }
+        final ranks = {for (var i = 0; i < order.length; i++) order[i]: i};
+        final original = {
+          for (var i = 0; i < accounts.length; i++) accounts[i].id: i,
+        };
+        accounts.sort(
+          (a, b) => (ranks[a.id] ?? order.length + original[a.id]!).compareTo(
+            ranks[b.id] ?? order.length + original[b.id]!,
+          ),
+        );
+        Future<void> reorder(String kind, int from, int to) async {
+          if (ordering) return;
+          final group = accounts
+              .where((a) => a.kind == kind)
+              .map((a) => a.id)
+              .toList();
+          group.insert(to, group.removeAt(from));
+          var index = 0;
+          final ids = [
+            ...order.where((id) => !accounts.any((a) => a.id == id)),
+            for (final a in accounts) a.kind == kind ? group[index++] : a.id,
+          ];
+          setState(() {
+            pendingOrder = ids;
+            ordering = true;
+          });
+          await perform(context, () async {
+            final db = ref.read(databaseProvider);
+            await db
+                .into(db.preferences)
+                .insertOnConflictUpdate(
+                  PreferencesCompanion.insert(
+                    key: 'account_order',
+                    value: jsonEncode(ids),
+                  ),
+                );
+          });
+          if (mounted) {
+            setState(() {
+              pendingOrder = null;
+              ordering = false;
+            });
+          }
+        }
+
         int balance(Account a) => balances[a.id] ?? a.openingBalance;
         int sum(Iterable<Account> rows) =>
             rows.fold(0, (value, a) => value + balance(a));
@@ -146,19 +213,6 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
           children: [
-            Wrap(
-              spacing: 4,
-              children: [
-                for (final value in currencies)
-                  ChoiceChip(
-                    key: ValueKey('asset-currency-$value'),
-                    label: Text(value),
-                    selected: currency == value,
-                    showCheckmark: false,
-                    onSelected: (_) => setState(() => currency = value),
-                  ),
-              ],
-            ),
             Card(
               key: const ValueKey('asset-overview'),
               borderOnForeground: false,
@@ -170,7 +224,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                     Row(
                       children: [
                         Text(
-                          '资产总览 · $currency',
+                          '资产总览',
                           style: Theme.of(context).textTheme.labelMedium,
                         ),
                         const Spacer(),
@@ -334,72 +388,88 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                       ),
                       if (!collapsed.contains(kind)) ...[
                         const Divider(height: 1),
-                        for (final account in accounts.where(
-                          (a) => a.kind == kind,
-                        ))
-                          ListTile(
-                            key: ValueKey('asset-account-${account.id}'),
-                            leading: AccountAvatar(
-                              account: account,
-                              radius: 17,
-                            ),
-                            title: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    account.name,
+                        ReorderableListView(
+                          shrinkWrap: true,
+                          buildDefaultDragHandles: false,
+                          physics: const NeverScrollableScrollPhysics(),
+                          onReorderItem: (from, to) => reorder(kind, from, to),
+                          children: [
+                            for (final account in accounts.where(
+                              (a) => a.kind == kind,
+                            ))
+                              ReorderableDelayedDragStartListener(
+                                key: ValueKey('asset-account-${account.id}'),
+                                index: accounts
+                                    .where((a) => a.kind == kind)
+                                    .toList()
+                                    .indexOf(account),
+                                child: ListTile(
+                                  leading: AccountAvatar(
+                                    account: account,
+                                    radius: 17,
+                                  ),
+                                  title: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          account.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        fit: FlexFit.tight,
+                                        child: amount(
+                                          context,
+                                          balance(account),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium
+                                              ?.copyWith(
+                                                color:
+                                                    assetBalance(
+                                                          account.channel,
+                                                          balance(account),
+                                                        ) <
+                                                        0
+                                                    ? colors.error
+                                                    : assetBalance(
+                                                            account.channel,
+                                                            balance(account),
+                                                          ) >
+                                                          0
+                                                    ? colors.primary
+                                                    : colors.onSurfaceVariant,
+                                              ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  subtitle: Text(
+                                    [
+                                      if (account.bank.isNotEmpty)
+                                        bankLabels[account.bank] ?? '其他银行',
+                                      account.channel == '自定义' &&
+                                              account.customChannel.isNotEmpty
+                                          ? account.customChannel
+                                          : account.channel,
+                                      if (account.kind == '投资理财') '按买入成本',
+                                    ].join(' · '),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Flexible(
-                                  fit: FlexFit.tight,
-                                  child: amount(
+                                  onTap: () => openForm(
                                     context,
-                                    balance(account),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                          color:
-                                              assetBalance(
-                                                    account.channel,
-                                                    balance(account),
-                                                  ) <
-                                                  0
-                                              ? colors.error
-                                              : assetBalance(
-                                                      account.channel,
-                                                      balance(account),
-                                                    ) >
-                                                    0
-                                              ? colors.primary
-                                              : colors.onSurfaceVariant,
-                                        ),
+                                    AccountDetailPage(id: account.id),
+                                  ),
+                                  trailing: AccountActionsButton(
+                                    account: account,
                                   ),
                                 ),
-                              ],
-                            ),
-                            subtitle: Text(
-                              [
-                                if (account.bank.isNotEmpty)
-                                  bankLabels[account.bank] ?? '其他银行',
-                                account.channel == '自定义' &&
-                                        account.customChannel.isNotEmpty
-                                    ? account.customChannel
-                                    : account.channel,
-                                if (account.kind == '投资理财') '按买入成本',
-                              ].join(' · '),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            onTap: () => openForm(
-                              context,
-                              AccountDetailPage(id: account.id),
-                            ),
-                            trailing: AccountActionsButton(account: account),
-                          ),
+                              ),
+                          ],
+                        ),
                       ],
                     ],
                   ),
@@ -545,6 +615,23 @@ class _AccountFormState extends ConsumerState<AccountForm> {
       }
     },
     children: [
+      DropdownButtonFormField<String>(
+        key: ValueKey('account-currency-$currency'),
+        initialValue: currency,
+        decoration: const InputDecoration(labelText: '币种'),
+        items: [
+          for (final value in currencies)
+            DropdownMenuItem(value: value, child: Text(value)),
+        ],
+        onChanged: balanceLocked
+            ? null
+            : (value) => setState(() {
+                if (opening.text == '0' || opening.text == '0.00') {
+                  opening.text = decimalMoney(0, value!);
+                }
+                currency = value!;
+              }),
+      ),
       if (widget.importContext != null)
         Card(
           borderOnForeground: false,
@@ -653,27 +740,6 @@ class _AccountFormState extends ConsumerState<AccountForm> {
           maxLength: 40,
           decoration: const InputDecoration(labelText: '自定义类别'),
         ),
-      const Text('币种'),
-      Wrap(
-        spacing: 6,
-        runSpacing: 4,
-        children: [
-          for (final value in currencies)
-            ChoiceChip(
-              key: ValueKey('account-currency-$value'),
-              label: Text(value),
-              selected: currency == value,
-              onSelected: balanceLocked
-                  ? null
-                  : (_) => setState(() {
-                      if (opening.text == '0' || opening.text == '0.00') {
-                        opening.text = decimalMoney(0, value);
-                      }
-                      currency = value;
-                    }),
-            ),
-        ],
-      ),
       TextField(
         controller: opening,
         enabled: !balanceLocked,

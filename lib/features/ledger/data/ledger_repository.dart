@@ -180,6 +180,7 @@ class LedgerRepository {
     required int expectedBalance,
     String? expectedCurrency,
     String reason = '',
+    bool createEntry = false,
     DateTime? at,
   }) => db.transaction(() async {
     if (desiredBalance.abs() > 999999999999 || reason.trim().length > 200) {
@@ -200,6 +201,35 @@ class LedgerRepository {
     }
     if (current == desiredBalance) return;
     final now = at ?? DateTime.now();
+    if (createEntry) {
+      if (account.kind == '债务') {
+        throw const FormatException('债务账户仅支持直接对齐；收支请记入资金账户');
+      }
+      final delta = desiredBalance - current;
+      final kind = delta > 0 ? EntryKind.income : EntryKind.expense;
+      var category =
+          await (db.select(
+                db.categories,
+              )..where((c) => c.kind.equals(kind.name) & c.name.equals('余额调整')))
+              .getSingleOrNull();
+      if (category == null) {
+        await saveCategory('余额调整', kind.name);
+        category =
+            await (db.select(db.categories)..where(
+                  (c) => c.kind.equals(kind.name) & c.name.equals('余额调整'),
+                ))
+                .getSingle();
+      }
+      await saveEntry(
+        kind: kind,
+        amount: delta.abs(),
+        accountId: accountId,
+        categoryId: category.id,
+        date: dateKey(now),
+        note: reason.trim().isEmpty ? '余额对齐' : reason.trim(),
+      );
+      return;
+    }
     final adjustment = BalanceAdjustment(
       id: _uuid.v4(),
       accountId: accountId,

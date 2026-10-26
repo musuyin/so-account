@@ -20,7 +20,19 @@ class _DebtAccountsState extends ConsumerState<PeopleDebtsPage> {
   String currency = 'CNY';
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('债务')),
+    appBar: AppBar(
+      title: const Text('债务'),
+      actions: [
+        DropdownButton<String>(
+          value: currency,
+          items: [
+            for (final value in currencies)
+              DropdownMenuItem(value: value, child: Text(value)),
+          ],
+          onChanged: (v) => setState(() => currency = v!),
+        ),
+      ],
+    ),
     body: DataView(
       builder: (data) {
         final balances = ref.watch(balancesProvider).value ?? {};
@@ -30,14 +42,6 @@ class _DebtAccountsState extends ConsumerState<PeopleDebtsPage> {
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            DropdownButton<String>(
-              value: currency,
-              items: [
-                for (final value in currencies)
-                  DropdownMenuItem(value: value, child: Text(value)),
-              ],
-              onChanged: (v) => setState(() => currency = v!),
-            ),
             for (final side in accountTypes['债务']!) ...[
               ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -46,7 +50,7 @@ class _DebtAccountsState extends ConsumerState<PeopleDebtsPage> {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 subtitle: Text(
-                  '余额合计 ${money(accounts.where((a) => a.channel == side).fold<int>(0, (sum, a) => sum + (balances[a.id] ?? a.openingBalance)), currency)}',
+                  '余额合计 ${decimalMoney(accounts.where((a) => a.channel == side).fold<int>(0, (sum, a) => sum + (balances[a.id] ?? a.openingBalance)), currency)}',
                 ),
                 trailing: IconButton(
                   tooltip: '新增$side账户',
@@ -63,7 +67,7 @@ class _DebtAccountsState extends ConsumerState<PeopleDebtsPage> {
                   child: ExpansionTile(
                     title: Text(account.name),
                     subtitle: Text(
-                      '${side == '应付款' ? '待偿还' : '待收回'} ${money(balances[account.id] ?? account.openingBalance, currency)}',
+                      '${side == '应付款' ? '待偿还' : '待收回'} ${decimalMoney(balances[account.id] ?? account.openingBalance, currency)}',
                     ),
                     children: [
                       TextButton(
@@ -96,10 +100,10 @@ class _DebtAccountsState extends ConsumerState<PeopleDebtsPage> {
                               ListTile(
                                 contentPadding: EdgeInsets.zero,
                                 title: Text(
-                                  '${debt.kind == 'borrow' ? '借入' : '借出'} ${money(debt.amount, currency)}',
+                                  '${debt.kind == 'borrow' ? '借入' : '借出'} ${decimalMoney(debt.amount, currency)}',
                                 ),
                                 subtitle: Text(
-                                  '${debt.date} · 剩余 ${money(debtRemaining(debt, data.entries), currency)}',
+                                  '${debt.date} · 剩余 ${decimalMoney(debtRemaining(debt, data.entries), currency)}',
                                 ),
                                 onTap: () =>
                                     openForm(context, EntryForm(entry: debt)),
@@ -124,7 +128,7 @@ class _DebtAccountsState extends ConsumerState<PeopleDebtsPage> {
                               ))
                                 ListTile(
                                   title: Text(
-                                    '${payment.date} · ${money(payment.amount, currency)}',
+                                    '${payment.date} · ${decimalMoney(payment.amount, currency)}',
                                   ),
                                   subtitle: Text(
                                     data.account(payment.accountId).name,

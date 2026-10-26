@@ -78,7 +78,7 @@ class _AccountDetailState extends State<AccountDetailPage> {
       final change = rows.fold(0, (int sum, r) => sum + r.delta);
       return Scaffold(
         appBar: AppBar(
-          title: Text(account.name),
+          title: Text('${account.name} · ${account.currency}'),
           actions: [
             if (!account.isArchived)
               IconButton(
@@ -143,15 +143,19 @@ class _AccountDetailState extends State<AccountDetailPage> {
                     if (account.bank.isNotEmpty)
                       Text(bankLabels[account.bank] ?? '其他银行'),
                     Text(
-                      money(balance, account.currency),
+                      decimalMoney(balance, account.currency),
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      '期初余额  ${money(account.openingBalance, account.currency)}',
+                      '期初余额  ${decimalMoney(account.openingBalance, account.currency)}',
                     ),
-                    Text('交易净变动  ${money(transactionTotal, account.currency)}'),
-                    Text('余额调整  ${money(corrections, account.currency)}'),
+                    Text(
+                      '交易净变动  ${decimalMoney(transactionTotal, account.currency)}',
+                    ),
+                    Text(
+                      '余额调整  ${decimalMoney(corrections, account.currency)}',
+                    ),
                     if (account.kind == '债务' && account.channel == '应付款')
                       const Text('应付款正数表示待偿还金额，计入负债。'),
                   ],
@@ -233,7 +237,7 @@ class _AccountDetailState extends State<AccountDetailPage> {
               ],
             ),
             Text(
-              '筛选结果 ${rows.length} 笔 · 净变动 ${money(change, account.currency)}',
+              '筛选结果 ${rows.length} 笔 · 净变动 ${decimalMoney(change, account.currency)}',
             ),
             if (rows.isEmpty) const EmptyState('暂无符合条件的记录', '更换月份、类型或关键词后重试。'),
             for (final row in rows.take(limit))
@@ -241,7 +245,7 @@ class _AccountDetailState extends State<AccountDetailPage> {
                 borderOnForeground: false,
                 child: ListTile(
                   title: Text(
-                    '${row.label} · ${row.delta > 0 ? '+' : ''}${money(row.delta, account.currency)}',
+                    '${row.label} · ${row.delta > 0 ? '+' : ''}${decimalMoney(row.delta, account.currency)}',
                   ),
                   subtitle: Text('${row.date}\n${description(row)}'),
                   isThreeLine: true,

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/providers/providers.dart';
 import '../../../app/widgets.dart';
 import '../../../data/database/app_database.dart';
+import 'balance_adjustment_form.dart';
 
 class AccountActionsButton extends ConsumerStatefulWidget {
   const AccountActionsButton({super.key, required this.account});
@@ -30,6 +31,12 @@ class _AccountActionsState extends ConsumerState<AccountActionsButton> {
             children: [
               Text(account.name, style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 12),
+              if (!account.isArchived)
+                ListTile(
+                  leading: const Icon(Icons.account_balance_wallet_outlined),
+                  title: const Text('修改账户余额'),
+                  onTap: () => Navigator.pop(context, 'balance'),
+                ),
               ListTile(
                 leading: Icon(
                   account.isArchived
@@ -63,6 +70,21 @@ class _AccountActionsState extends ConsumerState<AccountActionsButton> {
       ),
     );
     if (action == null || !mounted) return;
+    if (action == 'balance') {
+      setState(() => busy = true);
+      await perform(context, () async {
+        final balances = await ref.read(ledgerProvider).balances();
+        if (!mounted) return;
+        final balance = balances[account.id];
+        if (balance == null) throw const FormatException('账户已不存在');
+        await openForm(
+          context,
+          BalanceAdjustmentForm(account: account, balance: balance),
+        );
+      });
+      if (mounted) setState(() => busy = false);
+      return;
+    }
     if (action == 'delete') {
       final approved = await confirm(
         context,

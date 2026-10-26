@@ -86,7 +86,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text('深色模式'), 200);
+      await tester.scrollUntilVisible(find.text('深色'), 200);
       expect(tester.takeException(), isNull);
       await capture('settings-large-text');
       await tester.pumpWidget(const SizedBox.shrink());

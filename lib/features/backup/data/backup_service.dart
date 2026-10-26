@@ -140,6 +140,18 @@ class BackupService {
         );
       }
       for (final pref in snapshot.preferences) {
+        if (pref.key == 'category_defaults_20261025' && pref.value == 'done') {
+          continue;
+        }
+        if (pref.key == 'account_order') {
+          final order = jsonDecode(pref.value);
+          if (order is! List ||
+              order.any((id) => id is! String) ||
+              order.toSet().length != order.length) {
+            throw const FormatException('账户排序无效');
+          }
+          continue;
+        }
         if (pref.key == 'item_categories') {
           validateItemCategories(pref.value);
           continue;
