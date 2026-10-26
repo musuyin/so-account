@@ -32,6 +32,13 @@ class _HomePageState extends ConsumerState<HomePage> {
     appBar: AppBar(
       title: const Text('素帐'),
       actions: [
+        TextButton(
+          onPressed: () => setState(() {
+            month = DateTime(DateTime.now().year, DateTime.now().month);
+            day = dateKey(DateTime.now());
+          }),
+          child: const Text('今天'),
+        ),
         DropdownButton<String>(
           value: currency,
           underline: const SizedBox(),
@@ -39,13 +46,6 @@ class _HomePageState extends ConsumerState<HomePage> {
               .map((c) => DropdownMenuItem(value: c, child: Text(c)))
               .toList(),
           onChanged: (v) => setState(() => currency = v!),
-        ),
-        TextButton(
-          onPressed: () => setState(() {
-            month = DateTime(DateTime.now().year, DateTime.now().month);
-            day = dateKey(DateTime.now());
-          }),
-          child: const Text('今天'),
         ),
       ],
     ),
@@ -338,7 +338,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                                           ),
                                           child: Column(
                                             mainAxisAlignment:
-                                                MainAxisAlignment.center,
+                                                MainAxisAlignment.start,
                                             children: [
                                               Text(
                                                 '${i - offset + 1}',

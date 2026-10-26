@@ -8,6 +8,29 @@ import 'package:so_account/features/ledger/data/ledger_repository.dart';
 import 'package:so_account/features/ledger/domain/entry_kind.dart';
 
 void main() {
+  test(
+    'income detail falls back when empty and supports explicit remapping',
+    () {
+      final table = ImportTable.fromRows('synthetic', [
+        ['日期', '类型', '金额', '账户', '分类', '二级分类'],
+        ['2026-10-23', '收入', '2', '钱包', '收入', '稿酬样例'],
+        ['2026-10-23', '收入', '3', '钱包', '奖励样例', ''],
+        ['2026-10-23', '支出', '4', '钱包', '交通样例', '子项样例'],
+      ]);
+      final mapping = IncomeExpenseImportMapping()..detect(table);
+      expect(mapping.categoryValuesFor(table, EntryKind.income), {
+        '稿酬样例',
+        '奖励样例',
+      });
+      expect(mapping.categoryValuesFor(table, EntryKind.expense), {'交通样例'});
+      mapping.columns.remove(ImportField.incomeSubcategory);
+      expect(mapping.categoryValuesFor(table, EntryKind.income), {
+        '收入',
+        '奖励样例',
+      });
+    },
+  );
+
   test('ignored rows retain source row numbers but never create missing dependencies', () {
     final table = ImportTable.fromRows('mixed', [
       ['日期', '类型', '金额', '账户', '分类'],

@@ -85,6 +85,7 @@ void main() {
     await screenshot('import-columns');
     await tester.tap(find.text('下一步：账户与分类'));
     await tester.pumpAndSettle();
+    await screenshot('import-mapping');
     await tester.scrollUntilVisible(find.text('预览明细'), 500);
     await tester.tap(find.text('预览明细'));
     await tester.pumpAndSettle();
@@ -99,7 +100,8 @@ void main() {
     await tester.tap(find.widgetWithText(ChoiceChip, '错误'));
     await tester.pumpAndSettle();
     expect(find.text('确认导入 1 条'), findsOneWidget);
-    await tester.tap(find.widgetWithText(ChoiceChip, '重复'));
+    expect(find.widgetWithText(ChoiceChip, '重复'), findsNothing);
+    await tester.tap(find.widgetWithText(ChoiceChip, '已忽略'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.text('没有匹配的明细'),

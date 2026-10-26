@@ -235,11 +235,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         previewFilter = 'all';
         previewSearch = '';
         selected.clear();
-        selected.addAll(
-          plan
-              .where((r) => r.entry != null && !r.entry!.suspectedDuplicate)
-              .map((r) => r.row),
-        );
+        selected.addAll(plan.where((r) => r.entry != null).map((r) => r.row));
       });
     });
     if (mounted) setState(() => busy = false);
@@ -276,19 +272,26 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     ValueChanged<String> onChanged,
   ) => Padding(
     padding: const EdgeInsets.only(bottom: 12),
-    child: DropdownButtonFormField<String>(
-      key: ValueKey('$label-$value-${options.keys.join(',')}'),
-      initialValue: options.containsKey(value) ? value : '',
-      isExpanded: true,
-      decoration: InputDecoration(labelText: label),
-      items: [
-        for (final option in options.entries)
-          DropdownMenuItem(
-            value: option.key,
-            child: Text(option.value, overflow: TextOverflow.ellipsis),
-          ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          key: ValueKey('$label-$value-${options.keys.join(',')}'),
+          initialValue: options.containsKey(value) ? value : '',
+          isExpanded: true,
+          decoration: const InputDecoration(),
+          items: [
+            for (final option in options.entries)
+              DropdownMenuItem(
+                value: option.key,
+                child: Text(option.value, overflow: TextOverflow.ellipsis),
+              ),
+          ],
+          onChanged: busy ? null : (value) => setState(() => onChanged(value!)),
+        ),
       ],
-      onChanged: busy ? null : (value) => setState(() => onChanged(value!)),
     ),
   );
 
@@ -462,8 +465,6 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                             (switch (previewFilter) {
                               'ignored' => r.ignored,
                               'errors' => r.error != null,
-                              'duplicates' =>
-                                r.entry?.suspectedDuplicate ?? false,
                               'selected' => selected.contains(r.row),
                               _ => !r.ignored,
                             }) &&
@@ -503,9 +504,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                         .titleLarge,
                                   ),
                                   Text(
-                                    '共 ${plan.length} 条 · 忽略 ${plan.where((r) => r.ignored).length} 条 · 错误 ${plan.where((r) => r.error != null).length} 条 · 疑似重复 ${plan.where((r) => r.entry?.suspectedDuplicate ?? false).length} 条',
+                                    '共 ${plan.length} 条 · 忽略 ${plan.where((r) => r.ignored).length} 条 · 错误 ${plan.where((r) => r.error != null).length} 条',
                                   ),
-                                  const Text('错误记录无法勾选；疑似重复默认不勾选，可核对后手动选择。'),
+                                  const Text('有效记录默认全部勾选；相同记录逐条保留，再次导入会继续追加。'),
                                   const Text('零金额、空账户和非收支记录已自动忽略，不会创建账户或影响余额。'),
                                   const SizedBox(height: 12),
                                   ClearableSearch(
@@ -521,7 +522,6 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                         'all': '全部',
                                         'selected': '已选',
                                         'errors': '错误',
-                                        'duplicates': '重复',
                                         'ignored': '已忽略',
                                       }.entries)
                                         ChoiceChip(
@@ -569,16 +569,12 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                                 selected.addAll(
                                                   plan
                                                       .where(
-                                                        (r) =>
-                                                            r.entry != null &&
-                                                            !r
-                                                                .entry!
-                                                                .suspectedDuplicate,
+                                                        (r) => r.entry != null,
                                                       )
                                                       .map((r) => r.row),
                                                 );
                                               }),
-                                        child: const Text('选择有效且不重复的记录'),
+                                        child: const Text('选择全部有效记录'),
                                       ),
                                       TextButton(
                                         onPressed: busy
@@ -629,7 +625,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                               subtitle: entry == null
                                   ? null
                                   : Text(
-                                      '${accountName(entry.accountId)} · ${data.category(entry.categoryId)}${entry.note.isEmpty ? '' : ' · ${entry.note}'}${entry.suspectedDuplicate ? ' · 疑似重复' : ''}',
+                                      '${accountName(entry.accountId)} · ${data.category(entry.categoryId)}${entry.note.isEmpty ? '' : ' · ${entry.note}'}',
                                     ),
                             );
                           },

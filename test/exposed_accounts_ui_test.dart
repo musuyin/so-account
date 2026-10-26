@@ -311,6 +311,17 @@ void main() {
           boundary: boundary,
         );
         expect(t.takeException(), isNull);
+        final current = DateTime.now();
+        double dateTop(int day) {
+          final cell = key(
+            'calendar-${dateKey(DateTime(current.year, current.month, day))}',
+          );
+          final text = find.descendant(of: cell, matching: find.text('$day'));
+          return t.getTopLeft(text).dy - t.getTopLeft(cell).dy;
+        }
+
+        expect(dateTop(1), closeTo(dateTop(2), 0.01));
+        expect(dateTop(2), closeTo(dateTop(6), 0.01));
         await capture(t, boundary, 'calendar-heatmap-$suffix');
         final now = DateTime.now();
         final day = dateKey(DateTime(now.year, now.month, 4));

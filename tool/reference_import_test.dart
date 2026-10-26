@@ -12,7 +12,7 @@ import 'package:so_account/features/importing/domain/import_plan.dart';
 import 'package:so_account/features/importing/domain/missing_accounts.dart';
 
 void main() {
-  test('private XLS references preview, commit and detect repeated imports', () async {
+  test('private XLS references preserve income detail and all repeated imports', () async {
     final files = Directory('docs/reference')
         .listSync()
         .whereType<File>()
@@ -69,13 +69,18 @@ void main() {
               (c) => c.id == entry.categoryId,
             );
             expect(category.kind, entry.kind.name);
-            expect(category.name, mapping.value(row, ImportField.category));
+            final detail = table.headers.indexOf('二级分类');
+            final parent = table.headers.indexOf('类别');
+            final expected =
+                entry.kind == EntryKind.income &&
+                    detail >= 0 &&
+                    row[detail].trim().isNotEmpty
+                ? row[detail].trim()
+                : row[parent].trim();
+            expect(category.name, expected);
           }
         }
-        final selected = valid
-            .map((r) => r.entry!)
-            .where((e) => !e.suspectedDuplicate)
-            .toList();
+        final selected = valid.map((r) => r.entry!).toList();
         final before = (await db.select(db.entries).get()).length;
         final count = selected.isEmpty
             ? 0
@@ -94,14 +99,30 @@ void main() {
           stored,
         );
         expect(
-          repeat.where((r) => r.entry != null).every((r) => r.entry!.duplicate),
+          repeat
+              .where((r) => r.entry != null)
+              .every((r) => !r.entry!.suspectedDuplicate),
           isTrue,
         );
+        final repeatedEntries = repeat
+            .where((r) => r.entry != null)
+            .map((r) => r.entry!)
+            .toList();
+        if (repeatedEntries.isNotEmpty) {
+          expect(
+            await commitIncomeExpenseImport(db, repeatedEntries),
+            selected.length,
+          );
+          expect(
+            (await db.select(db.entries).get()).length,
+            before + selected.length * 2,
+          );
+        }
         final income = valid
             .where((r) => r.entry!.kind == EntryKind.income)
             .length;
         print(
-          '${table.name}: ${valid.length} valid rows, ${ignored.length} rows ignored, $income income rows, $count committed records; repeat detection passed',
+          '${table.name}: ${valid.length} valid rows, ${ignored.length} rows ignored, $income income rows, $count committed records; repeated import preserves every row',
         );
       }
     }

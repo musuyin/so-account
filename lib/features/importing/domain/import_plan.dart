@@ -30,6 +30,7 @@ enum ImportField {
   counterparty('往来人', ['往来人', '人员', '借贷对象', '对方姓名', 'counterparty']),
   debt('原始借贷ID', ['原始借贷id', '关联借贷id', 'debt_id']),
   category('分类', ['分类', '类别', '交易分类', 'category']),
+  incomeSubcategory('收入细分类', ['二级分类', '收入细分类']),
   currency('币种', ['币种', 'currency']),
   note('备注', ['备注', '说明', '商品', 'note']);
 
@@ -39,6 +40,7 @@ enum ImportField {
 }
 
 class ImportMapping {
+  bool get detectDuplicates => true;
   String? ignoredReason(List<String> row) => null;
   final Map<ImportField, int> columns = {};
   final Map<String, String> accounts = {},
@@ -147,12 +149,25 @@ class ImportMapping {
 
 /// Current file-import scope. The app only accepts ordinary income/expense.
 class IncomeExpenseImportMapping extends ImportMapping {
+  @override
+  bool get detectDuplicates => false;
+
+  @override
+  String value(List<String> row, ImportField field) {
+    if (field == ImportField.category && kindFor(row) == EntryKind.income) {
+      final detail = super.value(row, ImportField.incomeSubcategory);
+      if (detail.isNotEmpty) return detail;
+    }
+    return super.value(row, field);
+  }
+
   static const fields = {
     ImportField.date,
     ImportField.kind,
     ImportField.amount,
     ImportField.account,
     ImportField.category,
+    ImportField.incomeSubcategory,
     ImportField.currency,
     ImportField.note,
   };
@@ -322,19 +337,20 @@ List<ImportResult> previewImport(
     throw const FormatException('每一列只能关联一个字段');
   }
   final seen = {
-    for (final e in existing)
-      _signature(
-        e.kind,
-        e.amount,
-        e.accountId,
-        e.date,
-        e.note,
-        e.categoryId,
-        e.targetAccountId,
-        e.counterparty,
-        e.debtId,
-        e.debtAccountId,
-      ),
+    if (mapping.detectDuplicates)
+      for (final e in existing)
+        _signature(
+          e.kind,
+          e.amount,
+          e.accountId,
+          e.date,
+          e.note,
+          e.categoryId,
+          e.targetAccountId,
+          e.counterparty,
+          e.debtId,
+          e.debtAccountId,
+        ),
   };
   return [
     for (var i = 0; i < table.rows.length; i++)
@@ -534,8 +550,9 @@ List<ImportResult> previewImport(
             debtId,
             debtAccountId,
           );
-          final duplicate = !seen.add(signature);
+          final duplicate = mapping.detectDuplicates && !seen.add(signature);
           final feeDuplicate =
+              mapping.detectDuplicates &&
               fee > 0 &&
               !seen.add(
                 _signature(

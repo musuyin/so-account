@@ -46,15 +46,6 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     appBar: AppBar(
       title: const Text('账户'),
       actions: [
-        DropdownButton<String>(
-          key: const ValueKey('asset-currency'),
-          value: currency,
-          items: [
-            for (final value in currencies)
-              DropdownMenuItem(value: value, child: Text(value)),
-          ],
-          onChanged: (value) => setState(() => currency = value!),
-        ),
         IconButton(
           tooltip: '心愿',
           icon: const Icon(Icons.savings_outlined),
@@ -66,6 +57,15 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
           icon: const Icon(Icons.add),
           onPressed: () =>
               openForm(context, AccountForm(initialCurrency: currency)),
+        ),
+        DropdownButton<String>(
+          key: const ValueKey('asset-currency'),
+          value: currency,
+          items: [
+            for (final value in currencies)
+              DropdownMenuItem(value: value, child: Text(value)),
+          ],
+          onChanged: (value) => setState(() => currency = value!),
         ),
       ],
     ),
