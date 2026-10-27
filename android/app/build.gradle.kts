@@ -11,6 +11,10 @@ val signingFile = rootProject.file("key.properties")
 if (signingFile.exists()) signingFile.inputStream().use { signingProperties.load(it) }
 val hasReleaseSigning = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
     .all { !signingProperties.getProperty(it).isNullOrBlank() }
+val recoveryHarness = project.findProperty("recoveryHarness") == "true"
+if (recoveryHarness && gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }) {
+    error("Recovery harness is debug-only")
+}
 if (gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) } && !hasReleaseSigning) {
     error("Release signing missing. See docs/engineering/app-updates.md; debug keys cannot publish updates.")
 }
@@ -27,7 +31,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "dev.soaccount.so_account"
+        applicationId = if (recoveryHarness) "dev.soaccount.so_account.recovery" else "dev.soaccount.so_account"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
