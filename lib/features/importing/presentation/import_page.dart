@@ -16,6 +16,7 @@ import '../domain/import_table.dart';
 import '../domain/import_plan.dart';
 import '../domain/missing_accounts.dart';
 import '../domain/import_template.dart';
+import '../domain/import_workflow.dart';
 
 class ImportPage extends ConsumerStatefulWidget {
   const ImportPage({super.key, this.initialTables});
@@ -25,16 +26,20 @@ class ImportPage extends ConsumerStatefulWidget {
 }
 
 class _ImportPageState extends ConsumerState<ImportPage> {
-  late List<ImportTable> tables = widget.initialTables ?? [];
-  int sheet = 0;
-  final mapping = IncomeExpenseImportMapping();
-  final importedAccountIds = <String>{};
-  List<ImportResult>? results;
-  final selected = <int>{};
+  late final workflow = ImportWorkflow(widget.initialTables ?? []);
+  List<ImportTable> get tables => workflow.tables;
+  int get sheet => workflow.sheet;
+  set sheet(int value) => workflow.sheet = value;
+  IncomeExpenseImportMapping get mapping => workflow.mapping;
+  Set<String> get importedAccountIds => workflow.importedAccountIds;
+  List<ImportResult>? get results => workflow.results;
+  set results(List<ImportResult>? value) => workflow.results = value;
+  Set<int> get selected => workflow.selected;
   bool busy = false;
-  int? imported;
+  int? get imported => workflow.imported;
   String? fileError;
-  int setupStep = 0;
+  int get setupStep => workflow.setupStep;
+  set setupStep(int value) => workflow.setupStep = value;
   String previewFilter = 'all', previewSearch = '';
   bool showExtraColumns = false;
   final Map<String, Account> createdAccounts = {};
@@ -76,20 +81,8 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     if (busy || selected.isEmpty || results == null) return;
     setState(() => busy = true);
     await perform(context, () async {
-      final chosen = results!
-          .where((r) => selected.contains(r.row))
-          .map((r) => r.entry!)
-          .toList();
-      final count = await commitIncomeExpenseImport(
-        ref.read(databaseProvider),
-        chosen,
-      );
-      if (mounted) {
-        setState(() {
-          imported = count;
-          importedAccountIds.addAll(chosen.map((e) => e.accountId));
-        });
-      }
+      await workflow.commit(ref.read(databaseProvider));
+      if (mounted) setState(() {});
     });
     if (mounted) setState(() => busy = false);
   }
@@ -231,11 +224,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         entries,
       );
       setState(() {
-        results = plan;
+        workflow.showPreview(plan);
         previewFilter = 'all';
         previewSearch = '';
-        selected.clear();
-        selected.addAll(plan.where((r) => r.entry != null).map((r) => r.row));
       });
     });
     if (mounted) setState(() => busy = false);
@@ -257,12 +248,6 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       });
     }, success: '已按原名称创建缺失分类');
     if (mounted) setState(() => busy = false);
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    if (tables.isNotEmpty) mapping.detect(tables.first);
   }
 
   Widget select(
@@ -306,12 +291,8 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       final decoded = await readImportTablesInBackground(file.name, file.bytes);
       if (!mounted) return;
       setState(() {
-        tables = decoded;
-        sheet = 0;
-        mapping.detect(decoded.first);
-        results = null;
-        imported = null;
-        setupStep = 0;
+        workflow.load(decoded);
+        createdAccounts.clear();
       });
     } catch (error) {
       if (mounted) {
@@ -349,11 +330,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     onPopInvokedWithResult: (didPop, result) {
       if (!didPop && !busy) {
         setState(() {
-          if (results != null) {
-            results = null;
-          } else {
-            setupStep = 0;
-          }
+          workflow.back();
         });
       }
     },
@@ -366,11 +343,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                 onPressed: busy
                     ? null
                     : () => setState(() {
-                        if (results != null) {
-                          results = null;
-                        } else {
-                          setupStep = 0;
-                        }
+                        workflow.back();
                       }),
                 icon: const Icon(Icons.arrow_back),
               )
