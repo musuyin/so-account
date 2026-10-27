@@ -7,13 +7,54 @@ import 'package:crypto/crypto.dart';
 const maxBackupBytes = 50 * 1024 * 1024;
 const maxExpandedBytes = 100 * 1024 * 1024;
 const maxBackupFiles = 1002;
+const maxBackupRows = 100000;
+
+/// One policy for export and restore. Smaller limits keep boundary tests cheap.
+class BackupLimits {
+  const BackupLimits({
+    this.compressedBytes = maxBackupBytes,
+    this.expandedBytes = maxExpandedBytes,
+    this.files = maxBackupFiles,
+    this.manifestBytes = 1024 * 1024,
+    this.rows = maxBackupRows,
+  });
+  final int compressedBytes, expandedBytes, files, manifestBytes, rows;
+
+  void checkRows(int count, String collection) {
+    if (count > rows) {
+      final label = switch (collection) {
+        'accounts' => '账户',
+        'categories' => '分类',
+        'entries' => '账目',
+        'budgets' => '预算',
+        'items' => '物品',
+        'links' || 'purchase_links' => '购买关联',
+        'preferences' => '偏好设置',
+        'adjustments' || 'balance_adjustments' => '余额调整',
+        'goals' || 'wish_goals' => '心愿目标',
+        'contributions' || 'goal_contributions' => '攒钱记录',
+        _ => '备份',
+      };
+      throw FormatException('$label 记录超过 $rows 条上限，请减少数据后重试；备份不会截断记录');
+    }
+  }
+}
+
 bool validBackupPath(String path) =>
     path == 'data.json' ||
     RegExp(r'^media/[a-zA-Z0-9_-]+\.(jpg|png|jpeg)$').hasMatch(path);
 
-Uint8List encodeBackup(Map<String, Uint8List> files) {
-  if (files.length > maxBackupFiles - 1 ||
-      files.values.fold<int>(0, (s, b) => s + b.length) > maxExpandedBytes) {
+Uint8List encodeBackup(
+  Map<String, Uint8List> files, {
+  BackupLimits limits = const BackupLimits(),
+  DateTime? createdAt,
+}) {
+  if (!files.containsKey('data.json')) {
+    throw const FormatException('缺少备份数据');
+  }
+  if (files.length > limits.files - 1 ||
+      files.values.fold<int>(0, (s, b) => s + b.length) >
+          limits.expandedBytes) {
     throw const FormatException('备份超过 100 MB 或 1000 张图片上限');
   }
   final archive = Archive();
@@ -21,7 +62,7 @@ Uint8List encodeBackup(Map<String, Uint8List> files) {
     'format': 1,
     'schema': 9,
     'app': 'so_account',
-    'createdAt': DateTime.now().toUtc().toIso8601String(),
+    'createdAt': (createdAt ?? DateTime.now()).toUtc().toIso8601String(),
     'files': {
       for (final entry in files.entries)
         entry.key: {
@@ -34,23 +75,35 @@ Uint8List encodeBackup(Map<String, Uint8List> files) {
     if (!validBackupPath(entry.key)) throw const FormatException('无效备份路径');
     archive.addFile(ArchiveFile.bytes(entry.key, entry.value));
   }
-  archive.addFile(ArchiveFile.string('manifest.json', jsonEncode(manifest)));
+  final manifestBytes = utf8.encode(jsonEncode(manifest));
+  final expanded = files.values.fold<int>(
+    manifestBytes.length,
+    (s, b) => s + b.length,
+  );
+  if (manifestBytes.length > limits.manifestBytes ||
+      expanded > limits.expandedBytes) {
+    throw const FormatException('备份数据与清单的解压体积超过限制，请减少数据或照片后重试');
+  }
+  archive.addFile(ArchiveFile.bytes('manifest.json', manifestBytes));
   final result = ZipEncoder().encode(archive);
-  if (result.length > maxBackupBytes) {
+  if (result.length > limits.compressedBytes) {
     throw const FormatException('压缩后的备份超过 50 MB');
   }
   return Uint8List.fromList(result);
 }
 
-Map<String, Uint8List> decodeBackup(Uint8List bytes) {
+Map<String, Uint8List> decodeBackup(
+  Uint8List bytes, {
+  BackupLimits limits = const BackupLimits(),
+}) {
   try {
-    if (bytes.length > maxBackupBytes) {
+    if (bytes.length > limits.compressedBytes) {
       throw const FormatException('备份文件超过 50 MB');
     }
     // The archive collection merges duplicate names. Inspect the directory
     // before decoding so duplicates and symlinks cannot be hidden by that merge.
     final directory = ZipDirectory()..read(InputMemoryStream(bytes));
-    if (directory.fileHeaders.length > maxBackupFiles) {
+    if (directory.fileHeaders.length > limits.files) {
       throw const FormatException('备份文件数量过多');
     }
     final names = <String>{};
@@ -67,14 +120,14 @@ Map<String, Uint8List> decodeBackup(Uint8List bytes) {
       }
       expanded += file.uncompressedSize;
       if (file.uncompressedSize < 0 ||
-          expanded > maxExpandedBytes ||
+          expanded > limits.expandedBytes ||
           file.filename == 'manifest.json' &&
-              file.uncompressedSize > 1024 * 1024) {
+              file.uncompressedSize > limits.manifestBytes) {
         throw const FormatException('解压体积超过限制');
       }
     }
     final archive = ZipDecoder().decodeBytes(bytes, verify: true);
-    if (archive.files.length > maxBackupFiles) {
+    if (archive.files.length > limits.files) {
       throw const FormatException('备份文件数量过多');
     }
     final seen = <String>{};
@@ -88,8 +141,8 @@ Map<String, Uint8List> decodeBackup(Uint8List bytes) {
       }
       total += file.size;
       if (file.size < 0 ||
-          total > maxExpandedBytes ||
-          file.name == 'manifest.json' && file.size > 1024 * 1024) {
+          total > limits.expandedBytes ||
+          file.name == 'manifest.json' && file.size > limits.manifestBytes) {
         throw const FormatException('解压体积超过限制');
       }
     }

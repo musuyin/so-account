@@ -18,49 +18,67 @@ import '../domain/backup_codec.dart';
 
 // Isolate closures are created outside the service so their captured context
 // never contains the live SQLite connection.
-Future<Uint8List> _encode(Map<String, Uint8List> files) =>
-    Isolate.run(() => encodeBackup(files));
-Future<Map<String, Uint8List>> _decode(Uint8List bytes) =>
-    Isolate.run(() => decodeBackup(bytes));
+Future<Uint8List> _encode(Map<String, Uint8List> files, BackupLimits limits) =>
+    Isolate.run(() => encodeBackup(files, limits: limits));
+Future<Map<String, Uint8List>> _decode(Uint8List bytes, BackupLimits limits) =>
+    Isolate.run(() => decodeBackup(bytes, limits: limits));
 
 class BackupService {
-  BackupService(this.db, this.media);
+  BackupService(this.db, this.media, {this.limits = const BackupLimits()});
   final AppDatabase db;
   final MediaStore media;
+  final BackupLimits limits;
 
   Future<Uint8List> export() async {
     final files = await db.transaction(() async {
+      // Count inside the same snapshot, before allocating JSON or reading photos.
+      for (final table in db.allTables) {
+        final count = await db
+            .customSelect(
+              'SELECT COUNT(*) AS n FROM "${table.actualTableName}"',
+              readsFrom: {table},
+            )
+            .getSingle();
+        limits.checkRows(count.read<int>('n'), table.actualTableName);
+      }
       final snapshot = await _Snapshot.read(db);
+      final photos = snapshot.items
+          .map((i) => i.photo)
+          .whereType<String>()
+          .toSet();
+      if (photos.length + 2 > limits.files) {
+        throw const FormatException('备份照片数量超过限制，请减少照片后重试');
+      }
       final result = <String, Uint8List>{
         'data.json': Uint8List.fromList(
           utf8.encode(jsonEncode(snapshot.toJson())),
         ),
       };
       var total = result['data.json']!.length;
-      for (final photo
-          in snapshot.items.map((i) => i.photo).whereType<String>().toSet()) {
+      for (final photo in photos) {
         final file = media.resolve(photo);
         if (!await file.exists()) {
           throw const FormatException('有物品照片缺失，请处理后再备份');
         }
         total += await file.length();
-        if (total > maxExpandedBytes) {
+        if (total > limits.expandedBytes) {
           throw const FormatException('备份超过 100 MB 上限');
         }
         result[photo] = await file.readAsBytes();
       }
       return result;
     });
-    return _encode(files);
+    return _encode(files, limits);
   }
 
   Future<void> restore(Uint8List bytes, {void Function()? beforeCommit}) async {
-    final files = await _decode(bytes);
+    final files = await _decode(bytes, limits);
     late _Snapshot snapshot;
     final stage = AppDatabase(NativeDatabase.memory());
     try {
       snapshot = _Snapshot.fromJson(
         jsonDecode(utf8.decode(files['data.json']!)) as Map<String, dynamic>,
+        limits,
       );
       await _replace(stage, snapshot);
       snapshot = await _Snapshot.read(stage);
@@ -294,13 +312,13 @@ class _Snapshot {
     'goals': goals.map((r) => r.toJson()).toList(),
     'contributions': contributions.map((r) => r.toJson()).toList(),
   };
-  factory _Snapshot.fromJson(Map<String, dynamic> json) {
+  factory _Snapshot.fromJson(Map<String, dynamic> json, BackupLimits limits) {
     json.putIfAbsent('adjustments', () => []);
     json.putIfAbsent('goals', () => []);
     json.putIfAbsent('contributions', () => []);
     List<T> rows<T>(String key, T Function(Map<String, dynamic>) decode) {
       final list = json[key] as List;
-      if (list.length > 100000) throw const FormatException('记录数量超过限制');
+      limits.checkRows(list.length, key);
       return list.map((r) => decode(r as Map<String, dynamic>)).toList();
     }
 

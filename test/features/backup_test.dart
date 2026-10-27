@@ -13,7 +13,72 @@ import 'package:so_account/features/ledger/data/ledger_repository.dart';
 import 'package:so_account/features/ledger/domain/entry_kind.dart';
 import 'package:so_account/platform/media/media_store.dart';
 
+import '../../integration_test/support/recovery_fixture.dart';
+
 void main() {
+  test(
+    'encoder and decoder agree at expanded, manifest and file boundaries',
+    () {
+      final files = {'data.json': Uint8List.fromList(utf8.encode('{}'))};
+      final stamp = DateTime.utc(2026, 10, 27);
+      final bytes = encodeBackup(files, createdAt: stamp);
+      final archive = ZipDecoder().decodeBytes(bytes);
+      final expanded = archive.files.fold<int>(0, (s, f) => s + f.size);
+      final manifest = archive.findFile('manifest.json')!.size;
+      for (final margin in [-1, 0, 1]) {
+        final limits = BackupLimits(expandedBytes: expanded + margin);
+        if (margin < 0) {
+          expect(
+            () => encodeBackup(files, limits: limits, createdAt: stamp),
+            throwsFormatException,
+          );
+          expect(
+            () => decodeBackup(bytes, limits: limits),
+            throwsFormatException,
+          );
+        } else {
+          expect(
+            decodeBackup(
+              encodeBackup(files, limits: limits, createdAt: stamp),
+              limits: limits,
+            )['data.json'],
+            files['data.json'],
+          );
+        }
+        final manifestLimits = BackupLimits(manifestBytes: manifest + margin);
+        final fileLimits = BackupLimits(files: 2 + margin);
+        final compressedLimits = BackupLimits(
+          compressedBytes: bytes.length + margin,
+        );
+        for (final policy in [manifestLimits, fileLimits, compressedLimits]) {
+          if (margin < 0) {
+            expect(
+              () => encodeBackup(files, limits: policy, createdAt: stamp),
+              throwsFormatException,
+            );
+            expect(
+              () => decodeBackup(bytes, limits: policy),
+              throwsFormatException,
+            );
+          } else {
+            expect(
+              decodeBackup(
+                encodeBackup(files, limits: policy, createdAt: stamp),
+                limits: policy,
+              ),
+              contains('data.json'),
+            );
+          }
+        }
+      }
+      // Payload alone fits; adding the manifest must be rejected on export too.
+      expect(
+        () => encodeBackup(files, limits: const BackupLimits(expandedBytes: 2)),
+        throwsFormatException,
+      );
+      expect(() => encodeBackup({}), throwsFormatException);
+    },
+  );
   late AppDatabase db;
   late Directory root;
   late BackupService service;
@@ -59,6 +124,85 @@ void main() {
     await db.close();
     await root.delete(recursive: true);
   });
+  test('complete synthetic ledger restores to a fresh database with all relationships', () async {
+    await seedRecoveryFixture(db, MediaStore(root));
+    final expected = await recoverySnapshot(db, MediaStore(root));
+    final bytes = await service.export();
+    await expectLater(
+      service.restore(
+        bytes,
+        beforeCommit: () => throw StateError('complete fixture rollback'),
+      ),
+      throwsStateError,
+    );
+    expect(await recoverySnapshot(db, MediaStore(root)), expected);
+    final target = AppDatabase(NativeDatabase.memory());
+    final targetMedia = MediaStore(Directory('${root.path}/fresh'));
+    try {
+      await BackupService(target, targetMedia).restore(bytes);
+      expect(await recoverySnapshot(target, targetMedia), expected);
+    } finally {
+      await target.close();
+    }
+  });
+  test(
+    'export checks every collection before JSON and media assembly',
+    () async {
+      final tables = db.allTables.toList();
+      for (final table in tables) {
+        final count = await db
+            .customSelect(
+              'SELECT COUNT(*) AS n FROM "${table.actualTableName}"',
+            )
+            .getSingle();
+        final n = count.read<int>('n');
+        const policy = BackupLimits(rows: 0);
+        if (n > 0) {
+          expect(
+            () => policy.checkRows(n, table.actualTableName),
+            throwsFormatException,
+          );
+        }
+      }
+      // A missing photo must not mask the earlier collection count failure.
+      await File('${root.path}/media/photo.jpg').delete();
+      await expectLater(
+        BackupService(
+          db,
+          MediaStore(root),
+          limits: const BackupLimits(rows: 0),
+        ).export(),
+        throwsA(
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('记录超过'),
+          ),
+        ),
+      );
+    },
+  );
+  test(
+    'export and restore agree just below, at and above row limits',
+    () async {
+      final count = (await db.select(db.categories).get()).length;
+      final bytes = await service.export();
+      for (final margin in [-1, 0, 1]) {
+        final bounded = BackupService(
+          db,
+          MediaStore(root),
+          limits: BackupLimits(rows: count + margin),
+        );
+        if (margin < 0) {
+          await expectLater(bounded.export(), throwsFormatException);
+          await expectLater(bounded.restore(bytes), throwsFormatException);
+        } else {
+          await bounded.restore(await bounded.export());
+          expect((await db.select(db.entries).get()).single.amount, 123);
+        }
+      }
+    },
+  );
   test('backup preserves account order and category upgrade marker', () async {
     final account = (await db.select(db.accounts).get()).single;
     final order = jsonEncode([account.id]);
