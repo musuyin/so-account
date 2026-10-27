@@ -28,6 +28,26 @@ class DataView extends ConsumerWidget {
       );
 }
 
+class QueryView<T> extends ConsumerWidget {
+  const QueryView({
+    super.key,
+    required this.value,
+    required this.builder,
+    required this.retry,
+  });
+  final AsyncValue<T> value;
+  final Widget Function(T) builder;
+  final VoidCallback retry;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => value.when(
+    data: builder,
+    loading: () => const Center(child: CircularProgressIndicator()),
+    error: (_, _) => Center(
+      child: FilledButton(onPressed: retry, child: const Text('读取失败，重新加载')),
+    ),
+  );
+}
+
 Future<bool> confirm(
   BuildContext context,
   String title,

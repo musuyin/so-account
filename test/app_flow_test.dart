@@ -87,6 +87,30 @@ void main() {
           ProviderScope(
             overrides: [
               snapshotProvider.overrideWith((ref) => Stream.value(data)),
+              preferencesProvider.overrideWith(
+                (ref) => Stream.value(data.preferences),
+              ),
+              homeLedgerProvider((
+                month: month,
+                currency: 'CNY',
+                day: null,
+                kind: null,
+                category: null,
+                search: '',
+                limit: 100,
+              )).overrideWith(
+                (ref) => Stream.value(
+                  HomeLedgerView(
+                    data,
+                    {
+                      dateKey(now): {'expense': 2850},
+                    },
+                    {'expense': 2850},
+                    1,
+                    1,
+                  ),
+                ),
+              ),
               balancesProvider.overrideWith(
                 (ref) => Stream.value({'wallet': 17150}),
               ),

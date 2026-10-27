@@ -1,7 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/database/app_database.dart';
+import '../../data/app_snapshot.dart';
+export '../../data/app_snapshot.dart';
 import '../../features/ledger/data/ledger_repository.dart';
+import '../../features/ledger/data/ledger_read_repository.dart';
+export '../../features/ledger/data/ledger_read_repository.dart';
 import '../../features/inventory/data/inventory_repository.dart';
 import '../../features/goals/data/goals_repository.dart';
 import '../../platform/media/media_store.dart';
@@ -34,7 +38,12 @@ final inventoryProvider = Provider(
 final goalsProvider = Provider(
   (ref) => GoalsRepository(ref.watch(databaseProvider)),
 );
-final snapshotProvider = StreamProvider((ref) {
+final preferencesProvider = StreamProvider((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.select(db.preferences).watch();
+});
+
+final snapshotProvider = StreamProvider.autoDispose((ref) {
   final db = ref.watch(databaseProvider);
   return db
       .customSelect(
@@ -77,43 +86,13 @@ final monthlyProvider = StreamProvider.family<List<MonthlyTotal>, String>(
   (ref, month) => ref.watch(ledgerProvider).watchMonthly(month),
 );
 
-class AppSnapshot {
-  const AppSnapshot(
-    this.accounts,
-    this.categories,
-    this.entries,
-    this.budgets,
-    this.items,
-    this.links,
-    this.preferences, [
-    this.adjustments = const [],
-    this.goals = const [],
-    this.contributions = const [],
-  ]);
-  final List<Account> accounts;
-  final List<Category> categories;
-  final List<Entry> entries;
-  final List<Budget> budgets;
-  final List<Item> items;
-  final List<PurchaseLink> links;
-  final List<Preference> preferences;
-  final List<BalanceAdjustment> adjustments;
-  final List<WishGoal> goals;
-  final List<GoalContribution> contributions;
-  List<Account> get activeAccounts =>
-      accounts.where((a) => !a.isArchived).toList();
-  bool hasArchivedAccount(Entry entry) => accounts.any(
-    (a) =>
-        a.isArchived &&
-        [
-          entry.accountId,
-          entry.targetAccountId,
-          entry.debtAccountId,
-        ].contains(a.id),
-  );
-  Account account(String id) => accounts.firstWhere((a) => a.id == id);
-  String category(String? id) =>
-      categories.where((c) => c.id == id).firstOrNull?.name ?? '往来';
-  String preference(String key, String fallback) =>
-      preferences.where((p) => p.key == key).firstOrNull?.value ?? fallback;
-}
+final homeLedgerProvider = StreamProvider.autoDispose
+    .family<HomeLedgerView, HomeQuery>(
+      (ref, query) =>
+          LedgerReadRepository(ref.watch(databaseProvider)).watchHome(query),
+    );
+final accountLedgerProvider = StreamProvider.autoDispose
+    .family<AccountLedgerView, AccountQuery>(
+      (ref, query) =>
+          LedgerReadRepository(ref.watch(databaseProvider)).watchAccount(query),
+    );

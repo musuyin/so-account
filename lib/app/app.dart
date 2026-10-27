@@ -44,12 +44,11 @@ class SoAccountApp extends ConsumerWidget {
   const SoAccountApp({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final mode =
-        ref.watch(snapshotProvider).value?.preference('theme', 'system') ??
-        'system';
-    final palette = AppPalette.parse(
-      ref.watch(snapshotProvider).value?.preference('palette', 'cucumber'),
-    );
+    final preferences = ref.watch(preferencesProvider).value ?? [];
+    String? preference(String key) =>
+        preferences.where((p) => p.key == key).firstOrNull?.value;
+    final mode = preference('theme') ?? 'system';
+    final palette = AppPalette.parse(preference('palette'));
     final art = ref.watch(botanicalArtProvider).value;
     return MaterialApp.router(
       title: '素帐 · SoAccount',

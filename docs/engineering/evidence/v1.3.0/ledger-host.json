@@ -1,0 +1,164 @@
+{
+  "os": "\"Windows 11 家庭版 中文版\" 10.0 (Build 26200)",
+  "runtime": "3.13.5 (stable) (Tue Sep 29 01:00:52 2026 -0700) on \"windows_x64\"",
+  "fixture": "synthetic-v1",
+  "scenarios": [
+    {
+      "rows": 1000,
+      "batchInsertMs": 40.235,
+      "previousFullSnapshot": {
+        "p50Ms": 5.644,
+        "p95Ms": 10.481,
+        "selectsPerLoad": 10.0,
+        "rssBytesAfter": 191062016,
+        "processPeakRssBytes": 193658880
+      },
+      "month": {
+        "p50Ms": 2.388,
+        "p95Ms": 2.708,
+        "selectsPerLoad": 8.0,
+        "rssBytesAfter": 193232896,
+        "processPeakRssBytes": 193658880
+      },
+      "monthSwitch": {
+        "p50Ms": 2.343,
+        "p95Ms": 3.586,
+        "selectsPerLoad": 7.0,
+        "rssBytesAfter": 190943232,
+        "processPeakRssBytes": 213803008
+      },
+      "account": {
+        "p50Ms": 3.509,
+        "p95Ms": 4.158,
+        "selectsPerLoad": 6.0,
+        "rssBytesAfter": 192405504,
+        "processPeakRssBytes": 213803008
+      },
+      "queryPlan": [
+        {
+          "id": 7,
+          "parent": 0,
+          "notused": 163,
+          "detail": "SEARCH e USING INDEX entries_date (date>? AND date<?)"
+        },
+        {
+          "id": 17,
+          "parent": 0,
+          "notused": 46,
+          "detail": "SEARCH a USING INDEX sqlite_autoindex_accounts_1 (id=?)"
+        },
+        {
+          "id": 53,
+          "parent": 0,
+          "notused": 0,
+          "detail": "USE TEMP B-TREE FOR LAST 2 TERMS OF ORDER BY"
+        }
+      ]
+    },
+    {
+      "rows": 10000,
+      "batchInsertMs": 154.161,
+      "previousFullSnapshot": {
+        "p50Ms": 42.065,
+        "p95Ms": 55.077,
+        "selectsPerLoad": 10.0,
+        "rssBytesAfter": 226349056,
+        "processPeakRssBytes": 229634048
+      },
+      "month": {
+        "p50Ms": 2.808,
+        "p95Ms": 3.738,
+        "selectsPerLoad": 7.0,
+        "rssBytesAfter": 225284096,
+        "processPeakRssBytes": 229634048
+      },
+      "monthSwitch": {
+        "p50Ms": 2.545,
+        "p95Ms": 5.257,
+        "selectsPerLoad": 7.0,
+        "rssBytesAfter": 219086848,
+        "processPeakRssBytes": 229634048
+      },
+      "account": {
+        "p50Ms": 10.916,
+        "p95Ms": 13.096,
+        "selectsPerLoad": 6.0,
+        "rssBytesAfter": 219463680,
+        "processPeakRssBytes": 229634048
+      },
+      "queryPlan": [
+        {
+          "id": 7,
+          "parent": 0,
+          "notused": 163,
+          "detail": "SEARCH e USING INDEX entries_date (date>? AND date<?)"
+        },
+        {
+          "id": 17,
+          "parent": 0,
+          "notused": 46,
+          "detail": "SEARCH a USING INDEX sqlite_autoindex_accounts_1 (id=?)"
+        },
+        {
+          "id": 53,
+          "parent": 0,
+          "notused": 0,
+          "detail": "USE TEMP B-TREE FOR LAST 2 TERMS OF ORDER BY"
+        }
+      ]
+    },
+    {
+      "rows": 100000,
+      "batchInsertMs": 1202.473,
+      "previousFullSnapshot": {
+        "p50Ms": 625.314,
+        "p95Ms": 847.953,
+        "selectsPerLoad": 10.0,
+        "rssBytesAfter": 326844416,
+        "processPeakRssBytes": 378662912
+      },
+      "month": {
+        "p50Ms": 21.598,
+        "p95Ms": 29.385,
+        "selectsPerLoad": 7.0,
+        "rssBytesAfter": 326938624,
+        "processPeakRssBytes": 378662912
+      },
+      "monthSwitch": {
+        "p50Ms": 21.832,
+        "p95Ms": 26.46,
+        "selectsPerLoad": 7.0,
+        "rssBytesAfter": 328978432,
+        "processPeakRssBytes": 378662912
+      },
+      "account": {
+        "p50Ms": 107.026,
+        "p95Ms": 158.334,
+        "selectsPerLoad": 6.0,
+        "rssBytesAfter": 329510912,
+        "processPeakRssBytes": 378662912
+      },
+      "queryPlan": [
+        {
+          "id": 7,
+          "parent": 0,
+          "notused": 163,
+          "detail": "SEARCH e USING INDEX entries_date (date>? AND date<?)"
+        },
+        {
+          "id": 17,
+          "parent": 0,
+          "notused": 46,
+          "detail": "SEARCH a USING INDEX sqlite_autoindex_accounts_1 (id=?)"
+        },
+        {
+          "id": 53,
+          "parent": 0,
+          "notused": 0,
+          "detail": "USE TEMP B-TREE FOR LAST 2 TERMS OF ORDER BY"
+        }
+      ]
+    }
+  ],
+  "target": "Windows flutter_tester; host evidence only"
+}

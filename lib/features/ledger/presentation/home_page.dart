@@ -23,6 +23,33 @@ class _HomePageState extends ConsumerState<HomePage> {
   EntryKind? kind;
   String currency = 'CNY', search = '';
   bool calendarExpanded = true;
+  int limit = 100;
+  HomeQuery get query => (
+    month: monthKey(month),
+    currency: currency,
+    day: day,
+    kind: kind?.name,
+    category: category,
+    search: search,
+    limit: limit,
+  );
+  @override
+  void setState(VoidCallback fn) {
+    final previous = query;
+    super.setState(() {
+      fn();
+      final current = query;
+      if (previous.month != current.month ||
+          previous.currency != current.currency ||
+          previous.day != current.day ||
+          previous.kind != current.kind ||
+          previous.category != current.category ||
+          previous.search != current.search) {
+        limit = 100;
+      }
+    });
+  }
+
   void moveMonth(int delta) => setState(() {
     month = DateTime(month.year, month.month + delta);
     day = null;
@@ -49,45 +76,19 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
       ],
     ),
-    body: DataView(
-      builder: (data) {
-        final totals = ref.watch(monthlyProvider(monthKey(month)));
-        int total(String kind) =>
-            (totals.value ?? [])
-                .where((t) => t.currency == currency && t.kind == kind)
-                .firstOrNull
-                ?.amount ??
-            0;
+    body: QueryView<HomeLedgerView>(
+      value: ref.watch(homeLedgerProvider(query)),
+      retry: () => ref.invalidate(homeLedgerProvider(query)),
+      builder: (view) {
+        final data = view.data;
+        int total(String kind) => view.totals[kind] ?? 0;
         final income = total('income'), expense = total('expense');
         final budget = data.budgets
             .where((b) => b.month == monthKey(month) && b.currency == currency)
             .firstOrNull
             ?.amount;
-        final entries =
-            data.entries
-                .where(
-                  (e) =>
-                      e.date.startsWith(monthKey(month)) &&
-                      data.account(e.accountId).currency == currency,
-                )
-                .toList()
-              ..sort(
-                (a, b) => a.date == b.date
-                    ? b.createdAt.compareTo(a.createdAt)
-                    : b.date.compareTo(a.date),
-              );
-        final filtered = entries
-            .where(
-              (e) =>
-                  (day == null || e.date == day) &&
-                  (kind == null || e.kind == kind!.name) &&
-                  (category == null || e.categoryId == category) &&
-                  (search.isEmpty ||
-                      '${e.note} ${e.counterparty} ${data.category(e.categoryId)} ${data.account(e.accountId).name}'
-                          .toLowerCase()
-                          .contains(search.trim().toLowerCase())),
-            )
-            .toList();
+        final entries = data.entries;
+        final filtered = entries;
         final green = calendarIncomeColor(Theme.of(context).brightness);
         final red = calendarExpenseColor(Theme.of(context).brightness);
         Widget metric(String label, int amount, {Color? color}) => Expanded(
@@ -106,17 +107,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             ],
           ),
         );
-        final dailyTotals = <String, Map<String, int>>{};
-        for (final entry in entries) {
-          if (entry.kind == 'income' || entry.kind == 'expense') {
-            final values = dailyTotals.putIfAbsent(entry.date, () => {});
-            values.update(
-              entry.kind,
-              (v) => v + entry.amount,
-              ifAbsent: () => entry.amount,
-            );
-          }
-        }
+        final dailyTotals = view.daily;
         final maximumNet = dailyTotals.values.fold<int>(0, (maximum, values) {
           final value = ((values['income'] ?? 0) - (values['expense'] ?? 0))
               .abs();
@@ -190,13 +181,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                           '借入 ${decimalMoney(total('borrow'), currency)} · 借出 ${decimalMoney(total('lend'), currency)}',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
-                      ),
-                    if (totals.isLoading) const LinearProgressIndicator(),
-                    if (totals.hasError)
-                      TextButton(
-                        onPressed: () =>
-                            ref.invalidate(monthlyProvider(monthKey(month))),
-                        child: const Text('统计读取失败，点击重试'),
                       ),
                   ],
                 ),
@@ -441,14 +425,14 @@ class _HomePageState extends ConsumerState<HomePage> {
               key: const ValueKey('ledger-list-heading'),
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Text(
-                '${day ?? monthKey(month)} · ${filtered.length} 笔',
+                '${day ?? monthKey(month)} · ${view.count} 笔',
                 style: Theme.of(context).textTheme.labelMedium,
               ),
             ),
             if (filtered.isEmpty) ...[
               EmptyState(
-                entries.isEmpty ? '暂无账目' : '没有匹配的账目',
-                entries.isEmpty ? '点击“记一笔”添加。' : '可清除筛选，查看本月其他账目。',
+                view.monthCount == 0 ? '暂无账目' : '没有匹配的账目',
+                view.monthCount == 0 ? '点击“记一笔”添加。' : '可清除筛选，查看本月其他账目。',
               ),
               if (day != null ||
                   kind != null ||
@@ -465,6 +449,11 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ),
             ],
             for (final entry in filtered) EntryTile(entry: entry, data: data),
+            if (view.count > entries.length)
+              TextButton(
+                onPressed: () => setState(() => limit += 100),
+                child: const Text('显示更多记录'),
+              ),
           ],
         );
       },
