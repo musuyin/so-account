@@ -14,7 +14,7 @@ import 'accounts_page.dart';
 import 'amount_pad.dart';
 import 'category_icons.dart';
 import 'purchase_item_dialog.dart';
-import '../../../core/money/calculator.dart';
+import '../domain/entry_draft.dart';
 
 class EntryForm extends ConsumerStatefulWidget {
   const EntryForm({
@@ -43,25 +43,41 @@ class EntryForm extends ConsumerStatefulWidget {
 }
 
 class _EntryFormState extends ConsumerState<EntryForm> {
-  late EntryKind kind = EntryKind.values.byName(
-    widget.entry?.kind ?? widget.initialKind?.name ?? 'expense',
+  late final draft = EntryDraft(
+    kind: EntryKind.values.byName(
+      widget.entry?.kind ?? widget.initialKind?.name ?? 'expense',
+    ),
+    accountId:
+        widget.entry?.accountId ??
+        widget.initialDebt?.accountId ??
+        widget.initialAccountId,
+    targetId: widget.entry?.targetAccountId,
+    categoryId: widget.entry?.categoryId,
+    debtId: widget.entry?.debtId ?? widget.initialDebt?.id,
+    debtAccountId:
+        widget.entry?.debtAccountId ??
+        widget.initialDebt?.debtAccountId ??
+        widget.initialDebtAccountId,
+    date: widget.entry == null
+        ? widget.initialDate ?? DateTime.now()
+        : parseDate(widget.entry!.date),
   );
-  late String? accountId =
-      widget.entry?.accountId ??
-      widget.initialDebt?.accountId ??
-      widget.initialAccountId;
-  late String? targetId = widget.entry?.targetAccountId;
-  late String? categoryId = widget.entry?.categoryId;
-  late String? debtId = widget.entry?.debtId ?? widget.initialDebt?.id;
-  late String? debtAccountId =
-      widget.entry?.debtAccountId ??
-      widget.initialDebt?.debtAccountId ??
-      widget.initialDebtAccountId;
-  late DateTime date = widget.entry == null
-      ? widget.initialDate ?? DateTime.now()
-      : parseDate(widget.entry!.date);
+  EntryKind get kind => draft.kind;
+  String? get accountId => draft.accountId;
+  set accountId(String? value) => draft.accountId = value;
+  String? get targetId => draft.targetId;
+  set targetId(String? value) => draft.targetId = value;
+  String? get categoryId => draft.categoryId;
+  set categoryId(String? value) => draft.categoryId = value;
+  String? get debtId => draft.debtId;
+  set debtId(String? value) => draft.debtId = value;
+  String? get debtAccountId => draft.debtAccountId;
+  set debtAccountId(String? value) => draft.debtAccountId = value;
+  DateTime get date => draft.date;
+  set date(DateTime value) => draft.date = value;
+  NewPurchaseItem? get item => draft.item;
+  set item(NewPurchaseItem? value) => draft.item = value;
   final amount = TextEditingController();
-  NewPurchaseItem? item;
   bool promptedItem = false;
   late final note = TextEditingController(text: widget.entry?.note);
   late final counterparty = TextEditingController(
@@ -481,24 +497,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                             tooltip: '交换付款方与收款方',
                             onPressed: saving
                                 ? null
-                                : () {
-                                    if (kind == EntryKind.transfer) {
-                                      if (targetId != null) {
-                                        setState(() {
-                                          final old = accountId;
-                                          accountId = targetId;
-                                          targetId = old;
-                                        });
-                                      }
-                                    } else {
-                                      changeKind(switch (kind) {
-                                        EntryKind.borrow => EntryKind.lend,
-                                        EntryKind.lend => EntryKind.borrow,
-                                        EntryKind.repay => EntryKind.collect,
-                                        _ => EntryKind.repay,
-                                      });
-                                    }
-                                  },
+                                : () => setState(draft.exchangeParties),
                             icon: const Icon(Icons.swap_vert),
                           ),
                         ),
@@ -677,11 +676,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
 
   void changeKind(EntryKind value) {
     if (value == kind) return;
-    setState(() {
-      kind = value;
-      debtId = null;
-      debtAccountId = null;
-    });
+    setState(() => draft.changeKind(value));
   }
 
   Widget party(String role, String value, VoidCallback action, {Key? key}) =>
@@ -818,26 +813,14 @@ class _EntryFormState extends ConsumerState<EntryForm> {
     if (saving) return;
     setState(() => saving = true);
     final ok = await perform(context, () async {
-      if ([EntryKind.borrow, EntryKind.lend].contains(kind) &&
-          debtAccountId == null) {
-        throw const FormatException('请选择或创建债务账户');
-      }
-      await ref
-          .read(ledgerProvider)
-          .saveEntry(
-            id: widget.entry?.id,
-            kind: kind,
-            amount: calculateMinor(amount.text, currency),
-            accountId: accountId!,
-            targetAccountId: targetId,
-            categoryId: categoryId,
-            debtId: debtId,
-            counterparty: kind.isSettlement ? '' : counterparty.text,
-            debtAccountId: debtAccountId,
-            date: dateKey(date),
-            note: note.text,
-            newItem: kind == EntryKind.expense ? item : null,
-          );
+      await draft.save(
+        ref.read(ledgerProvider),
+        id: widget.entry?.id,
+        currency: currency,
+        amount: amount.text,
+        note: note.text,
+        counterparty: counterparty.text,
+      );
     });
     if (!mounted) return;
     setState(() => saving = false);
@@ -846,7 +829,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
         setState(() {
           amount.clear();
           note.clear();
-          item = null;
+          draft.prepareAnother();
         });
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('已保存，继续记一笔')));
