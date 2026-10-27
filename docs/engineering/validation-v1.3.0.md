@@ -19,6 +19,12 @@ Windows 本地：固定 Flutter 3.47.7 / Dart 3.13.5；静态分析无问题、�
 
 隔离 debug 恢复 APK 构建成功，并经 aapt 确认包名为 `dev.soaccount.so_account.recovery`。最终正式构建：通用、arm64-v8a、armeabi-v7a、x86_64 APK 全部成功；aapt 确认 `dev.soaccount.so_account` / 1.3.0 / build 18，apksigner 确认四包与 v1.2.0 公开 ARM64 包的固定证书一致。本地通用 APK SHA-256：`f4ec14b6af166a9030cec8f57e470fde23dbdb7a6254c3e761d0d697252b475e`。本地构建摘要不要求与不同构建环境的公开包相同，公开包另外验证。
 
-CI、公开资产及差分核验在标签发布流程中单独记录；当前尚不作为通过证据。
+CI：[Mobile checks 40510726799](https://github.com/musuyin/so-account/actions/runs/40510726799) 在源码 `2e13834241cc258c973601677a10c7191e0dc0f6` 全部成功：Linux Android 格式/静态分析/完整测试/数据库生成一致性/构建，以及 macOS iOS 模拟器构建。首次 push 自动运行被同 SHA 的手动工作流替代，取消状态不作为验收结果。
+
+恢复证据：Android 15 / API 35 / x86_64 模拟器、候选 1.3.0 (18)、Schema 9、fixture synthetic-v1，seed、强杀重启、恢复失败及重启、提交前强杀/回滚后重启、成功恢复及重启全部通过。恢复提交前的 `ready-to-kill` 是宿主强杀检查点，随后独立 verify-failure 已通过。[归档结果与设备信息](evidence/v1.3.0/android-recovery.json) 源自 CI artifact `android-device-recovery` (12737012396)；截图 artifact `android-ui-evidence` (12736658861) 也已上传。
+
+公开发布：[Release workflow 40512347908](https://github.com/musuyin/so-account/actions/runs/40512347908) 成功，[v1.3.0](https://github.com/musuyin/so-account/releases/tag/v1.3.0) 为公开 latest 正式版，共 20 个资产。v1.3.0 标签指向上述已验收源码提交；随后补记的验证文档不改变应用代码。
+
+公开安装包与更新：核对通用及三种 ABI 的清单、大小和 SHA-256 清单/GitHub 摘要；实际下载 ARM64 APK 检查包名、版本 1.3.0/build 18、固定证书和摘要。公开 ARM64 SHA-256：`3ac67e13253e57e2ba4d0cb6e6860efe8d7f86a1c767675fd887452db9036a44`。使用公开 v1.2.0 ARM64 包应用公开差分，重建包与 v1.3.0 逐字节摘要一致。真实 AppUpdateService 另外验证三个 ABI/通用元数据并实际走差分下载；build 17 能发现 18，build 18 返回已是最新版本。结果与证书见 [公开验证数据](evidence/v1.3.0/public-release.json)。Release CI 另外保留 `release-ui-evidence` (12737108447) 与构建日志。
 
 Android 真机覆盖安装、跨版本数据保留、文件提供器、权限/低存储/iPhone 操作验收仍待执行。Android profile 冷启动、帧时、真实导入耗时与设备峰值内存尚未测量；主机测量不替代这些结果。
