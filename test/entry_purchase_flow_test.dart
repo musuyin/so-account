@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:so_account/app/providers/providers.dart';
 import 'package:so_account/app/theme/app_theme.dart';
 import 'package:so_account/app/widgets.dart';
+import 'package:so_account/core/appearance.dart';
 import 'package:so_account/data/database/app_database.dart';
 import 'package:so_account/features/inventory/domain/item_categories.dart';
 import 'package:so_account/features/ledger/presentation/purchase_item_dialog.dart';
@@ -70,6 +71,7 @@ Future<void> open(
   Entry? entry,
   bool recordItem = false,
   Brightness brightness = Brightness.light,
+  AppPalette palette = AppPalette.cucumber,
   RouteCounter? routes,
   GlobalKey? boundary,
 }) async {
@@ -78,7 +80,7 @@ Future<void> open(
       key: UniqueKey(),
       overrides: [databaseProvider.overrideWithValue(db)],
       child: MaterialApp(
-        theme: appTheme(brightness),
+        theme: appTheme(brightness, palette: palette),
         locale: const Locale('zh', 'CN'),
         supportedLocales: const [Locale('zh', 'CN')],
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
@@ -109,114 +111,128 @@ Future<void> open(
 }
 
 void main() {
-  for (final width in [390.0, 320.0]) {
-    testWidgets(
-      'purchase dialog stages a draft and atomically saves at $width pixels',
-      (t) async {
-        t.view.physicalSize = Size(width, 844);
-        t.view.devicePixelRatio = 1;
-        t.platformDispatcher.textScaleFactorTestValue = width == 320 ? 1.4 : 1;
-        addTearDown(t.view.resetPhysicalSize);
-        addTearDown(t.view.resetDevicePixelRatio);
-        addTearDown(t.platformDispatcher.clearTextScaleFactorTestValue);
-        await (FontLoader(
-          'NotoSansSC',
-        )..addFont(rootBundle.load('assets/fonts/NotoSansSC.ttf'))).load();
-        await (FontLoader(
-          'MaterialIcons',
-        )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
-        final db = await database(t);
-        final routes = RouteCounter();
-        final boundary = GlobalKey();
-        await open(
-          t,
-          db,
-          brightness: width == 320 ? Brightness.dark : Brightness.light,
-          routes: routes,
-          boundary: boundary,
-        );
-        final pushes = routes.pushes;
-        await showField(t, itemSwitch);
-        await t.tap(itemSwitch);
-        await t.pumpAndSettle();
-        expect(routes.pushes, pushes + 1);
-        expect(find.byType(PurchaseItemDialog), findsOneWidget);
-        await t.enterText(field('物品名称'), '洗发水样例');
-        await showField(t, find.widgetWithText(ChoiceChip, '日用品'));
-        await t.tap(find.widgetWithText(ChoiceChip, '日用品'));
-        await t.pump();
-        await showField(t, find.widgetWithText(ChoiceChip, '消耗品'));
-        await t.tap(find.widgetWithText(ChoiceChip, '消耗品'));
-        await t.pumpAndSettle();
-        for (final input in {
-          '数量 / 容量 · 可留空': '500',
-          '单位 · 可留空': 'ml',
-          '物品价格（选填）': '12.50',
-        }.entries) {
-          await showField(t, field(input.key));
-          await t.enterText(field(input.key), input.value);
-        }
-        FocusManager.instance.primaryFocus?.unfocus();
-        await t.tap(find.text('确认记物'));
-        await t.pumpAndSettle();
-        expect(find.byType(PurchaseItemDialog), findsNothing);
-        expect(await t.runAsync(() => db.select(db.items).get()), isEmpty);
-        await showField(t, itemSwitch);
-        await t.tap(itemSwitch);
-        await t.pumpAndSettle();
-        expect(t.widget<TextField>(field('物品名称')).controller!.text, '洗发水样例');
-        await t.enterText(field('物品名称'), '取消的修改');
-        await t.tap(find.text('取消'));
-        await t.pumpAndSettle();
-        await showField(t, itemSwitch);
-        await t.tap(itemSwitch);
-        await t.pumpAndSettle();
-        expect(t.widget<TextField>(field('物品名称')).controller!.text, '洗发水样例');
-        await t.runAsync(() async {
-          final image =
-              await (boundary.currentContext!.findRenderObject()
-                      as RenderRepaintBoundary)
-                  .toImage();
-          final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-          await File(
-            '.tooling/screenshots/entry-item-dialog-${width.toInt()}.png',
-          ).writeAsBytes(bytes!.buffer.asUint8List());
-          image.dispose();
-        });
-        await t.tap(find.text('取消'));
-        await t.pumpAndSettle();
-        await enterAmount(t);
-        await t.tap(find.text('保存'));
-        await settle(t);
-        final entry = (await t.runAsync(() => db.select(db.entries).get()))!
-            .single;
-        final item = (await t.runAsync(() => db.select(db.items).get()))!
-            .single;
-        final link = (await t.runAsync(
-          () => db.select(db.purchaseLinks).get(),
-        ))!.single;
-        expect(entry.amount, 700);
-        expect(item.name, '洗发水样例');
-        expect(itemTags(item.category), ['日用品']);
-        expect(item.currency, 'USD');
-        expect(item.purchasedOn, entry.date);
-        expect(item.price, 1250);
-        expect(item.quantity, '500');
-        expect(item.unit, 'ml');
-        expect(link.entryId, entry.id);
-        expect(link.itemId, item.id);
-        expect(t.takeException(), isNull);
-        await t.pumpWidget(const SizedBox.shrink());
-        await t.pump(const Duration(milliseconds: 1));
-        await open(t, db, entry: entry);
-        expect(find.textContaining('记物 ·'), findsNothing);
-        await t.tap(find.text('保存'));
-        await settle(t);
-        expect((await t.runAsync(() => db.select(db.items).get()))!.length, 1);
-        await t.pumpWidget(const SizedBox.shrink());
-        await t.pump(const Duration(milliseconds: 1));
-      },
-    );
+  for (final scenario in [
+    for (final palette in AppPalette.values)
+      for (final brightness in Brightness.values)
+        for (final width in [320.0, 390.0]) (palette, brightness, width),
+  ]) {
+    final width = scenario.$3;
+    final suffix = '${scenario.$1.name}-${scenario.$2.name}-${width.toInt()}';
+    testWidgets('purchase dialog stages a draft and atomically saves $suffix', (
+      t,
+    ) async {
+      t.view.physicalSize = Size(width, 844);
+      t.view.devicePixelRatio = 1;
+      t.platformDispatcher.textScaleFactorTestValue = 1.4;
+      addTearDown(t.view.resetPhysicalSize);
+      addTearDown(t.view.resetDevicePixelRatio);
+      addTearDown(t.platformDispatcher.clearTextScaleFactorTestValue);
+      await (FontLoader(
+        'NotoSansSC',
+      )..addFont(rootBundle.load('assets/fonts/NotoSansSC.ttf'))).load();
+      await (FontLoader(
+        'MaterialIcons',
+      )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
+      final db = await database(t);
+      final routes = RouteCounter();
+      final boundary = GlobalKey();
+      await open(
+        t,
+        db,
+        brightness: scenario.$2,
+        palette: scenario.$1,
+        routes: routes,
+        boundary: boundary,
+      );
+      await t.runAsync(() async {
+        final image =
+            await (boundary.currentContext!.findRenderObject()
+                    as RenderRepaintBoundary)
+                .toImage();
+        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+        await Directory('.tooling/screenshots').create(recursive: true);
+        await File('.tooling/screenshots/entry-composer-$suffix.png')
+            .writeAsBytes(bytes!.buffer.asUint8List());
+        image.dispose();
+      });
+      final pushes = routes.pushes;
+      await showField(t, itemSwitch);
+      await t.tap(itemSwitch);
+      await t.pumpAndSettle();
+      expect(routes.pushes, pushes + 1);
+      expect(find.byType(PurchaseItemDialog), findsOneWidget);
+      await t.enterText(field('物品名称'), '洗发水样例');
+      await showField(t, find.widgetWithText(ChoiceChip, '日用品'));
+      await t.tap(find.widgetWithText(ChoiceChip, '日用品'));
+      await t.pump();
+      await showField(t, find.widgetWithText(ChoiceChip, '消耗品'));
+      await t.tap(find.widgetWithText(ChoiceChip, '消耗品'));
+      await t.pumpAndSettle();
+      for (final input in {
+        '数量 / 容量 · 可留空': '500',
+        '单位 · 可留空': 'ml',
+        '物品价格（选填）': '12.50',
+      }.entries) {
+        await showField(t, field(input.key));
+        await t.enterText(field(input.key), input.value);
+      }
+      FocusManager.instance.primaryFocus?.unfocus();
+      await t.tap(find.text('确认记物'));
+      await t.pumpAndSettle();
+      expect(find.byType(PurchaseItemDialog), findsNothing);
+      expect(await t.runAsync(() => db.select(db.items).get()), isEmpty);
+      await showField(t, itemSwitch);
+      await t.tap(itemSwitch);
+      await t.pumpAndSettle();
+      expect(t.widget<TextField>(field('物品名称')).controller!.text, '洗发水样例');
+      await t.enterText(field('物品名称'), '取消的修改');
+      await t.tap(find.text('取消'));
+      await t.pumpAndSettle();
+      await showField(t, itemSwitch);
+      await t.tap(itemSwitch);
+      await t.pumpAndSettle();
+      expect(t.widget<TextField>(field('物品名称')).controller!.text, '洗发水样例');
+      await t.runAsync(() async {
+        final image =
+            await (boundary.currentContext!.findRenderObject()
+                    as RenderRepaintBoundary)
+                .toImage();
+        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+        await File('.tooling/screenshots/entry-item-dialog-$suffix.png')
+            .writeAsBytes(bytes!.buffer.asUint8List());
+        image.dispose();
+      });
+      await t.tap(find.text('取消'));
+      await t.pumpAndSettle();
+      await enterAmount(t);
+      await t.tap(find.text('保存'));
+      await settle(t);
+      final entry = (await t.runAsync(() => db.select(db.entries).get()))!
+          .single;
+      final item = (await t.runAsync(() => db.select(db.items).get()))!.single;
+      final link = (await t.runAsync(() => db.select(db.purchaseLinks).get()))!
+          .single;
+      expect(entry.amount, 700);
+      expect(item.name, '洗发水样例');
+      expect(itemTags(item.category), ['日用品']);
+      expect(item.currency, 'USD');
+      expect(item.purchasedOn, entry.date);
+      expect(item.price, 1250);
+      expect(item.quantity, '500');
+      expect(item.unit, 'ml');
+      expect(link.entryId, entry.id);
+      expect(link.itemId, item.id);
+      expect(t.takeException(), isNull);
+      await t.pumpWidget(const SizedBox.shrink());
+      await t.pump(const Duration(milliseconds: 1));
+      await open(t, db, entry: entry);
+      expect(find.textContaining('记物 ·'), findsNothing);
+      await t.tap(find.text('保存'));
+      await settle(t);
+      expect((await t.runAsync(() => db.select(db.items).get()))!.length, 1);
+      await t.pumpWidget(const SizedBox.shrink());
+      await t.pump(const Duration(milliseconds: 1));
+    });
   }
   testWidgets(
     'cancelled and removed drafts do not write, and income never creates an item',

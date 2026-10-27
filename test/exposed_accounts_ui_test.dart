@@ -222,19 +222,16 @@ void main() {
   });
 
   for (final scenario in [
-    (AppPalette.classic, Brightness.light, 390.0),
-    (AppPalette.cucumber, Brightness.dark, 390.0),
-    (AppPalette.sky, Brightness.light, 320.0),
-    (AppPalette.lavender, Brightness.dark, 320.0),
+    for (final palette in AppPalette.values)
+      for (final brightness in Brightness.values)
+        for (final width in [320.0, 390.0]) (palette, brightness, width),
   ]) {
     testWidgets(
       'direct type and bank selection, assets and calendar render in ${scenario.$1} ${scenario.$2}',
       (t) async {
         t.view.physicalSize = Size(scenario.$3, 844);
         t.view.devicePixelRatio = 1;
-        t.platformDispatcher.textScaleFactorTestValue = scenario.$3 == 320
-            ? 1.4
-            : 1;
+        t.platformDispatcher.textScaleFactorTestValue = 1.4;
         addTearDown(t.view.resetPhysicalSize);
         addTearDown(t.view.resetDevicePixelRatio);
         addTearDown(t.platformDispatcher.clearTextScaleFactorTestValue);
@@ -246,7 +243,8 @@ void main() {
         )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
         final db = await seed(t);
         final boundary = GlobalKey();
-        final suffix = '${scenario.$1.name}-${scenario.$3.toInt()}';
+        final suffix =
+            '${scenario.$1.name}-${scenario.$2.name}-${scenario.$3.toInt()}';
         await mount(
           t,
           db,
@@ -323,6 +321,15 @@ void main() {
         expect(dateTop(1), closeTo(dateTop(2), 0.01));
         expect(dateTop(2), closeTo(dateTop(6), 0.01));
         await capture(t, boundary, 'calendar-heatmap-$suffix');
+        // August 2026 occupies six calendar rows with Monday-first weeks.
+        final delta = (2026 - current.year) * 12 + 8 - current.month;
+        for (var i = 0; i < delta.abs(); i++) {
+          await t.tap(find.byTooltip(delta < 0 ? '上个月' : '下个月'));
+          await settle(t);
+        }
+        await capture(t, boundary, 'calendar-six-week-$suffix');
+        await t.tap(find.text('今天'));
+        await settle(t);
         final now = DateTime.now();
         final day = dateKey(DateTime(now.year, now.month, 4));
         await show(t, key('calendar-$day'));

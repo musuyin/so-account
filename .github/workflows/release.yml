@@ -43,9 +43,19 @@ jobs:
       - run: flutter pub get --enforce-lockfile
       - run: python3 -m unittest discover -s tool -p 'test_*.py'
       - run: python3 tool/prepare_sqlite.py linux android
-      - run: dart format --output=none --set-exit-if-changed lib test integration_test
+      - run: dart format --output=none --set-exit-if-changed lib test integration_test benchmark test_driver
       - run: flutter analyze
-      - run: flutter test
+      - name: Flutter tests with retained output
+        run: |
+          mkdir -p .tooling/ci-logs
+          flutter test --reporter expanded | tee .tooling/ci-logs/flutter-tests.log
+      - name: Preserve rendered UI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-ui-evidence
+          path: .tooling/screenshots/*.png
+          if-no-files-found: ignore
       - name: Restore persistent release signing
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
