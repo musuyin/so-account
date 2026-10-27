@@ -13,6 +13,7 @@ import '../domain/debt_relationship.dart';
 import 'accounts_page.dart';
 import 'amount_pad.dart';
 import 'category_icons.dart';
+import 'purchase_item_dialog.dart';
 import '../../../core/money/calculator.dart';
 
 class EntryForm extends ConsumerStatefulWidget {
@@ -60,13 +61,8 @@ class _EntryFormState extends ConsumerState<EntryForm> {
       ? widget.initialDate ?? DateTime.now()
       : parseDate(widget.entry!.date);
   final amount = TextEditingController();
-  final itemName = TextEditingController();
-  final itemPrice = TextEditingController();
-  final itemQuantity = TextEditingController();
-  final itemUnit = TextEditingController();
-  late bool recordItem = widget.initialRecordItem;
-  String? itemCategory;
-  String itemUseType = 'durable';
+  NewPurchaseItem? item;
+  bool promptedItem = false;
   late final note = TextEditingController(text: widget.entry?.note);
   late final counterparty = TextEditingController(
     text: widget.entry?.counterparty ?? widget.initialCounterparty,
@@ -75,10 +71,6 @@ class _EntryFormState extends ConsumerState<EntryForm> {
   @override
   void dispose() {
     amount.dispose();
-    itemName.dispose();
-    itemPrice.dispose();
-    itemQuantity.dispose();
-    itemUnit.dispose();
     note.dispose();
     counterparty.dispose();
     super.dispose();
@@ -211,354 +203,656 @@ class _EntryFormState extends ConsumerState<EntryForm> {
           )
           .toList();
       if (!debtAccounts.any((a) => a.id == debtAccountId)) debtAccountId = null;
-      return FormFrame(
-        title: widget.entry == null ? '记一笔' : '编辑账目',
-        saving: saving,
-        currency: account.currency,
-        header: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              for (final value in EntryKind.values)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(value.label),
-                    selected: kind == value,
-                    onSelected: (_) => setState(() => kind = value),
+      if (widget.initialRecordItem &&
+          !promptedItem &&
+          kind == EntryKind.expense) {
+        promptedItem = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) editItem(data, account.currency);
+        });
+      }
+      final isDebt = !kind.needsCategory && kind != EntryKind.transfer;
+      final selectedDebt = debts.where((e) => e.id == debtId).firstOrNull;
+      final debtAccount = debtAccounts
+          .where((a) => a.id == debtAccountId)
+          .firstOrNull;
+      final colors = Theme.of(context).colorScheme;
+      Widget fundsParty(String role) => party(
+        role,
+        account.name,
+        () => pickAccount('选择收支账户', funds, accountId, (value) {
+          if (data.account(value).currency != account.currency) item = null;
+          accountId = value;
+        }),
+        key: const ValueKey('entry-account'),
+      );
+      Widget debtParty(String role) => party(
+        role,
+        kind.isSettlement
+            ? selectedDebt == null
+                  ? '选择原始借贷'
+                  : '${selectedDebt.counterparty} · 剩余 ${decimalMoney(debtRemaining(selectedDebt, data.entries, excludingId: widget.entry?.id), account.currency)}'
+            : debtAccount?.name ?? '选择$debtSide账户',
+        () async {
+          if (!kind.isSettlement) {
+            await pickAccount(
+              '选择$debtSide账户',
+              debtAccounts,
+              debtAccountId,
+              (value) => debtAccountId = value,
+            );
+          } else {
+            final value = await showModalBottomSheet<String>(
+              context: context,
+              isScrollControlled: true,
+              builder: (context) => SafeArea(
+                child: SizedBox(
+                  height: MediaQuery.sizeOf(context).height * .65,
+                  child: Column(
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text('选择原始借贷'),
+                      ),
+                      Expanded(
+                        child: ListView(
+                          children: [
+                            if (debts.isEmpty)
+                              const Padding(
+                                padding: EdgeInsets.all(20),
+                                child: Text('暂无可结算借贷，请先记录借入或借出。'),
+                              ),
+                            for (final e in debts)
+                              ListTile(
+                                title: Text(
+                                  e.counterparty.isEmpty
+                                      ? '未注明往来人'
+                                      : e.counterparty,
+                                ),
+                                subtitle: Text(
+                                  '${e.date} · 剩余 ${money(debtRemaining(e, data.entries, excludingId: widget.entry?.id), account.currency)}${e.note.isEmpty ? '' : ' · ${e.note}'}',
+                                ),
+                                selected: e.id == debtId,
+                                onTap: () => Navigator.pop(context, e.id),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-            ],
-          ),
-        ),
-        footer: AmountPad(controller: amount, currency: account.currency),
-        onSave: () async {
-          if (saving) return;
-          setState(() => saving = true);
-          final ok = await perform(context, () async {
-            if ([EntryKind.borrow, EntryKind.lend].contains(kind) &&
-                debtAccountId == null) {
-              throw const FormatException('请选择或创建债务账户');
-            }
-            await ref
-                .read(ledgerProvider)
-                .saveEntry(
-                  id: widget.entry?.id,
-                  kind: kind,
-                  amount: calculateMinor(amount.text, account.currency),
-                  accountId: accountId!,
-                  targetAccountId: targetId,
-                  categoryId: categoryId,
-                  debtId: debtId,
-                  counterparty: kind.isSettlement ? '' : counterparty.text,
-                  debtAccountId: debtAccountId,
-                  date: dateKey(date),
-                  note: note.text,
-                  newItem: kind == EntryKind.expense && recordItem
-                      ? NewPurchaseItem(
-                          name: itemName.text,
-                          category: itemCategory ?? '',
-                          useType: itemUseType,
-                          price: itemPrice.text.trim().isEmpty
-                              ? null
-                              : parseMoney(itemPrice.text, account.currency),
-                          quantity: itemUseType == 'consumable'
-                              ? itemQuantity.text
-                              : null,
-                          unit: itemUseType == 'consumable'
-                              ? itemUnit.text
-                              : null,
-                        )
-                      : null,
-                );
-          });
-          if (mounted && context.mounted) {
-            setState(() => saving = false);
-            if (ok) Navigator.pop(context);
+              ),
+            );
+            if (mounted && value != null) setState(() => debtId = value);
           }
         },
-        children: [
-          DropdownButtonFormField<String>(
-            key: ValueKey('account-$accountId'),
-            isExpanded: true,
-            initialValue: accountId,
-            decoration: const InputDecoration(labelText: '账户'),
-            selectedItemBuilder: (_) => [
-              for (final a in funds)
-                Text(a.name, overflow: TextOverflow.ellipsis),
-            ],
-            items: funds
-                .map(
-                  (a) => DropdownMenuItem(
-                    value: a.id,
-                    child: Text(
-                      '${a.name} · ${a.currency}',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                )
-                .toList(),
-            onChanged: (v) => setState(() => accountId = v),
-          ),
-          if (kind.needsCategory)
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final width =
-                    constraints.maxWidth / (constraints.maxWidth > 400 ? 6 : 4);
-                return Wrap(
-                  children: [
-                    for (final c in categories)
-                      SizedBox(
-                        width: width,
-                        child: Padding(
-                          padding: const EdgeInsets.all(3),
-                          child: InkWell(
-                            onTap: () => setState(() => categoryId = c.id),
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 8,
-                                horizontal: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: categoryId == c.id
-                                    ? Theme.of(context)
-                                          .colorScheme
-                                          .primaryContainer
-                                    : null,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Column(
-                                children: [
-                                  Icon(categoryIcon(c.name)),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    c.name,
-                                    textAlign: TextAlign.center,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelSmall,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
+        key: const ValueKey('entry-debt'),
+      );
+      return PopScope(
+        canPop: !saving,
+        child: Scaffold(
+          appBar: AppBar(
+            leadingWidth: 36,
+            titleSpacing: 0,
+            title: Row(
+              children: [
+                for (final tab in ['支出', '收入', '转账', '债务'])
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 1),
+                      child: Semantics(
+                        selected: tab == (isDebt ? '债务' : kind.label),
+                        child: InkWell(
+                          key: ValueKey('entry-tab-$tab'),
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: saving
+                              ? null
+                              : () => changeKind(switch (tab) {
+                                  '支出' => EntryKind.expense,
+                                  '收入' => EntryKind.income,
+                                  '转账' => EntryKind.transfer,
+                                  _ => isDebt ? kind : EntryKind.borrow,
+                                }),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: tab == (isDebt ? '债务' : kind.label)
+                                  ? colors.primaryContainer
+                                  : colors.surfaceContainerLow,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              tab,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.labelLarge,
                             ),
                           ),
                         ),
                       ),
-                  ],
-                );
-              },
-            ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('日期'),
-            subtitle: Text(dateKey(date)),
-            trailing: const Icon(Icons.calendar_today),
-            onTap: () async {
-              final value = await showDatePicker(
-                context: context,
-                initialDate: date,
-                firstDate: DateTime(1900),
-                lastDate: DateTime(2100),
-              );
-              if (value != null) setState(() => date = value);
-            },
-          ),
-          if (kind == EntryKind.transfer)
-            DropdownButtonFormField<String>(
-              key: ValueKey('target-$accountId'),
-              initialValue: targetId,
-              decoration: const InputDecoration(labelText: '转入账户 · 同币种'),
-              items: targets
-                  .map(
-                    (a) => DropdownMenuItem(value: a.id, child: Text(a.name)),
-                  )
-                  .toList(),
-              onChanged: (v) => targetId = v,
-            ),
-          if ([EntryKind.borrow, EntryKind.lend].contains(kind)) ...[
-            DropdownButtonFormField<String>(
-              key: ValueKey(
-                'debt-account-${kind.name}-$accountId-$debtAccountId',
-              ),
-              initialValue: debtAccountId,
-              isExpanded: true,
-              decoration: InputDecoration(labelText: '$debtSide账户'),
-              items: [
-                for (final a in debtAccounts)
-                  DropdownMenuItem(
-                    value: a.id,
-                    child: Text('${a.name} · ${a.channel}'),
-                  ),
-              ],
-              onChanged: (v) => setState(() => debtAccountId = v),
-            ),
-            TextButton.icon(
-              icon: const Icon(Icons.person_add_outlined),
-              label: Text('创建$debtSide账户'),
-              onPressed: () async {
-                final id = await Navigator.of(context).push<String>(
-                  MaterialPageRoute(
-                    builder: (_) => AccountForm(
-                      initialKind: '债务',
-                      initialChannel: debtSide,
-                      initialName: widget.initialCounterparty,
-                      initialCurrency: account.currency,
                     ),
                   ),
-                );
-                if (mounted && id != null) setState(() => debtAccountId = id);
-              },
+              ],
             ),
-          ],
-          if (kind.isSettlement) ...[
-            DropdownButtonFormField<String>(
-              key: ValueKey('debt-${kind.name}-$accountId-$debtId'),
-              isExpanded: true,
-              initialValue: debtId,
-              decoration: const InputDecoration(labelText: '原始借贷'),
-              items: debts
-                  .map(
-                    (e) => DropdownMenuItem(
-                      value: e.id,
+            actions: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Center(
+                  child: Text(
+                    account.currency,
+                    style: Theme.of(context).textTheme.labelMedium,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          body: SafeArea(
+            bottom: false,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640),
+                child: Card(
+                  margin: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+                  child: ListView(
+                    key: const ValueKey('entry-content'),
+                    padding: const EdgeInsets.all(10),
+                    children: [
+                      if (kind.needsCategory)
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final scaled = MediaQuery.textScalerOf(context)
+                                .scale(14);
+                            final columns = scaled > 18
+                                ? 3
+                                : constraints.maxWidth < 340
+                                ? 4
+                                : 5;
+                            return Wrap(
+                              children: [
+                                for (final c in categories)
+                                  SizedBox(
+                                    width: constraints.maxWidth / columns,
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8,
+                                        horizontal: 2,
+                                      ),
+                                      child: Semantics(
+                                        button: true,
+                                        selected: categoryId == c.id,
+                                        child: InkWell(
+                                          key: ValueKey(
+                                            'entry-category-${c.id}',
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          onTap: saving
+                                              ? null
+                                              : () => setState(
+                                                  () => categoryId = c.id,
+                                                ),
+                                          child: Column(
+                                            children: [
+                                              Container(
+                                                width: 44,
+                                                height: 44,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  color: categoryId == c.id
+                                                      ? colors.primaryContainer
+                                                      : colors
+                                                            .surfaceContainerLow,
+                                                ),
+                                                child: Icon(
+                                                  categoryIcon(c.name),
+                                                  color: categoryId == c.id
+                                                      ? colors
+                                                            .onPrimaryContainer
+                                                      : colors.onSurface,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                c.name,
+                                                textAlign: TextAlign.center,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .labelMedium
+                                                    ?.copyWith(
+                                                      color: categoryId == c.id
+                                                          ? colors.primary
+                                                          : null,
+                                                    ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+                      if (isDebt) ...[
+                        Wrap(
+                          spacing: 8,
+                          children: [
+                            ChoiceChip(
+                              label: const Text('新增借贷'),
+                              selected: !kind.isSettlement,
+                              onSelected: saving
+                                  ? null
+                                  : (_) => changeKind(
+                                      kind == EntryKind.collect
+                                          ? EntryKind.lend
+                                          : EntryKind.borrow,
+                                    ),
+                            ),
+                            ChoiceChip(
+                              label: const Text('偿还 / 收回'),
+                              selected: kind.isSettlement,
+                              onSelected: saving
+                                  ? null
+                                  : (_) => changeKind(
+                                      kind == EntryKind.lend
+                                          ? EntryKind.collect
+                                          : EntryKind.repay,
+                                    ),
+                            ),
+                          ],
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Text(
+                            kind.label,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                      ],
+                      if (!kind.needsCategory) ...[
+                        if (kind == EntryKind.transfer || kind.direction < 0)
+                          fundsParty('付款方')
+                        else
+                          debtParty('付款方'),
+                        Center(
+                          child: IconButton(
+                            key: const ValueKey('entry-swap'),
+                            tooltip: '交换付款方与收款方',
+                            onPressed: saving
+                                ? null
+                                : () {
+                                    if (kind == EntryKind.transfer) {
+                                      if (targetId != null) {
+                                        setState(() {
+                                          final old = accountId;
+                                          accountId = targetId;
+                                          targetId = old;
+                                        });
+                                      }
+                                    } else {
+                                      changeKind(switch (kind) {
+                                        EntryKind.borrow => EntryKind.lend,
+                                        EntryKind.lend => EntryKind.borrow,
+                                        EntryKind.repay => EntryKind.collect,
+                                        _ => EntryKind.repay,
+                                      });
+                                    }
+                                  },
+                            icon: const Icon(Icons.swap_vert),
+                          ),
+                        ),
+                        if (kind == EntryKind.transfer)
+                          party(
+                            '收款方',
+                            targets
+                                    .where((a) => a.id == targetId)
+                                    .firstOrNull
+                                    ?.name ??
+                                '选择同币种账户',
+                            () => pickAccount(
+                              '选择同币种转入账户',
+                              targets,
+                              targetId,
+                              (value) => targetId = value,
+                            ),
+                            key: const ValueKey('entry-target'),
+                          )
+                        else if (kind.direction < 0)
+                          debtParty('收款方')
+                        else
+                          fundsParty('收款方'),
+                        if (isDebt && !kind.isSettlement)
+                          TextButton.icon(
+                            icon: const Icon(Icons.person_add_outlined),
+                            label: Text('创建$debtSide账户'),
+                            onPressed: saving
+                                ? null
+                                : () async {
+                                    final id = await Navigator.of(context)
+                                        .push<String>(
+                                          MaterialPageRoute(
+                                            builder: (_) => AccountForm(
+                                              initialKind: '债务',
+                                              initialChannel: debtSide,
+                                              initialName:
+                                                  widget.initialCounterparty,
+                                              initialCurrency: account.currency,
+                                            ),
+                                          ),
+                                        );
+                                    if (mounted && id != null) {
+                                      setState(() => debtAccountId = id);
+                                    }
+                                  },
+                          ),
+                        const SizedBox(height: 12),
+                        Text(
+                          kind == EntryKind.transfer
+                              ? '转账只在两个同币种账户之间移动资金，不计入收支。'
+                              : kind.isSettlement
+                              ? '选择原始借贷后结算，金额不能超过剩余本金。'
+                              : '借贷本金不计入收入或支出，后续在“偿还 / 收回”中结算。',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          bottomNavigationBar: KeyboardActionBar(
+            child: Center(
+              heightFactor: 1,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+                  child: AmountPad(
+                    controller: amount,
+                    currency: account.currency,
+                    saving: saving,
+                    onSave: () => save(data, account.currency),
+                    onSaveAnother: widget.entry == null
+                        ? () => save(data, account.currency, another: true)
+                        : null,
+                    leading: TextButton(
+                      key: const ValueKey('entry-note'),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                      ),
+                      onPressed: saving ? null : editNote,
                       child: Text(
-                        '${e.counterparty.isEmpty ? '未注明往来人' : e.counterparty} · ${e.date} · 剩余 ${money(debtRemaining(e, data.entries, excludingId: widget.entry?.id), account.currency)}${e.note.isEmpty ? '' : ' · ${e.note}'}',
+                        note.text.isEmpty ? '添加备注' : note.text,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  )
-                  .toList(),
-              onChanged: (v) => setState(() => debtId = v),
-            ),
-            if (debtId != null)
-              Text(
-                '往来人：${debts.firstWhere((e) => e.id == debtId).counterparty.isEmpty ? '未注明往来人' : debts.firstWhere((e) => e.id == debtId).counterparty}',
+                    toolbar: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          TextButton.icon(
+                            key: const ValueKey('entry-date'),
+                            icon: const Icon(
+                              Icons.calendar_today_outlined,
+                              size: 18,
+                            ),
+                            label: Text(
+                              '日期 ${dateKey(date) == dateKey(DateTime.now()) ? '今天' : dateKey(date)}',
+                            ),
+                            onPressed: saving
+                                ? null
+                                : () async {
+                                    final value = await showDatePicker(
+                                      context: context,
+                                      initialDate: date,
+                                      firstDate: DateTime(1900),
+                                      lastDate: DateTime(2100),
+                                    );
+                                    if (mounted && value != null) {
+                                      setState(() => date = value);
+                                    }
+                                  },
+                          ),
+                          TextButton.icon(
+                            key: const ValueKey('entry-account-shortcut'),
+                            icon: const Icon(
+                              Icons.account_balance_wallet_outlined,
+                              size: 18,
+                            ),
+                            label: Text(account.name),
+                            onPressed: saving
+                                ? null
+                                : () => pickAccount(
+                                    '选择收支账户',
+                                    funds,
+                                    accountId,
+                                    (value) {
+                                      if (data.account(value).currency !=
+                                          account.currency) {
+                                        item = null;
+                                      }
+                                      accountId = value;
+                                    },
+                                  ),
+                          ),
+                          if (kind == EntryKind.expense)
+                            TextButton.icon(
+                              key: const ValueKey('entry-item'),
+                              icon: Icon(
+                                item == null
+                                    ? Icons.inventory_2_outlined
+                                    : Icons.check_circle_outline,
+                                size: 18,
+                              ),
+                              label: Text(
+                                item == null ? '记物' : '记物 · ${item!.name}',
+                              ),
+                              onPressed: saving
+                                  ? null
+                                  : () => editItem(data, account.currency),
+                            ),
+                          if (kind == EntryKind.expense && item != null)
+                            IconButton(
+                              tooltip: '取消记物',
+                              onPressed: saving
+                                  ? null
+                                  : () => setState(() => item = null),
+                              icon: const Icon(Icons.close, size: 18),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
-          ],
-          TextField(
-            controller: note,
-            maxLength: 2000,
-            minLines: 1,
-            maxLines: 3,
-            decoration: const InputDecoration(labelText: '备注'),
-          ),
-          if (kind == EntryKind.borrow || kind == EntryKind.lend)
-            const Text('借贷本金不计入收入或支出，后续通过“偿还借入 / 收回借出”结算。'),
-          if (kind == EntryKind.transfer && targets.isEmpty)
-            const Text('需要再添加一个同币种账户才能转账。'),
-          if (kind.isSettlement && debts.isEmpty)
-            const Text('暂无对应币种的原始借贷，请先记录借入或借出。'),
-          if (kind == EntryKind.expense) ...[
-            SwitchListTile.adaptive(
-              key: const ValueKey('record-item-switch'),
-              contentPadding: EdgeInsets.zero,
-              title: const Text('同步记物'),
-              subtitle: widget.entry == null ? null : const Text('新增物品并关联此笔支出'),
-              value: recordItem,
-              onChanged: saving
-                  ? null
-                  : (value) => setState(() => recordItem = value),
             ),
-            if (recordItem) _buildItemFields(data, account.currency),
-          ],
-        ],
+          ),
+        ),
       );
     },
   );
 
-  Widget _buildItemFields(AppSnapshot data, String currency) => Card(
-    key: const ValueKey('inline-purchase-item'),
-    borderOnForeground: false,
-    child: Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TextField(
-            controller: itemName,
-            maxLength: 100,
-            textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(
-              labelText: '物品名称',
-              counterText: '',
-            ),
-          ),
-          const SizedBox(height: 10),
-          DropdownButtonFormField<String>(
-            key: const ValueKey('inline-item-category'),
-            initialValue: itemCategory,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: '物品类型',
-              hintText: '请选择物品类型',
-            ),
-            items: [
-              for (final category in {
-                ...configuredItemCategories(
-                  data.preferences
-                      .where((p) => p.key == 'item_categories')
-                      .firstOrNull
-                      ?.value,
+  void changeKind(EntryKind value) {
+    if (value == kind) return;
+    setState(() {
+      kind = value;
+      debtId = null;
+      debtAccountId = null;
+    });
+  }
+
+  Widget party(String role, String value, VoidCallback action, {Key? key}) =>
+      Card(
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        child: ListTile(
+          key: key,
+          leading: const Icon(Icons.account_balance_wallet_outlined),
+          title: Text(role),
+          subtitle: Text(value),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: saving ? null : action,
+        ),
+      );
+
+  Future<void> pickAccount(
+    String title,
+    List<Account> accounts,
+    String? selected,
+    ValueChanged<String> onSelected,
+  ) async {
+    final value = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.sizeOf(context).height * .65,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-                ...data.items.expand((item) => itemTags(item.category)),
-                ?itemCategory,
-                '未分类',
-              })
-                DropdownMenuItem(
-                  value: category,
-                  child: Text(category, overflow: TextOverflow.ellipsis),
+              ),
+              Expanded(
+                child: ListView(
+                  children: [
+                    if (accounts.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Text('暂无可选账户，请先创建对应币种和类型的账户。'),
+                      ),
+                    for (final group in accountKinds)
+                      if (accounts.any((a) => a.kind == group)) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                          child: Text(group),
+                        ),
+                        for (final account in accounts.where(
+                          (a) => a.kind == group,
+                        ))
+                          ListTile(
+                            title: Text(account.name),
+                            subtitle: Text(
+                              '${account.channel} · ${account.currency}',
+                            ),
+                            selected: account.id == selected,
+                            trailing: account.id == selected
+                                ? const Icon(Icons.check)
+                                : null,
+                            onTap: () => Navigator.pop(context, account.id),
+                          ),
+                      ],
+                  ],
                 ),
-            ],
-            onChanged: (value) => setState(() => itemCategory = value),
-          ),
-          const SizedBox(height: 10),
-          DropdownButtonFormField<String>(
-            key: const ValueKey('inline-item-use-type'),
-            initialValue: itemUseType,
-            decoration: const InputDecoration(labelText: '使用属性'),
-            items: const [
-              DropdownMenuItem(value: 'durable', child: Text('长期使用物')),
-              DropdownMenuItem(value: 'consumable', child: Text('消耗品')),
-            ],
-            onChanged: (value) => setState(() => itemUseType = value!),
-          ),
-          if (itemUseType == 'consumable') ...[
-            const SizedBox(height: 10),
-            TextField(
-              controller: itemQuantity,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
               ),
-              decoration: const InputDecoration(labelText: '数量 / 容量 · 可留空'),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: itemUnit,
-              maxLength: 20,
-              decoration: const InputDecoration(
-                labelText: '单位 · 可留空',
-                counterText: '',
-              ),
-            ),
-          ],
-          const SizedBox(height: 10),
-          TextField(
-            controller: itemPrice,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              labelText: '物品价格（选填）',
-              helperText: '单独填写这件物品的价格，不自动分配整笔支出。',
-            ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            '购入日期 ${dateKey(date)}',
-            style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ),
+    );
+    if (mounted && value != null) setState(() => onSelected(value));
+  }
+
+  Future<void> editNote() async {
+    final draft = TextEditingController(text: note.text);
+    final route = DialogRoute<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('备注'),
+        scrollable: true,
+        content: TextField(
+          controller: draft,
+          minLines: 2,
+          maxLines: 5,
+          maxLength: 2000,
+          decoration: const InputDecoration(labelText: '备注'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, draft.text),
+            child: const Text('确认备注'),
           ),
         ],
       ),
-    ),
-  );
+    );
+    final result = await Navigator.of(context).push(route);
+    if (mounted && result != null) setState(() => note.text = result);
+    await route.completed;
+    draft.dispose();
+  }
+
+  Future<void> editItem(AppSnapshot data, String currency) async {
+    final result = await showDialog<NewPurchaseItem>(
+      context: context,
+      builder: (_) => PurchaseItemDialog(
+        currency: currency,
+        initial: item,
+        categories: {
+          ...configuredItemCategories(
+            data.preferences
+                .where((p) => p.key == 'item_categories')
+                .firstOrNull
+                ?.value,
+          ),
+          ...data.items.expand((i) => itemTags(i.category)),
+        }.toList(),
+      ),
+    );
+    if (mounted && result != null) setState(() => item = result);
+  }
+
+  Future<void> save(
+    AppSnapshot data,
+    String currency, {
+    bool another = false,
+  }) async {
+    if (saving) return;
+    setState(() => saving = true);
+    final ok = await perform(context, () async {
+      if ([EntryKind.borrow, EntryKind.lend].contains(kind) &&
+          debtAccountId == null) {
+        throw const FormatException('请选择或创建债务账户');
+      }
+      await ref
+          .read(ledgerProvider)
+          .saveEntry(
+            id: widget.entry?.id,
+            kind: kind,
+            amount: calculateMinor(amount.text, currency),
+            accountId: accountId!,
+            targetAccountId: targetId,
+            categoryId: categoryId,
+            debtId: debtId,
+            counterparty: kind.isSettlement ? '' : counterparty.text,
+            debtAccountId: debtAccountId,
+            date: dateKey(date),
+            note: note.text,
+            newItem: kind == EntryKind.expense ? item : null,
+          );
+    });
+    if (!mounted) return;
+    setState(() => saving = false);
+    if (ok) {
+      if (another) {
+        setState(() {
+          amount.clear();
+          note.clear();
+          item = null;
+        });
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('已保存，继续记一笔')));
+      } else {
+        Navigator.pop(context);
+      }
+    }
+  }
 }

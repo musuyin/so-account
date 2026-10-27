@@ -6,6 +6,23 @@ import 'package:so_account/data/database/app_database.dart';
 import 'package:so_account/features/ledger/domain/default_categories.dart';
 
 void main() {
+  test('new ledgers start in static frequent order and retain original category IDs', () async {
+    final db = AppDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    final rows = await db.select(db.categories).get();
+    expect(
+      rows.where((c) => c.kind == 'expense').map((c) => c.name).take(6),
+      initialExpenseOrder.take(6),
+    );
+    expect(
+      rows.where((c) => c.kind == 'income').map((c) => c.name).take(6),
+      initialIncomeOrder.take(6),
+    );
+    expect(rows.singleWhere((c) => c.id == 'expense-0').name, '居住');
+    expect(initialExpenseOrder.toSet(), expenseDefaults.toSet());
+    expect(initialIncomeOrder.toSet(), incomeDefaults.toSet());
+  });
+
   test(
     'additional top-level defaults upgrade once and respect later deletions',
     () async {

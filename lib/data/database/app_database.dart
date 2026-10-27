@@ -241,7 +241,16 @@ class AppDatabase extends _$AppDatabase {
       ('expense', expenseDefaults),
       ('income', incomeDefaults),
     ]) {
-      for (var i = 0; i < names.length; i++) {
+      final order = kind == 'expense'
+          ? initialExpenseOrder
+          : initialIncomeOrder;
+      final indices = List.generate(names.length, (i) => i);
+      if (!upgrade) {
+        indices.sort(
+          (a, b) => order.indexOf(names[a]).compareTo(order.indexOf(names[b])),
+        );
+      }
+      for (final i in indices) {
         final existing = await (select(
           categories,
         )..where((c) => c.kind.equals(kind) & c.name.equals(names[i]))).get();

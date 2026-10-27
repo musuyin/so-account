@@ -335,12 +335,11 @@ void main() {
         'USD',
       );
       await openTestForm(t, db, const EntryForm(initialCurrency: 'USD'));
-      final accountField = find.byWidgetPredicate(
-        (w) =>
-            w is DropdownButtonFormField<String> &&
-            w.key == ValueKey('account-${usd.id}'),
+      expect(
+        find.byKey(const ValueKey('entry-account-shortcut')),
+        findsOneWidget,
       );
-      expect(accountField, findsOneWidget);
+      expect(find.text(usd.name), findsOneWidget);
       await t.scrollUntilVisible(
         find.text('7'),
         200,
@@ -385,7 +384,7 @@ void main() {
     await t.tap(find.text('保存'));
     await settle(t);
     await t.pumpAndSettle();
-    expect(field('金额'), findsOneWidget);
+    expect(find.byKey(const ValueKey('entry-amount')), findsOneWidget);
     expect(t.takeException(), isNull);
     await t.pumpWidget(const SizedBox.shrink());
     await t.pump(const Duration(milliseconds: 1));

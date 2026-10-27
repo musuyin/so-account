@@ -186,7 +186,7 @@ void main() {
         expect(tester.takeException(), isNull, reason: 'entry form');
         expect(find.text('发生日期'), findsNothing);
         expect(
-          tester.getTopLeft(find.text('日期')).dy,
+          tester.getTopLeft(find.byKey(const ValueKey('entry-date'))).dy,
           lessThan(tester.getTopLeft(find.text('7').first).dy),
         );
         for (final key in ['7', '+', '2']) {

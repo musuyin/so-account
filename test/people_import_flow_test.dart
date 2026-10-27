@@ -49,20 +49,22 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('收回借出'));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('往来人：小林'),
-        100,
-        scrollable: find
-            .descendant(
-              of: find.byType(ListView).first,
-              matching: find.byType(Scrollable),
-            )
-            .first,
-      );
-      expect(find.text('往来人：小林'), findsOneWidget);
+      expect(find.text('收回借出'), findsOneWidget);
+      expect(find.text('小林 · 剩余 20.00'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('entry-debt')));
+      await tester.pumpAndSettle();
+      expect(find.text('2026-10-01 · 剩余 CNY 20.00'), findsOneWidget);
+      await tester.tap(find.widgetWithText(ListTile, '小林').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('5'));
+      await tester.tap(find.text('保存'));
+      await settle(tester);
+      final entries = (await tester.runAsync(
+        () => db.select(db.entries).get(),
+      ))!;
       expect(
-        find.textContaining('小林 · 2026-10-01 · 剩余 CNY 20.00'),
-        findsAtLeastNWidgets(1),
+        entries.singleWhere((e) => e.kind == 'collect').debtId,
+        entries.singleWhere((e) => e.kind == 'lend').id,
       );
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(milliseconds: 1));

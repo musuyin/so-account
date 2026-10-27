@@ -13,15 +13,14 @@ import 'package:so_account/app/theme/app_theme.dart';
 import 'package:so_account/app/widgets.dart';
 import 'package:so_account/data/database/app_database.dart';
 import 'package:so_account/features/inventory/domain/item_categories.dart';
-import 'package:so_account/features/inventory/presentation/item_form.dart';
+import 'package:so_account/features/ledger/presentation/purchase_item_dialog.dart';
 import 'package:so_account/features/ledger/data/ledger_repository.dart';
 import 'package:so_account/features/ledger/presentation/entry_form.dart';
 
 Finder field(String label) => find.byWidgetPredicate(
   (w) => w is TextField && w.decoration?.labelText == label,
 );
-final itemSwitch = find.byKey(const ValueKey('record-item-switch'));
-final itemSection = find.byKey(const ValueKey('inline-purchase-item'));
+final itemSwitch = find.byKey(const ValueKey('entry-item'));
 
 Future<void> settle(WidgetTester t) async {
   await t.runAsync(
@@ -37,31 +36,11 @@ class RouteCounter extends NavigatorObserver {
 }
 
 Future<void> showField(WidgetTester t, Finder finder) async {
-  await t.scrollUntilVisible(
-    finder,
-    180,
-    scrollable: find
-        .descendant(
-          of: find.byType(ListView).first,
-          matching: find.byType(Scrollable),
-        )
-        .first,
-  );
-  await t.ensureVisible(finder);
-  await t.pumpAndSettle();
-}
-
-Future<void> selectType(WidgetTester t, String value) async {
-  final dropdown = find.byKey(const ValueKey('inline-item-category'));
-  await showField(t, dropdown);
-  await t.tap(dropdown);
-  await t.pumpAndSettle();
-  await t.tap(find.text(value).last);
+  await Scrollable.ensureVisible(t.element(finder), alignment: .3);
   await t.pumpAndSettle();
 }
 
 Future<void> enterAmount(WidgetTester t) async {
-  await showField(t, find.text('7').first);
   await t.tap(find.text('7').first);
   await t.pump();
 }
@@ -132,7 +111,7 @@ Future<void> open(
 void main() {
   for (final width in [390.0, 320.0]) {
     testWidgets(
-      'inline purchase stays on one route and atomically saves at $width pixels',
+      'purchase dialog stages a draft and atomically saves at $width pixels',
       (t) async {
         t.view.physicalSize = Size(width, 844);
         t.view.devicePixelRatio = 1;
@@ -156,29 +135,18 @@ void main() {
           routes: routes,
           boundary: boundary,
         );
-        expect(itemSection, findsNothing);
-        await showField(t, itemSwitch);
         final pushes = routes.pushes;
-        await t.tap(itemSwitch);
-        await t.pumpAndSettle();
-        expect(routes.pushes, pushes);
-        expect(find.byType(ItemForm), findsNothing);
-        await showField(t, field('物品名称'));
-        await t.enterText(field('物品名称'), '洗发水');
-        await selectType(t, '日用品');
         await showField(t, itemSwitch);
         await t.tap(itemSwitch);
         await t.pumpAndSettle();
-        expect(itemSection, findsNothing);
-        await t.tap(itemSwitch);
-        await t.pumpAndSettle();
-        await showField(t, field('物品名称'));
-        expect(t.widget<TextField>(field('物品名称')).controller!.text, '洗发水');
-        final useType = find.byKey(const ValueKey('inline-item-use-type'));
-        await showField(t, useType);
-        await t.tap(useType);
-        await t.pumpAndSettle();
-        await t.tap(find.text('消耗品').last);
+        expect(routes.pushes, pushes + 1);
+        expect(find.byType(PurchaseItemDialog), findsOneWidget);
+        await t.enterText(field('物品名称'), '洗发水样例');
+        await showField(t, find.widgetWithText(ChoiceChip, '日用品'));
+        await t.tap(find.widgetWithText(ChoiceChip, '日用品'));
+        await t.pump();
+        await showField(t, find.widgetWithText(ChoiceChip, '消耗品'));
+        await t.tap(find.widgetWithText(ChoiceChip, '消耗品'));
         await t.pumpAndSettle();
         for (final input in {
           '数量 / 容量 · 可留空': '500',
@@ -189,36 +157,37 @@ void main() {
           await t.enterText(field(input.key), input.value);
         }
         FocusManager.instance.primaryFocus?.unfocus();
-        await showField(t, field('物品名称'));
-        final position = t
-            .state<ScrollableState>(find.byType(Scrollable).first)
-            .position;
-        position.jumpTo(
-          (position.pixels - 130).clamp(0, position.maxScrollExtent),
-        );
+        await t.tap(find.text('确认记物'));
         await t.pumpAndSettle();
+        expect(find.byType(PurchaseItemDialog), findsNothing);
+        expect(await t.runAsync(() => db.select(db.items).get()), isEmpty);
+        await showField(t, itemSwitch);
+        await t.tap(itemSwitch);
+        await t.pumpAndSettle();
+        expect(t.widget<TextField>(field('物品名称')).controller!.text, '洗发水样例');
+        await t.enterText(field('物品名称'), '取消的修改');
+        await t.tap(find.text('取消'));
+        await t.pumpAndSettle();
+        await showField(t, itemSwitch);
+        await t.tap(itemSwitch);
+        await t.pumpAndSettle();
+        expect(t.widget<TextField>(field('物品名称')).controller!.text, '洗发水样例');
         await t.runAsync(() async {
           final image =
               await (boundary.currentContext!.findRenderObject()
                       as RenderRepaintBoundary)
                   .toImage();
           final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-          await Directory('.tooling/screenshots').create(recursive: true);
           await File(
-            '.tooling/screenshots/entry-inline-item-${width.toInt()}.png',
+            '.tooling/screenshots/entry-item-dialog-${width.toInt()}.png',
           ).writeAsBytes(bytes!.buffer.asUint8List());
           image.dispose();
         });
+        await t.tap(find.text('取消'));
+        await t.pumpAndSettle();
         await enterAmount(t);
-        if (width == 320) {
-          t.view.viewInsets = const FakeViewPadding(bottom: 260);
-          addTearDown(t.view.resetViewInsets);
-          await t.pumpAndSettle();
-          expect(t.getBottomRight(find.text('保存')).dy, lessThan(844 - 260));
-        }
         await t.tap(find.text('保存'));
         await settle(t);
-        expect(find.text('打开记账'), findsOneWidget);
         final entry = (await t.runAsync(() => db.select(db.entries).get()))!
             .single;
         final item = (await t.runAsync(() => db.select(db.items).get()))!
@@ -227,7 +196,7 @@ void main() {
           () => db.select(db.purchaseLinks).get(),
         ))!.single;
         expect(entry.amount, 700);
-        expect(item.name, '洗发水');
+        expect(item.name, '洗发水样例');
         expect(itemTags(item.category), ['日用品']);
         expect(item.currency, 'USD');
         expect(item.purchasedOn, entry.date);
@@ -239,79 +208,53 @@ void main() {
         expect(t.takeException(), isNull);
         await t.pumpWidget(const SizedBox.shrink());
         await t.pump(const Duration(milliseconds: 1));
+        await open(t, db, entry: entry);
+        expect(find.textContaining('记物 ·'), findsNothing);
+        await t.tap(find.text('保存'));
+        await settle(t);
+        expect((await t.runAsync(() => db.select(db.items).get()))!.length, 1);
+        await t.pumpWidget(const SizedBox.shrink());
+        await t.pump(const Duration(milliseconds: 1));
       },
     );
   }
-
-  for (final income in [false, true]) {
-    testWidgets('hidden item draft does not save or validate; income=$income', (
-      t,
-    ) async {
+  testWidgets(
+    'cancelled and removed drafts do not write, and income never creates an item',
+    (t) async {
       final db = await database(t);
       await open(t, db);
       await showField(t, itemSwitch);
       await t.tap(itemSwitch);
       await t.pumpAndSettle();
-      if (income) {
-        t
-            .state<ScrollableState>(find.byType(Scrollable).first)
-            .position
-            .jumpTo(0);
-        await t.pumpAndSettle();
-        await t.tap(find.text('收入').first);
-        await t.pumpAndSettle();
-        expect(itemSwitch, findsNothing);
-      } else {
-        await t.tap(itemSwitch);
-        await t.pumpAndSettle();
-      }
+      await t.tap(find.text('确认记物'));
+      await t.pumpAndSettle();
+      expect(find.text('物品名称为 1–100 字'), findsOneWidget);
+      await t.tap(find.text('取消'));
+      await t.pumpAndSettle();
+      expect(await t.runAsync(() => db.select(db.items).get()), isEmpty);
+      await showField(t, itemSwitch);
+      await t.tap(itemSwitch);
+      await t.pumpAndSettle();
+      await t.enterText(field('物品名称'), '杯子样例');
+      await showField(t, find.widgetWithText(ChoiceChip, '未分类'));
+      await t.tap(find.widgetWithText(ChoiceChip, '未分类'));
+      await t.pump();
+      await t.tap(find.text('确认记物'));
+      await t.pumpAndSettle();
+      await t.tap(find.byTooltip('取消记物'));
+      await t.pumpAndSettle();
+      expect(find.textContaining('记物 ·'), findsNothing);
+      await t.tap(find.byKey(const ValueKey('entry-tab-收入')));
+      await t.pumpAndSettle();
+      expect(itemSwitch, findsNothing);
       await enterAmount(t);
       await t.tap(find.text('保存'));
       await settle(t);
       expect(
         (await t.runAsync(() => db.select(db.entries).get()))!.single.kind,
-        income ? 'income' : 'expense',
+        'income',
       );
       expect(await t.runAsync(() => db.select(db.items).get()), isEmpty);
-      expect(
-        await t.runAsync(() => db.select(db.purchaseLinks).get()),
-        isEmpty,
-      );
-      expect(t.takeException(), isNull);
-      await t.pumpWidget(const SizedBox.shrink());
-      await t.pump(const Duration(milliseconds: 1));
-    });
-  }
-
-  testWidgets(
-    'item failure retains the form for correction; ordinary edit creates no duplicate',
-    (t) async {
-      final db = await database(t);
-      await open(t, db, recordItem: true);
-      await selectType(t, '日用品');
-      await enterAmount(t);
-      await t.tap(find.text('保存'));
-      await settle(t);
-      expect(find.byType(EntryForm), findsOneWidget);
-      expect(await t.runAsync(() => db.select(db.entries).get()), isEmpty);
-      await showField(t, field('物品名称'));
-      await t.enterText(field('物品名称'), '水杯');
-      await t.tap(find.text('保存'));
-      await settle(t);
-      final entry = (await t.runAsync(() => db.select(db.entries).get()))!
-          .single;
-      await open(t, db, entry: entry);
-      await showField(t, itemSwitch);
-      expect(t.widget<SwitchListTile>(itemSwitch).value, isFalse);
-      await t.tap(find.text('保存'));
-      await settle(t);
-      expect((await t.runAsync(() => db.select(db.entries).get()))!.length, 1);
-      expect((await t.runAsync(() => db.select(db.items).get()))!.length, 1);
-      expect(
-        (await t.runAsync(() => db.select(db.purchaseLinks).get()))!.length,
-        1,
-      );
-      expect(t.takeException(), isNull);
       await t.pumpWidget(const SizedBox.shrink());
       await t.pump(const Duration(milliseconds: 1));
     },

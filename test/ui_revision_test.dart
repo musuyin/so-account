@@ -63,7 +63,9 @@ void main() {
         if (name == 'entry') {
           final pad = find.byType(AmountPad);
           final before = t.getRect(pad);
-          final typeBefore = t.getRect(find.widgetWithText(ChoiceChip, '支出'));
+          final typeBefore = t.getRect(
+            find.byKey(const ValueKey('entry-tab-支出')),
+          );
           expect(
             t.getTopLeft(find.text('1')).dy,
             lessThan(t.getTopLeft(find.text('4')).dy),
@@ -75,7 +77,10 @@ void main() {
           await t.drag(find.byType(ListView), const Offset(0, -420));
           await t.pumpAndSettle();
           expect(t.getRect(pad), before);
-          expect(t.getRect(find.widgetWithText(ChoiceChip, '支出')), typeBefore);
+          expect(
+            t.getRect(find.byKey(const ValueKey('entry-tab-支出'))),
+            typeBefore,
+          );
           await t.tap(find.text('1'));
           await t.tap(find.text('2'));
           final amount = t.widget<TextField>(

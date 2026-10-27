@@ -8,9 +8,17 @@ class AmountPad extends StatelessWidget {
     super.key,
     required this.controller,
     required this.currency,
+    this.onSave,
+    this.onSaveAnother,
+    this.saving = false,
+    this.leading,
+    this.toolbar,
   });
   final TextEditingController controller;
   final String currency;
+  final VoidCallback? onSave, onSaveAnother;
+  final bool saving;
+  final Widget? leading, toolbar;
   void keyPress(BuildContext context, String key) {
     var text = controller.text;
     if (key == 'C') {
@@ -43,54 +51,114 @@ class AmountPad extends StatelessWidget {
     );
   }
 
+  Widget button(
+    BuildContext context,
+    String key, {
+    VoidCallback? action,
+    bool primary = false,
+  }) => Expanded(
+    child: Padding(
+      padding: const EdgeInsets.all(2),
+      child: TextButton(
+        onPressed: saving || ((key == '保存' || key == '再记') && action == null)
+            ? null
+            : action ?? () => keyPress(context, key),
+        onLongPress: !saving && key == '⌫'
+            ? () => keyPress(context, 'C')
+            : null,
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 0),
+          minimumSize: const Size(0, 48),
+          foregroundColor: primary
+              ? Theme.of(context).colorScheme.onPrimary
+              : Theme.of(context).colorScheme.onSurface,
+          backgroundColor: primary
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.surfaceContainerLow,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: key == '⌫'
+            ? const Tooltip(
+                message: '退格（长按清空）',
+                triggerMode: TooltipTriggerMode.manual,
+                child: Icon(Icons.backspace_outlined),
+              )
+            : Text(
+                key,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: primary
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : null,
+                ),
+              ),
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) => Column(
     mainAxisSize: MainAxisSize.min,
     children: [
-      TextField(
-        controller: controller,
-        readOnly: true,
-        showCursor: true,
-        style: Theme.of(context).textTheme.headlineSmall,
-        decoration: InputDecoration(
-          labelText: '金额',
-          hintText: '0.00',
-          suffixIcon: IconButton(
-            tooltip: '退格',
-            onPressed: () => keyPress(context, '⌫'),
-            icon: const Icon(Icons.backspace_outlined),
-          ),
-        ),
-      ),
-      const SizedBox(height: 8),
-      for (final row in [
-        ['1', '2', '3', '÷'],
-        ['4', '5', '6', '×'],
-        ['7', '8', '9', '-'],
-        ['C', '0', '.', '+', '='],
-      ])
-        Padding(
-          padding: const EdgeInsets.only(bottom: 4),
-          child: Row(
-            children: [
-              for (final key in row)
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    child: TextButton(
-                      style: TextButton.styleFrom(
-                        backgroundColor: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerLow,
-                        minimumSize: const Size(0, 44),
-                      ),
-                      onPressed: () => keyPress(context, key),
-                      child: Text(key),
-                    ),
+      Row(
+        children: [
+          if (leading != null) Expanded(flex: 2, child: leading!),
+          Expanded(
+            flex: 3,
+            child: Semantics(
+              label: '金额',
+              child: TextField(
+                key: const ValueKey('entry-amount'),
+                controller: controller,
+                readOnly: true,
+                showCursor: true,
+                textAlign: TextAlign.right,
+                style: Theme.of(context).textTheme.headlineSmall,
+                decoration: InputDecoration(
+                  hintText: '0.00',
+                  suffixIcon: IconButton(
+                    tooltip: '计算结果',
+                    onPressed: saving ? null : () => keyPress(context, '='),
+                    icon: const Text('='),
                   ),
                 ),
-            ],
+              ),
+            ),
           ),
+        ],
+      ),
+      ?toolbar,
+      for (final row in [
+        ['1', '2', '3', '⌫'],
+        ['4', '5', '6', '+-'],
+        ['7', '8', '9', '×÷'],
+        ['再记', '0', '.', '保存'],
+      ])
+        Row(
+          children: [
+            for (final key in row)
+              if (key == '+-' || key == '×÷')
+                Expanded(
+                  child: Row(
+                    children: [
+                      for (final operator in key.split(''))
+                        button(context, operator),
+                    ],
+                  ),
+                )
+              else
+                button(
+                  context,
+                  key,
+                  primary: key == '保存',
+                  action: key == '保存'
+                      ? onSave
+                      : key == '再记'
+                      ? onSaveAnother
+                      : null,
+                ),
+          ],
         ),
     ],
   );
