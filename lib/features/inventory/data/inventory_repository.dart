@@ -1,8 +1,10 @@
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/category_preferences.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/business_date.dart';
+import '../../../data/category_settings_store.dart';
 import '../../../data/database/app_database.dart';
 import '../domain/item_categories.dart';
 
@@ -137,54 +139,61 @@ class InventoryRepository {
   Future<void> delete(String id) =>
       (db.delete(db.items)..where((i) => i.id.equals(id))).go();
 
-  Future<void> saveCategory(String name, {String? previous}) =>
-      db.transaction(() async {
-        name = name.trim();
-        final pref = await (db.select(
-          db.preferences,
-        )..where((p) => p.key.equals('item_categories'))).getSingleOrNull();
-        final categories = configuredItemCategories(pref?.value);
-        if (name.isEmpty ||
-            name.length > 40 ||
-            (name != previous && categories.contains(name))) {
-          throw const FormatException('种类名称须为 1–40 字且不能重复');
-        }
-        if (previous == null) {
-          categories.add(name);
-        } else {
-          if (!categories.contains(previous) &&
-              (await db.select(db.items).get()).any(
-                (i) => itemTags(i.category).contains(previous),
-              )) {
-            categories.add(previous);
-          }
-          final index = categories.indexOf(previous);
-          if (index < 0) throw const FormatException('种类不存在');
-          categories[index] = name;
-          for (final item in await db.select(db.items).get()) {
-            final tags = itemTags(item.category);
-            if (tags.contains(previous)) {
-              await (db.update(
-                db.items,
-              )..where((i) => i.id.equals(item.id))).write(
-                ItemsCompanion(
-                  category: Value(
-                    encodeItemTags(tags.map((v) => v == previous ? name : v)),
-                  ),
-                ),
-              );
-            }
-          }
-        }
-        validateItemCategories(encodeItemTags(categories));
-        await db
-            .into(db.preferences)
-            .insertOnConflictUpdate(
-              PreferencesCompanion.insert(
-                key: 'item_categories',
-                value: encodeItemTags(categories),
+  Future<void> saveCategory(
+    String name, {
+    String? previous,
+    String? iconId,
+  }) => db.transaction(() async {
+    name = name.trim();
+    final settings = CategorySettingsStore(db);
+    final categories = await settings.itemCategories();
+    if (name.isEmpty ||
+        name.length > 40 ||
+        (name != previous && categories.contains(name))) {
+      throw const FormatException('种类名称须为 1–40 字且不能重复');
+    }
+    if (previous == null) {
+      categories.add(name);
+    } else {
+      final index = categories.indexOf(previous);
+      if (index < 0) throw const FormatException('种类不存在');
+      categories[index] = name;
+      for (final item in await db.select(db.items).get()) {
+        final tags = itemTags(item.category);
+        if (tags.contains(previous)) {
+          await (db.update(db.items)..where((i) => i.id.equals(item.id))).write(
+            ItemsCompanion(
+              category: Value(
+                encodeItemTags(tags.map((v) => v == previous ? name : v)),
               ),
-            );
+            ),
+          );
+        }
+      }
+    }
+    await settings.icon(itemCategoryIconsKey, name, iconId, previous: previous);
+    validateItemCategories(encodeItemTags(categories));
+    await db
+        .into(db.preferences)
+        .insertOnConflictUpdate(
+          PreferencesCompanion.insert(
+            key: 'item_categories',
+            value: encodeItemTags(categories),
+          ),
+        );
+  });
+
+  Future<void> reorderCategories(List<String> names) =>
+      db.transaction(() async {
+        final settings = CategorySettingsStore(db);
+        final live = [
+          ...await settings.itemCategories(),
+          if (names.contains('未分类')) '未分类',
+        ];
+        await settings.write(
+          itemCategoriesKey,
+          resolveCategoryOrder(live, names),
+        );
       });
 
   Future<void> deleteCategory(String name) => db.transaction(() async {
@@ -193,10 +202,9 @@ class InventoryRepository {
     )) {
       throw const FormatException('此种类已有物品，无法删除');
     }
-    final pref = await (db.select(
-      db.preferences,
-    )..where((p) => p.key.equals('item_categories'))).getSingleOrNull();
-    final categories = configuredItemCategories(pref?.value)..remove(name);
+    final settings = CategorySettingsStore(db);
+    final categories = (await settings.itemCategories())..remove(name);
+    await settings.removeIcon(itemCategoryIconsKey, name);
     await db
         .into(db.preferences)
         .insertOnConflictUpdate(

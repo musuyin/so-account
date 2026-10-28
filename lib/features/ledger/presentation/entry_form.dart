@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/category_reordering.dart';
 import '../../../app/providers/providers.dart';
 import '../../../app/widgets.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/business_date.dart';
 import '../../../data/database/app_database.dart';
-import '../../inventory/domain/item_categories.dart';
 import '../../inventory/domain/new_purchase_item.dart';
-import '../domain/entry_kind.dart';
 import '../domain/debt_relationship.dart';
+import '../domain/entry_draft.dart';
+import '../domain/entry_kind.dart';
 import 'accounts_page.dart';
 import 'amount_pad.dart';
 import 'category_icons.dart';
 import 'purchase_item_dialog.dart';
-import '../domain/entry_draft.dart';
 
 class EntryForm extends ConsumerStatefulWidget {
   const EntryForm({
@@ -382,71 +382,81 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                                 : constraints.maxWidth < 340
                                 ? 4
                                 : 5;
-                            return Wrap(
-                              children: [
-                                for (final c in categories)
-                                  SizedBox(
-                                    width: constraints.maxWidth / columns,
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 8,
-                                        horizontal: 2,
-                                      ),
-                                      child: Semantics(
-                                        button: true,
-                                        selected: categoryId == c.id,
-                                        child: InkWell(
-                                          key: ValueKey(
-                                            'entry-category-${c.id}',
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          onTap: saving
-                                              ? null
-                                              : () => setState(
-                                                  () => categoryId = c.id,
-                                                ),
-                                          child: Column(
-                                            children: [
-                                              Container(
-                                                width: 44,
-                                                height: 44,
-                                                decoration: BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  color: categoryId == c.id
-                                                      ? colors.primaryContainer
-                                                      : colors
-                                                            .surfaceContainerLow,
-                                                ),
-                                                child: Icon(
-                                                  categoryIcon(c.name),
-                                                  color: categoryId == c.id
-                                                      ? colors
-                                                            .onPrimaryContainer
-                                                      : colors.onSurface,
-                                                ),
+                            return ReorderableCategoryGrid(
+                              key: ValueKey('entry-reorder-${kind.name}'),
+                              ids: categories.map((c) => c.id).toList(),
+                              label: (id) =>
+                                  categories.firstWhere((c) => c.id == id).name,
+                              enabled: !saving,
+                              onReorder: (ids) => ref
+                                  .read(ledgerProvider)
+                                  .reorderCategories(kind.name, ids),
+                              builder: (id) {
+                                final c = categories.firstWhere(
+                                  (c) => c.id == id,
+                                );
+                                return SizedBox(
+                                  width: constraints.maxWidth / columns,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                      horizontal: 2,
+                                    ),
+                                    child: Semantics(
+                                      button: true,
+                                      selected: categoryId == c.id,
+                                      child: InkWell(
+                                        key: ValueKey('entry-category-${c.id}'),
+                                        borderRadius: BorderRadius.circular(12),
+                                        onTap: saving
+                                            ? null
+                                            : () => setState(
+                                                () => categoryId = c.id,
                                               ),
-                                              const SizedBox(height: 6),
-                                              Text(
-                                                c.name,
-                                                textAlign: TextAlign.center,
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .labelMedium
-                                                    ?.copyWith(
-                                                      color: categoryId == c.id
-                                                          ? colors.primary
-                                                          : null,
-                                                    ),
+                                        child: Column(
+                                          children: [
+                                            Container(
+                                              width: 44,
+                                              height: 44,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: categoryId == c.id
+                                                    ? colors.primaryContainer
+                                                    : colors
+                                                          .surfaceContainerLow,
                                               ),
-                                            ],
-                                          ),
+                                              child: Icon(
+                                                categoryIcon(
+                                                  c.name,
+                                                  iconId: data.categoryIconId(
+                                                    c.id,
+                                                  ),
+                                                ),
+                                                color: categoryId == c.id
+                                                    ? colors.onPrimaryContainer
+                                                    : colors.onSurface,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              c.name,
+                                              textAlign: TextAlign.center,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .labelMedium
+                                                  ?.copyWith(
+                                                    color: categoryId == c.id
+                                                        ? colors.primary
+                                                        : null,
+                                                  ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ),
                                   ),
-                              ],
+                                );
+                              },
                             );
                           },
                         ),
@@ -788,19 +798,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
   Future<void> editItem(AppSnapshot data, String currency) async {
     final result = await showDialog<NewPurchaseItem>(
       context: context,
-      builder: (_) => PurchaseItemDialog(
-        currency: currency,
-        initial: item,
-        categories: {
-          ...configuredItemCategories(
-            data.preferences
-                .where((p) => p.key == 'item_categories')
-                .firstOrNull
-                ?.value,
-          ),
-          ...data.items.expand((i) => itemTags(i.category)),
-        }.toList(),
-      ),
+      builder: (_) => PurchaseItemDialog(currency: currency, initial: item),
     );
     if (mounted && result != null) setState(() => item = result);
   }

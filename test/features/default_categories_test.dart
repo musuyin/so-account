@@ -1,27 +1,42 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:so_account/data/database/app_database.dart';
+import 'package:so_account/data/database/migrations/legacy_category_defaults.dart';
+import 'package:so_account/features/inventory/domain/item_categories.dart';
+import 'package:so_account/features/inventory/domain/item_cost.dart';
 import 'package:so_account/features/ledger/domain/default_categories.dart';
 
 void main() {
-  test('new ledgers start in static frequent order and retain original category IDs', () async {
-    final db = AppDatabase(NativeDatabase.memory());
-    addTearDown(db.close);
-    final rows = await db.select(db.categories).get();
-    expect(
-      rows.where((c) => c.kind == 'expense').map((c) => c.name).take(6),
-      initialExpenseOrder.take(6),
-    );
-    expect(
-      rows.where((c) => c.kind == 'income').map((c) => c.name).take(6),
-      initialIncomeOrder.take(6),
-    );
-    expect(rows.singleWhere((c) => c.id == 'expense-0').name, '居住');
-    expect(initialExpenseOrder.toSet(), expenseDefaults.toSet());
-    expect(initialIncomeOrder.toSet(), incomeDefaults.toSet());
-  });
+  test(
+    'new ledgers use the single default list order and explicit stable IDs',
+    () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final rows = await db.select(db.categories).get();
+      expect(
+        rows.where((c) => c.kind == 'expense').map((c) => c.name).take(6),
+        expenseDefaults.map((c) => c.name).take(6),
+      );
+      expect(
+        rows.where((c) => c.kind == 'income').map((c) => c.name).take(6),
+        incomeDefaults.map((c) => c.name).take(6),
+      );
+      expect(rows.singleWhere((c) => c.id == 'expense-0').name, '居住');
+      expect(
+        rows.map((c) => c.id),
+        [...expenseDefaults, ...incomeDefaults].map((c) => c.id),
+      );
+      expect(rows.map((c) => c.id).toSet(), hasLength(rows.length));
+      final pref = (await db.select(db.preferences).get()).singleWhere(
+        (p) => p.key == 'item_categories',
+      );
+      expect(jsonDecode(pref.value), itemCategories);
+      expect(configuredItemCategories(null), legacyItemCategoryDefaults);
+    },
+  );
 
   test(
     'additional top-level defaults upgrade once and respect later deletions',
@@ -30,15 +45,6 @@ void main() {
       final file = File('${dir.path}/ledger.db');
       var db = AppDatabase(NativeDatabase(file));
       try {
-        final defaults = await db.select(db.categories).get();
-        expect(
-          defaults.map((c) => c.name),
-          containsAll(additionalExpenseDefaults),
-        );
-        expect(
-          defaults.map((c) => c.name),
-          containsAll(additionalIncomeDefaults),
-        );
         // Simulate the previous version's data without the new seed marker.
         await (db.delete(
           db.preferences,
@@ -58,6 +64,13 @@ void main() {
         await db.close();
         db = AppDatabase(NativeDatabase(file));
         var rows = await db.select(db.categories).get();
+        expect(
+          rows.map((c) => c.name),
+          containsAll([
+            ...legacyAdditionalExpenseDefaults,
+            ...legacyAdditionalIncomeDefaults,
+          ]),
+        );
         expect(rows.where((c) => c.name == '宠物'), hasLength(1));
         expect(rows.where((c) => c.id == 'custom'), hasLength(1));
         await (db.delete(

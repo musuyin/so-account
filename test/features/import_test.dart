@@ -158,6 +158,9 @@ void main() {
       ).first;
       final mapping = ImportMapping()..detect(table);
       mapping.defaultAccount = accounts.single.id;
+      mapping.categories['expense:普通餐饮'] = categories
+          .firstWhere((c) => c.kind == 'expense' && c.name == '餐饮')
+          .id;
       final preview = previewImport(table, mapping, accounts, categories, []);
       expect(preview.map((r) => r.error), everyElement(isNull));
       expect(preview.map((r) => r.entry!.amount), [1250, 999]);
@@ -205,7 +208,9 @@ void main() {
       mapping.columns[ImportField.account] = 3;
       mapping.kinds['付款'] = 'expense';
       mapping.accounts['钱包'] = accounts.single.id;
-      mapping.categories['expense:吃饭'] = 'expense-3';
+      mapping.categories['expense:吃饭'] = categories
+          .firstWhere((c) => c.kind == 'expense' && c.name == '餐饮')
+          .id;
       final preview = previewImport(table, mapping, accounts, categories, []);
       expect(preview[0].entry!.amount, 1250);
       expect(preview[1].entry!.duplicate, isTrue);

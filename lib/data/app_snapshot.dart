@@ -1,9 +1,11 @@
+import '../core/category_preferences.dart';
+import '../features/inventory/domain/item_categories.dart';
 import 'database/app_database.dart';
 
 class AppSnapshot {
   const AppSnapshot(
     this.accounts,
-    this.categories,
+    this._categories,
     this.entries,
     this.budgets,
     this.items,
@@ -14,7 +16,29 @@ class AppSnapshot {
     this.contributions = const [],
   ]);
   final List<Account> accounts;
-  final List<Category> categories;
+  final List<Category> _categories;
+  List<Category> get categories => [
+    for (final kind in ['expense', 'income'])
+      ...(() {
+        final live = _categories.where((c) => c.kind == kind).toList();
+        final byId = {for (final c in live) c.id: c};
+        return resolveCategoryOrder(
+          byId.keys,
+          decodeCategoryOrder(preference('category_order_$kind', '[]')),
+        ).map((id) => byId[id]!);
+      })(),
+    ..._categories.where((c) => c.kind != 'expense' && c.kind != 'income'),
+  ];
+  List<String> get itemCategoryNames => resolveCategoryOrder([
+    ...configuredItemCategories(
+      preferences.where((p) => p.key == itemCategoriesKey).firstOrNull?.value,
+    ),
+    ...items.expand((i) => itemTags(i.category)),
+  ], []);
+  String? categoryIconId(String id) =>
+      decodeCategoryIcons(preference(categoryIconsKey, '{}'))[id];
+  String? itemCategoryIconId(String name) =>
+      decodeCategoryIcons(preference(itemCategoryIconsKey, '{}'))[name];
   final List<Entry> entries;
   final List<Budget> budgets;
   final List<Item> items;

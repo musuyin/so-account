@@ -6,14 +6,15 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../data/database/app_database.dart';
 import '../../../core/appearance.dart';
+import '../../../core/category_preferences.dart';
+import '../../../data/database/app_database.dart';
 import '../../../platform/media/media_store.dart';
+import '../../goals/data/goals_repository.dart';
 import '../../inventory/data/inventory_repository.dart';
 import '../../inventory/domain/item_categories.dart';
 import '../../ledger/data/ledger_repository.dart';
 import '../../ledger/domain/entry_kind.dart';
-import '../../goals/data/goals_repository.dart';
 import '../domain/backup_codec.dart';
 
 // Isolate closures are created outside the service so their captured context
@@ -170,6 +171,7 @@ class BackupService {
           }
           continue;
         }
+        if (validateCategoryPreference(pref.key, pref.value)) continue;
         if (pref.key == 'item_categories') {
           validateItemCategories(pref.value);
           continue;

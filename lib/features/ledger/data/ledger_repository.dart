@@ -1,14 +1,17 @@
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/category_preferences.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/business_date.dart';
+import '../../../data/app_snapshot.dart';
+import '../../../data/category_settings_store.dart';
 import '../../../data/database/app_database.dart';
 import '../../inventory/data/inventory_repository.dart';
 import '../../inventory/domain/item_categories.dart';
 import '../../inventory/domain/new_purchase_item.dart';
-import '../domain/entry_kind.dart';
 import '../domain/banks.dart';
+import '../domain/entry_kind.dart';
 
 class LedgerRepository {
   LedgerRepository(this.db);
@@ -16,7 +19,22 @@ class LedgerRepository {
   final _uuid = const Uuid();
 
   Stream<List<Account>> watchAccounts() => db.select(db.accounts).watch();
-  Stream<List<Category>> watchCategories() => db.select(db.categories).watch();
+  Stream<List<Category>> watchCategories() => db
+      .customSelect('SELECT 1', readsFrom: {db.categories, db.preferences})
+      .watch()
+      .asyncMap(
+        (_) => db.transaction(
+          () async => AppSnapshot(
+            [],
+            await db.select(db.categories).get(),
+            [],
+            [],
+            [],
+            [],
+            await db.select(db.preferences).get(),
+          ).categories,
+        ),
+      );
   Stream<List<Entry>> watchEntries() =>
       (db.select(db.entries)..orderBy([
             (e) => OrderingTerm.desc(e.date),
@@ -244,7 +262,12 @@ class LedgerRepository {
     await db.into(db.balanceAdjustments).insert(adjustment);
   });
 
-  Future<void> saveCategory(String name, String kind, {String? id}) async {
+  Future<void> saveCategory(
+    String name,
+    String kind, {
+    String? id,
+    String? iconId,
+  }) async {
     if (name.trim().isEmpty ||
         name.trim().length > 40 ||
         !['income', 'expense'].contains(kind)) {
@@ -258,15 +281,24 @@ class LedgerRepository {
           )..where((c) => c.id.equals(id))).getSingle();
           if (old.kind != kind) throw const FormatException('不能改变分类的收支类型');
         }
+        final categoryId = id ?? _uuid.v4();
+        final settings = CategorySettingsStore(db);
+        final savedOrder = decodeCategoryOrder(
+          await settings.read('category_order_$kind'),
+        );
         await db
             .into(db.categories)
             .insertOnConflictUpdate(
               CategoriesCompanion.insert(
-                id: id ?? _uuid.v4(),
+                id: categoryId,
                 name: name.trim(),
                 kind: kind,
               ),
             );
+        await settings.ledgerOrder(kind, savedOrder);
+        if (iconId != null) {
+          await settings.icon(categoryIconsKey, categoryId, iconId);
+        }
       });
     } on FormatException {
       rethrow;
@@ -275,9 +307,22 @@ class LedgerRepository {
     }
   }
 
+  Future<void> reorderCategories(String kind, List<String> ids) =>
+      db.transaction(() => CategorySettingsStore(db).ledgerOrder(kind, ids));
+
   Future<void> deleteCategory(String id) async {
     try {
-      await (db.delete(db.categories)..where((c) => c.id.equals(id))).go();
+      await db.transaction(() async {
+        final settings = CategorySettingsStore(db);
+        await (db.delete(db.categories)..where((c) => c.id.equals(id))).go();
+        for (final kind in ['expense', 'income']) {
+          await settings.ledgerOrder(
+            kind,
+            decodeCategoryOrder(await settings.read('category_order_$kind')),
+          );
+        }
+        await settings.removeIcon(categoryIconsKey, id);
+      });
     } on Exception {
       throw const FormatException('此分类已有账目，无法删除');
     }

@@ -70,15 +70,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
     body: DataView(
       builder: (data) {
         final all = data.items.where((i) => i.currency == currency).toList();
-        final categories = {
-          ...configuredItemCategories(
-            data.preferences
-                .where((p) => p.key == 'item_categories')
-                .firstOrNull
-                ?.value,
-          ),
-          ...all.expand((i) => itemTags(i.category)),
-        }.toList();
+        final categories = data.itemCategoryNames;
         final items =
             all
                 .where(

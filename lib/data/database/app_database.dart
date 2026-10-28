@@ -1,9 +1,14 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../features/inventory/domain/item_categories.dart';
+import '../../features/inventory/domain/item_cost.dart';
 import '../../features/ledger/domain/default_categories.dart';
 import '../../features/ledger/domain/entry_kind.dart';
+import 'migrations/legacy_category_defaults.dart';
 
 part 'app_database.g.dart';
 
@@ -241,29 +246,44 @@ class AppDatabase extends _$AppDatabase {
       ('expense', expenseDefaults),
       ('income', incomeDefaults),
     ]) {
-      final order = kind == 'expense'
-          ? initialExpenseOrder
-          : initialIncomeOrder;
-      final indices = List.generate(names.length, (i) => i);
-      if (!upgrade) {
-        indices.sort(
-          (a, b) => order.indexOf(names[a]).compareTo(order.indexOf(names[b])),
-        );
-      }
-      for (final i in indices) {
-        final existing = await (select(
-          categories,
-        )..where((c) => c.kind.equals(kind) & c.name.equals(names[i]))).get();
+      for (final category in names) {
+        final existing =
+            await (select(categories)..where(
+                  (c) => c.kind.equals(kind) & c.name.equals(category.name),
+                ))
+                .get();
         if (existing.isEmpty) {
           await into(categories).insert(
             CategoriesCompanion.insert(
-              id: '${upgrade ? 'default-v2-' : ''}$kind-$i',
-              name: names[i],
+              id: '${upgrade ? 'default-v2-' : ''}${category.id}',
+              name: category.name,
               kind: kind,
             ),
           );
         }
       }
+      if (!upgrade) {
+        await into(preferences).insert(
+          PreferencesCompanion.insert(
+            key: 'category_order_$kind',
+            value: jsonEncode(names.map((c) => c.id).toList()),
+          ),
+        );
+      }
+    }
+    if (!upgrade) {
+      await into(preferences).insert(
+        PreferencesCompanion.insert(
+          key: 'item_categories',
+          value: jsonEncode(itemCategories),
+        ),
+      );
+      await into(preferences).insert(
+        PreferencesCompanion.insert(
+          key: 'category_defaults_20261025',
+          value: 'done',
+        ),
+      );
     }
   }
 
@@ -353,8 +373,8 @@ class AppDatabase extends _$AppDatabase {
           return;
         }
         for (final (kind, names) in [
-          ('expense', additionalExpenseDefaults),
-          ('income', additionalIncomeDefaults),
+          ('expense', legacyAdditionalExpenseDefaults),
+          ('income', legacyAdditionalIncomeDefaults),
         ]) {
           for (final name in names) {
             final existing = await (select(
@@ -373,6 +393,23 @@ class AppDatabase extends _$AppDatabase {
         }
         await into(preferences)
             .insert(PreferencesCompanion.insert(key: key, value: 'done'));
+      });
+      await transaction(() async {
+        if (await (select(preferences)
+                  ..where((p) => p.key.equals('item_categories')))
+                .getSingleOrNull() ==
+            null) {
+          final names = {
+            ...legacyItemCategoryDefaults,
+            ...(await select(items).get()).expand((i) => itemTags(i.category)),
+          };
+          await into(preferences).insert(
+            PreferencesCompanion.insert(
+              key: 'item_categories',
+              value: jsonEncode(names.toList()),
+            ),
+          );
+        }
       });
     },
   );

@@ -53,7 +53,12 @@ void main() {
         final categories = await next.select(next.categories).get();
         expect(
           categories.map((c) => c.name),
-          containsAll([...expenseDefaults, ...incomeDefaults, '饮食', '自定义改名']),
+          containsAll([
+            ...expenseDefaults.map((c) => c.name),
+            ...incomeDefaults.map((c) => c.name),
+            '饮食',
+            '自定义改名',
+          ]),
         );
         expect(
           await next.customSelect('PRAGMA foreign_key_check').get(),

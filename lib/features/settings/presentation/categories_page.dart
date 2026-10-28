@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/category_reordering.dart';
 import '../../../app/providers/providers.dart';
 import '../../../app/widgets.dart';
 import '../../../data/database/app_database.dart';
+import '../../ledger/presentation/category_icon_picker.dart';
+import '../../ledger/presentation/category_icons.dart';
 
 class CategoriesPage extends ConsumerWidget {
   const CategoriesPage({super.key});
@@ -20,19 +23,32 @@ class CategoriesPage extends ConsumerWidget {
       ],
     ),
     body: DataView(
-      builder: (data) => ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          for (final kind in ['expense', 'income']) ...[
-            Text(
+      builder: (data) => CategoryManagementList(
+        groups: [
+          for (final kind in ['expense', 'income'])
+            CategoryManagementGroup(
+              kind,
               kind == 'expense' ? '支出分类' : '收入分类',
-              style: Theme.of(context).textTheme.titleLarge,
+              data.categories
+                  .where((c) => c.kind == kind)
+                  .map((c) => c.id)
+                  .toList(),
             ),
-            for (final c in data.categories.where((c) => c.kind == kind))
-              ListTile(
-                title: Text(c.name),
-                onTap: () => openForm(context, CategoryForm(category: c)),
-                trailing: IconButton(
+        ],
+        onReorder: (kind, ids) =>
+            ref.read(ledgerProvider).reorderCategories(kind, ids),
+        builder: (id) {
+          final c = data.categories.firstWhere((c) => c.id == id);
+          return ListTile(
+            leading: Icon(
+              categoryIcon(c.name, iconId: data.categoryIconId(c.id)),
+            ),
+            title: Text(c.name),
+            onTap: () => openForm(context, CategoryForm(category: c)),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
                   tooltip: '删除分类',
                   icon: const Icon(Icons.delete_outline),
                   onPressed: () async {
@@ -45,10 +61,11 @@ class CategoriesPage extends ConsumerWidget {
                     }
                   },
                 ),
-              ),
-            const SizedBox(height: 24),
-          ],
-        ],
+                const Icon(Icons.drag_handle, semanticLabel: '长按拖动排序'),
+              ],
+            ),
+          );
+        },
       ),
     ),
   );
@@ -65,6 +82,8 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
   late final name = TextEditingController(text: widget.category?.name);
   late String kind = widget.category?.kind ?? 'expense';
   bool saving = false;
+  String? iconId;
+  bool iconInitialized = false;
   @override
   void dispose() {
     name.dispose();
@@ -72,39 +91,64 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
   }
 
   @override
-  Widget build(BuildContext context) => FormFrame(
-    title: '收支分类',
-    saving: saving,
-    onSave: () async {
-      setState(() => saving = true);
-      final ok = await perform(
-        context,
-        () => ref
-            .read(ledgerProvider)
-            .saveCategory(name.text, kind, id: widget.category?.id),
-      );
-      if (mounted && context.mounted) {
-        setState(() => saving = false);
-        if (ok) Navigator.pop(context);
-      }
-    },
-    children: [
-      TextField(
-        controller: name,
-        maxLength: 40,
-        decoration: const InputDecoration(labelText: '分类名称'),
-      ),
-      DropdownButtonFormField<String>(
-        initialValue: kind,
-        decoration: const InputDecoration(labelText: '类型'),
-        items: const [
-          DropdownMenuItem(value: 'expense', child: Text('支出')),
-          DropdownMenuItem(value: 'income', child: Text('收入')),
-        ],
-        onChanged: widget.category == null
-            ? (v) => setState(() => kind = v!)
-            : null,
-      ),
-    ],
-  );
+  Widget build(BuildContext context) {
+    final data = ref.watch(snapshotProvider).asData?.value;
+    if (!iconInitialized && data != null) {
+      iconId = widget.category == null
+          ? 'category'
+          : data.categoryIconId(widget.category!.id);
+      iconInitialized = true;
+    }
+    return FormFrame(
+      title: '收支分类',
+      saving: saving,
+      onSave: () async {
+        setState(() => saving = true);
+        final ok = await perform(
+          context,
+          () => ref
+              .read(ledgerProvider)
+              .saveCategory(
+                name.text,
+                kind,
+                id: widget.category?.id,
+                iconId: iconId,
+              ),
+        );
+        if (mounted && context.mounted) {
+          setState(() => saving = false);
+          if (ok) Navigator.pop(context);
+        }
+      },
+      children: [
+        TextField(
+          controller: name,
+          maxLength: 40,
+          decoration: const InputDecoration(labelText: '分类名称'),
+        ),
+        SegmentedButton<String>(
+          segments: const [
+            ButtonSegment(
+              value: 'expense',
+              label: Text('支出'),
+              icon: Icon(Icons.remove),
+            ),
+            ButtonSegment(
+              value: 'income',
+              label: Text('收入'),
+              icon: Icon(Icons.add),
+            ),
+          ],
+          selected: {kind},
+          onSelectionChanged: widget.category == null
+              ? (values) => setState(() => kind = values.single)
+              : null,
+        ),
+        CategoryIconField(
+          value: iconId ?? defaultCategoryIconId(widget.category?.name ?? ''),
+          onChanged: (value) => setState(() => iconId = value),
+        ),
+      ],
+    );
+  }
 }

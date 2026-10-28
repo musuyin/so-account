@@ -4,14 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../app/category_reordering.dart';
 import '../../../app/providers/providers.dart';
 import '../../../app/widgets.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/business_date.dart';
 import '../../../data/database/app_database.dart';
+import '../../ledger/presentation/category_icons.dart';
 import '../../ledger/presentation/entry_form.dart';
-import '../domain/item_cost.dart';
 import '../domain/item_categories.dart';
+import '../domain/item_cost.dart';
 
 class ItemForm extends ConsumerStatefulWidget {
   const ItemForm({
@@ -125,30 +127,39 @@ class _ItemFormState extends ConsumerState<ItemForm> {
             decoration: const InputDecoration(labelText: '物品名称'),
           ),
           const Text('物品种类 · 可多选'),
-          Wrap(
-            spacing: 6,
-            children: [
-              for (final c in {
-                ...configuredItemCategories(
-                  data.preferences
-                      .where((p) => p.key == 'item_categories')
-                      .firstOrNull
-                      ?.value,
+          ReorderableCategoryGrid(
+            compact: true,
+            ids: {...data.itemCategoryNames, ...categories}.toList(),
+            label: (id) => id,
+            enabled: !saving,
+            onReorder: (ids) =>
+                ref.read(inventoryProvider).reorderCategories(ids),
+            builder: (c) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: FilterChip(
+                showCheckmark: false,
+                labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                padding: const EdgeInsets.all(4),
+                avatar: Icon(
+                  categoryIcon(c, iconId: data.itemCategoryIconId(c)),
+                  size: 18,
                 ),
-                ...categories,
-              })
-                FilterChip(
-                  label: Text(c),
-                  selected: categories.contains(c),
-                  onSelected: (selected) => setState(() {
-                    if (selected) {
-                      categories.add(c);
-                    } else {
-                      categories.remove(c);
-                    }
-                  }),
+                label: Text(
+                  c,
+                  softWrap: true,
+                  maxLines: 40,
+                  style: Theme.of(context).textTheme.labelMedium,
                 ),
-            ],
+                selected: categories.contains(c),
+                onSelected: (selected) => setState(() {
+                  if (selected) {
+                    categories.add(c);
+                  } else {
+                    categories.remove(c);
+                  }
+                }),
+              ),
+            ),
           ),
           DropdownButtonFormField<String>(
             initialValue: useType,

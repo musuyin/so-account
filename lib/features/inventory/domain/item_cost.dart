@@ -1,6 +1,6 @@
 import '../../../core/time/business_date.dart';
 
-const itemCategories = ['数码产品', '日用品', '食物', '周边', '家具', '衣物', '其他'];
+const itemCategories = ['数码产品', '日用品', '化妆品', '食物', '家具', '衣物', '其他'];
 int usageDays(String purchasedOn, String? archivedOn, DateTime now) =>
     ownershipDays(
       purchasedOn,

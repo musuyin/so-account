@@ -81,6 +81,16 @@ class _HomePageState extends ConsumerState<HomePage> {
       retry: () => ref.invalidate(homeLedgerProvider(query)),
       builder: (view) {
         final data = view.data;
+        // Refresh category order without reloading the scoped ledger rows.
+        final categoryChoices = AppSnapshot(
+          [],
+          data.categories,
+          [],
+          [],
+          [],
+          [],
+          ref.watch(preferencesProvider).asData?.value ?? [],
+        ).categories;
         int total(String kind) => view.totals[kind] ?? 0;
         final income = total('income'), expense = total('expense');
         final budget = data.budgets
@@ -398,7 +408,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       setState(() => category = v.isEmpty ? null : v),
                   itemBuilder: (_) => [
                     const PopupMenuItem(value: '', child: Text('全部分类')),
-                    ...data.categories.map(
+                    ...categoryChoices.map(
                       (c) => PopupMenuItem(
                         value: c.id,
                         child: Text(
