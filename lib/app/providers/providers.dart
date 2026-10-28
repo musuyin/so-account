@@ -10,6 +10,25 @@ import '../../features/inventory/data/inventory_repository.dart';
 import '../../features/goals/data/goals_repository.dart';
 import '../../platform/media/media_store.dart';
 import '../../platform/files/file_delivery.dart';
+import '../../features/settings/data/local_data_service.dart';
+
+final localDataServiceProvider = Provider(
+  (ref) => LocalDataService(ref.watch(databaseProvider)),
+);
+final initialCleanupProvider = FutureProvider(
+  (ref) => ref.watch(localDataServiceProvider).resumeCleanup(),
+  // A failed destructive cleanup stays on its explicit retry screen; do not
+  // automatically repeat it or alternate between loading and error states.
+  retry: (retryCount, error) => null,
+);
+
+class AppSession extends Notifier<int> {
+  @override
+  int build() => 0;
+  void restart() => state++;
+}
+
+final appSessionProvider = NotifierProvider<AppSession, int>(AppSession.new);
 
 final fileDeliveryProvider = Provider<FileDelivery>((ref) => FileDelivery());
 

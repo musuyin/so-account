@@ -23,10 +23,13 @@ class UpdateController extends ChangeNotifier {
   final AppUpdateService service;
   Future<void>? _initializing;
   File? _settings;
+  Future<void>? _savingPreferences;
   DateTime? _lastCheck;
   bool supported = false, android = false, automatic = true;
   bool checking = false, downloading = false, installing = false;
   bool _cancelled = false, _disposed = false;
+  bool _dataMaintenance = false;
+  Completer<void>? _idleWaiter;
   String currentVersion = '', message = '';
   int currentBuild = 0, received = 0, total = 0;
   AppUpdate? update;
@@ -71,10 +74,21 @@ class UpdateController extends ChangeNotifier {
   }
 
   void _notify() {
+    if (!busy && _idleWaiter != null) {
+      _idleWaiter!.complete();
+      _idleWaiter = null;
+    }
     if (!_disposed) notifyListeners();
   }
 
-  Future<void> _save() async {
+  Future<void> _save() {
+    if (_dataMaintenance) return Future.value();
+    return _savingPreferences = (_savingPreferences ?? Future.value()).then(
+      (_) => _persistPreferences(),
+    );
+  }
+
+  Future<void> _persistPreferences() async {
     try {
       await _settings?.writeAsString(
         jsonEncode({
@@ -89,6 +103,7 @@ class UpdateController extends ChangeNotifier {
   }
 
   Future<void> setAutomatic(bool value) async {
+    if (_dataMaintenance) return;
     automatic = value;
     await _save();
     _notify();
@@ -96,7 +111,7 @@ class UpdateController extends ChangeNotifier {
 
   Future<void> check({bool manual = false}) async {
     await initialize();
-    if (_disposed || !supported || busy) return;
+    if (_disposed || _dataMaintenance || !supported || busy) return;
     if (!manual &&
         (!automatic ||
             (_lastCheck != null &&
@@ -124,7 +139,7 @@ class UpdateController extends ChangeNotifier {
 
   Future<void> download() async {
     final release = update;
-    if (release == null || busy || !android) return;
+    if (release == null || _dataMaintenance || busy || !android) return;
     downloading = true;
     _cancelled = false;
     received = 0;
@@ -165,7 +180,7 @@ class UpdateController extends ChangeNotifier {
   }
 
   Future<void> install() async {
-    if (downloaded == null || busy) return;
+    if (downloaded == null || _dataMaintenance || busy) return;
     installing = true;
     _notify();
     try {
@@ -202,6 +217,39 @@ class UpdateController extends ChangeNotifier {
       message = _error(error);
       _notify();
     }
+  }
+
+  /// Stop update writes before deleting cache/settings; do not reset this
+  /// controller until an in-flight download or version check has unwound.
+  Future<void> pauseForDataMaintenance() async {
+    _dataMaintenance = true;
+    await initialize();
+    _cancelled = true;
+    service.transport.cancel();
+    if (busy) {
+      _idleWaiter ??= Completer<void>();
+      await _idleWaiter!.future;
+    }
+    await _savingPreferences;
+  }
+
+  void finishDataMaintenance({
+    required bool resetSettings,
+    bool cleared = true,
+  }) {
+    if (cleared) {
+      downloaded = null;
+      update = null;
+      received = total = 0;
+      message = '';
+    }
+    if (resetSettings) {
+      automatic = true;
+      _lastCheck = null;
+    }
+    _cancelled = false;
+    _dataMaintenance = false;
+    _notify();
   }
 
   String _error(Object error) => switch (error) {

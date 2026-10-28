@@ -86,6 +86,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
+              initialCleanupProvider.overrideWith((ref) async => null),
               snapshotProvider.overrideWith((ref) => Stream.value(data)),
               preferencesProvider.overrideWith(
                 (ref) => Stream.value(data.preferences),

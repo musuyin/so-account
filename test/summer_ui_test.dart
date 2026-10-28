@@ -33,6 +33,7 @@ void main() {
       });
       final boundary = GlobalKey();
       Future<void> capture(String name) async {
+        await tester.pump();
         await tester.runAsync(() async {
           final image =
               await (boundary.currentContext!.findRenderObject()

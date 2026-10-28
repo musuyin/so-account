@@ -14,6 +14,7 @@ import '../../../platform/files/file_delivery.dart';
 import '../../statistics/data/csv_export.dart';
 import 'categories_page.dart';
 import 'item_categories_page.dart';
+import 'local_data_page.dart';
 import 'archived_accounts_page.dart';
 import '../../importing/presentation/import_page.dart';
 import '../../backup/presentation/backup_page.dart';
@@ -174,6 +175,18 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   onTap: busy ? null : () => preference('theme', value),
                 ),
             ]),
+            section('数据管理'),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.delete_sweep_outlined),
+              title: const Text('本地数据管理'),
+              subtitle: const Text('清空业务数据或完全重置软件，需要确认'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () =>
+                  Navigator.of(context, rootNavigator: true).push<void>(
+                    MaterialPageRoute(builder: (_) => const LocalDataPage()),
+                  ),
+            ),
             const SizedBox(height: 24),
             const Text('素帐 · 本机存储'),
           ],

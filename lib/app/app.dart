@@ -11,11 +11,13 @@ import '../features/ledger/presentation/home_page.dart';
 import '../features/ledger/presentation/accounts_page.dart';
 import '../features/inventory/presentation/inventory_page.dart';
 import '../features/settings/presentation/settings_page.dart';
+import '../features/settings/data/local_data_service.dart';
 import '../features/statistics/presentation/statistics_page.dart';
 import '../features/updates/presentation/update_page.dart';
 import '../features/goals/presentation/goals_page.dart';
 
 final routerProvider = Provider((ref) {
+  ref.watch(appSessionProvider);
   final router = GoRouter(
     initialLocation: '/',
     routes: [
@@ -44,12 +46,59 @@ class SoAccountApp extends ConsumerWidget {
   const SoAccountApp({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cleanup = ref.watch(initialCleanupProvider);
     final preferences = ref.watch(preferencesProvider).value ?? [];
     String? preference(String key) =>
         preferences.where((p) => p.key == key).firstOrNull?.value;
     final mode = preference('theme') ?? 'system';
     final palette = AppPalette.parse(preference('palette'));
     final art = ref.watch(botanicalArtProvider).value;
+    if (cleanup.isLoading || cleanup.hasError) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: appTheme(Brightness.light, palette: palette, art: art),
+        darkTheme: appTheme(Brightness.dark, palette: palette, art: art),
+        themeMode:
+            {'light': ThemeMode.light, 'dark': ThemeMode.dark}[mode] ??
+            ThemeMode.system,
+        home: Scaffold(
+          body: SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: cleanup.hasError && !cleanup.isLoading
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.delete_sweep_outlined, size: 40),
+                          const SizedBox(height: 16),
+                          Text(
+                            cleanup.error is LocalCleanupException
+                                ? '上次本地数据删除尚未完成，请重试清理。已确认清空的数据无法撤销。'
+                                : '本地数据读取失败，请重试。本次尚未执行清空或重置。',
+                          ),
+                          const SizedBox(height: 16),
+                          FilledButton(
+                            onPressed: () =>
+                                ref.invalidate(initialCleanupProvider),
+                            child: const Text('重试清理'),
+                          ),
+                        ],
+                      )
+                    : const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('正在检查本地数据清理状态…'),
+                        ],
+                      ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     return MaterialApp.router(
       title: '素帐 · SoAccount',
       debugShowCheckedModeBanner: false,

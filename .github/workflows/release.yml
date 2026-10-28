@@ -46,6 +46,7 @@ jobs:
       - run: dart format --output=none --set-exit-if-changed lib test integration_test benchmark test_driver
       - run: flutter analyze
       - name: Flutter tests with retained output
+        shell: bash
         run: |
           mkdir -p .tooling/ci-logs
           flutter test --reporter expanded | tee .tooling/ci-logs/flutter-tests.log

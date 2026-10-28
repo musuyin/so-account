@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/appearance.dart';
 import '../../../core/category_preferences.dart';
+import '../../../core/local_data_action.dart';
 import '../../../data/database/app_database.dart';
 import '../../../platform/media/media_store.dart';
 import '../../goals/data/goals_repository.dart';
@@ -297,7 +298,9 @@ class _Snapshot {
     await db.select(db.budgets).get(),
     await db.select(db.items).get(),
     await db.select(db.purchaseLinks).get(),
-    await db.select(db.preferences).get(),
+    await (db.select(
+      db.preferences,
+    )..where((row) => row.key.equals(localCleanupKey).not())).get(),
     await db.select(db.balanceAdjustments).get(),
     await db.select(db.wishGoals).get(),
     await db.select(db.goalContributions).get(),
