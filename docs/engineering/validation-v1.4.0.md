@@ -6,7 +6,7 @@
 
 ## 本地验证
 
-最终发布版本 1.4.0+19 的 289 项 Flutter 测试、17 项 Python 发布工具测试、格式检查和静态分析全部通过；Drift 重新生成后 `app_database.g.dart` 无变化，Schema 仍为 9。Android 调试构建与固定签名的正式通用包、ARM64、ARM32、x86_64 构建均通过。四个正式包的包名、版本 1.4.0、build 19 和 v1.3.0 正式签名一致；本地通用包 SHA-256 为 `63b91f28cec661c7c828ef7c2f417f52c62e1ac635d2064d347cba41efb35344`。本地包与 CI 公开包的摘要分别核对，不假定不同主机构建逐字节相同。
+最终发布版本 1.4.0+19 的 289 项 Flutter 测试、17 项 Python 发布工具测试、格式检查和静态分析全部通过；Drift 重新生成后 `app_database.g.dart` 无变化，Schema 仍为 9。固定签名的正式通用包、ARM64、ARM32、x86_64 构建均通过。四个正式包的包名、版本 1.4.0、build 19 和 v1.3.0 正式签名一致；本地通用包 SHA-256 为 `63b91f28cec661c7c828ef7c2f417f52c62e1ac635d2064d347cba41efb35344`。本地包与 CI 公开包的摘要分别核对，不假定不同主机构建逐字节相同。
 
 自动化覆盖：支出／收入隔离、跨行拖动、边缘滚动、取消拖动、保存失败恢复、无障碍上移／下移、实际种类芯片长按、管理页与表单双向同步、取消记账保留全局排序、金额／备注／记物草稿保留、改名中途写入失败的事务回滚、新增／改名／删除、历史种类补全、关闭重开和备份恢复。首页选项监听共享偏好，不因此重新执行分页流水和月统计查询。
 
@@ -14,7 +14,15 @@
 
 ## CI 与公开发布
 
-发布工作流、公开安装包、更新清单及从 v1.3.0 的 ARM64 增量重建，在发布后分别验证并补记；本地测试不代表 CI 或公开发布已完成。
+发布源码提交：`3a3f5c43566399b48b5baf3a4ce7f9af9c5d3628`，`v1.4.0` 标签固定指向该提交。后续验证记录提交只修改文档。
+
+[Mobile checks 40680562345](https://github.com/musuyin/so-account/actions/runs/40680562345) 成功：Android 检查与调试 APK、iOS 模拟器构建通过；云端日志确认 289 项 Flutter 测试和 17 项 Python 工具测试通过。可选的设备恢复 job 本次未手动启用，因此为 skipped，不视为设备验收。
+
+[Publish Android release 40680562342](https://github.com/musuyin/so-account/actions/runs/40680562342) 成功，云端日志同样确认全部 289 项测试通过。已上传 `release-ui-evidence` (12812782665) 与 `release-build-logs` (12813360746)。[v1.4.0](https://github.com/musuyin/so-account/releases/tag/v1.4.0) 已公开为 latest 正式版，共 20 个资产。
+
+公开包核验：通用包和三种 ABI 的清单大小、SHA-256、GitHub 资产摘要及全部补丁元数据一致。实际下载 ARM64 包核对包名、版本 1.4.0、build 19 与 v1.3.0 固定签名。公开 ARM64 SHA-256：`f72afea0b47ac40b9043c372be03f53ac8e9d81230b4e8025e7bee70f413629e`；实际应用 v1.3.0 ARM64 公开补丁后，重建 APK 与该完整包摘要完全一致。
+
+真实 AppUpdateService 另外验证通用包及三个 ABI 的元数据，并成功走差分下载／合成路径；build 18 能发现 19，build 19 返回已是最新。详细结果和公开签名证书摘要见 [公开验证数据](evidence/v1.4.0/public-release.json)。
 
 ## 设备边界
 

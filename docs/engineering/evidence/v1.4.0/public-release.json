@@ -1,0 +1,47 @@
+{
+  "release": "https://github.com/musuyin/so-account/releases/tag/v1.4.0",
+  "version": "1.4.0",
+  "build": 19,
+  "assets": 20,
+  "arm64_sha256": "f72afea0b47ac40b9043c372be03f53ac8e9d81230b4e8025e7bee70f413629e",
+  "arm64_size": 38663421,
+  "same_release_signer": true,
+  "archive_schema_present": true,
+  "delta_reconstructed": true,
+  "signer_sha256": "f0db22ad213879a06fcc7e55a40dd80fa230725ab52f230e77c5d55fd1469634",
+  "tag": "v1.4.0",
+  "source_commit": "3a3f5c43566399b48b5baf3a4ce7f9af9c5d3628",
+  "ci": {
+    "release": {
+      "run_id": 40680562342,
+      "conclusion": "success",
+      "url": "https://github.com/musuyin/so-account/actions/runs/40680562342"
+    },
+    "mobile": {
+      "run_id": 40680562345,
+      "conclusion": "success",
+      "android": "success",
+      "ios_simulator": "success",
+      "device_recovery": "skipped",
+      "url": "https://github.com/musuyin/so-account/actions/runs/40680562345"
+    }
+  },
+  "client": {
+    "metadata_checked": [
+      "universal",
+      "arm64-v8a",
+      "armeabi-v7a",
+      "x86_64"
+    ],
+    "previous_build": 18,
+    "current_build": 19,
+    "previous_build_discovers_update": true,
+    "current_build_up_to_date": true,
+    "delta_download_used": true
+  },
+  "manifest_variant_metadata_verified": true,
+  "manifest_patch_metadata_verified": true,
+  "flutter_tests": 289,
+  "python_tool_tests": 17,
+  "physical_device_install_upgrade_retention": "not_performed"
+}
