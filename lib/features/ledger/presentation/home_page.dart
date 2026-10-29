@@ -184,7 +184,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     if (total('borrow') != 0 || total('lend') != 0)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
-                        child: Text(
+                        child: ParameterText(
                           '借入 ${decimalMoney(total('borrow'), currency)} · 借出 ${decimalMoney(total('lend'), currency)}',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
@@ -278,7 +278,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     ...categoryChoices.map(
                       (c) => PopupMenuItem(
                         value: c.id,
-                        child: Text(
+                        child: ParameterText(
                           '${c.name} · ${c.kind == 'income' ? '收入' : '支出'}',
                         ),
                       ),
@@ -301,7 +301,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             Padding(
               key: const ValueKey('ledger-list-heading'),
               padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Text(
+              child: ParameterText(
                 '${day ?? monthKey(month)} · ${view.count} 笔',
                 style: Theme.of(context).textTheme.labelMedium,
               ),
@@ -328,7 +328,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             if (day != null)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Text(
+                child: ParameterText(
                   '$day · $currency · 收入 ${decimalMoney(dailyTotals[day]?['income'] ?? 0, currency)} · 支出 ${decimalMoney(dailyTotals[day]?['expense'] ?? 0, currency)}',
                 ),
               ),
@@ -406,11 +406,11 @@ class EntryDayCard extends StatelessWidget {
               runSpacing: 2,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Text(
+                ParameterText(
                   '${day.month}月${day.day}日$relative · 周${['一', '二', '三', '四', '五', '六', '日'][day.weekday - 1]}',
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
-                Text(
+                ParameterText(
                   '${filtered ? '筛选合计 · ' : ''}收 ${decimalMoney(totals['income'] ?? 0, currency)} · 支 ${decimalMoney(totals['expense'] ?? 0, currency)}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
@@ -523,7 +523,7 @@ class EntryTile extends ConsumerWidget {
                     );
             },
           ),
-          subtitle: Text(
+          subtitle: ParameterText(
             '${grouped ? '' : '${entry.date} · '}${account.name}${entry.targetAccountId == null ? '' : ' → ${data.account(entry.targetAccountId!).name}'}${entry.counterparty.isEmpty ? '' : ' · ${entry.counterparty}'}${entry.note.isEmpty ? '' : '\n${entry.note}'}',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -605,7 +605,7 @@ Future<void> editBudget(
         }
 
         return AlertDialog(
-          title: Text('$month 预算 · $currency'),
+          title: ParameterText('$month 预算 · $currency'),
           content: TextField(
             controller: controller,
             autofocus: true,

@@ -330,6 +330,7 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                 }),
         ),
         DropdownButtonFormField<ExportPeriod>(
+          isExpanded: true,
           key: ValueKey('$summary-${period.name}'),
           initialValue: period,
           decoration: const InputDecoration(labelText: '导出范围'),
@@ -341,11 +342,11 @@ class _ExportPageState extends ConsumerState<ExportPage> {
               ),
             const DropdownMenuItem(
               value: ExportPeriod.month,
-              child: Text('指定月份 · 默认本月'),
+              child: Text('指定月份（默认本月）'),
             ),
             const DropdownMenuItem(
               value: ExportPeriod.year,
-              child: Text('指定年份 · 默认本年'),
+              child: Text('指定年份（默认本年）'),
             ),
           ],
           onChanged: busy ? null : (v) => setState(() => period = v!),

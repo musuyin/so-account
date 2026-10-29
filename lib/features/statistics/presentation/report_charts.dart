@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_typography.dart';
+import '../../../app/widgets.dart';
 import '../../../core/money/money.dart';
 import '../data/statistics_repository.dart';
 
@@ -87,7 +88,7 @@ class _FlowBarsState extends State<FlowBars> {
               Text('● ${labels[i]}', style: TextStyle(color: colors[i])),
           ],
         ),
-        Text(
+        ParameterText(
           '${widget.currency} · ${decimalMoney(minValue, widget.currency)} ～ ${decimalMoney(maxValue, widget.currency)}',
           style: Theme.of(context).textTheme.bodySmall,
         ),
@@ -149,9 +150,9 @@ class _FlowBarsState extends State<FlowBars> {
             );
           },
         ),
-        Text('零基线 · 点击图形查看数值', style: Theme.of(context).textTheme.bodySmall),
+        Text('零基线，点击图形查看数值', style: Theme.of(context).textTheme.bodySmall),
         if (point != null) ...[
-          Text(detail(point)),
+          ParameterText(detail(point)),
           if (widget.onRecords != null)
             TextButton(
               onPressed: () => widget.onRecords!(point),
@@ -165,7 +166,7 @@ class _FlowBarsState extends State<FlowBars> {
             for (final point in points)
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text(detail(point)),
+                title: ParameterText(detail(point)),
                 onTap: widget.onRecords == null
                     ? null
                     : () => widget.onRecords!(point),
@@ -318,37 +319,39 @@ class _CategoryPieState extends State<CategoryPie> {
       children: [
         if (!widget.bars)
           SizedBox(
-            width: 200,
-            height: 200,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: _RingPainter(
-                      rows.map((r) => r.amount / total).toList(),
-                      colors,
+            width: double.infinity,
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _RingPainter(
+                        rows.map((r) => r.amount / total).toList(),
+                        colors,
+                      ),
                     ),
                   ),
-                ),
-                SizedBox(
-                  width: 130,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        widget.currency,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      Text(
-                        decimalMoney(total, widget.currency),
-                        style: AppTypography.amount,
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+                  SizedBox(
+                    width: 180,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.currency,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        Text(
+                          decimalMoney(total, widget.currency),
+                          style: AppTypography.amount.copyWith(fontSize: 24),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         for (var i = 0; i < rows.length; i++)
@@ -363,20 +366,39 @@ class _CategoryPieState extends State<CategoryPie> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 2,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.circle, size: 10, color: colors[i]),
-                          const SizedBox(width: 6),
-                          Flexible(child: Text(rows[i].name)),
-                        ],
+                      Expanded(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(top: 5),
+                              child: Icon(
+                                Icons.circle,
+                                size: 10,
+                                color: colors[i],
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(child: Text(rows[i].name)),
+                          ],
+                        ),
                       ),
-                      Text(
-                        '${decimalMoney(rows[i].amount, widget.currency)} · ${(rows[i].amount / total * 100).toStringAsFixed(1)}%',
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          decimalMoney(rows[i].amount, widget.currency),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${(rows[i].amount / total * 100).toStringAsFixed(1)}%',
+                          textAlign: TextAlign.right,
+                        ),
                       ),
                       if (widget.onRecords != null)
                         const Icon(Icons.chevron_right, size: 16),
@@ -476,7 +498,7 @@ class AssetLine extends StatelessWidget {
             ),
           ],
         ),
-        Text(
+        ParameterText(
           '最低 ${decimalMoney(values.reduce(math.min).toInt(), currency)} · 最高 ${decimalMoney(values.reduce(math.max).toInt(), currency)}',
           style: Theme.of(context).textTheme.bodySmall,
         ),

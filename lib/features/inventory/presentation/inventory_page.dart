@@ -124,7 +124,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                     Text(
                       '日均 ${(costs.fold<double>(0, (s, c) => s + c) / factor).toStringAsFixed(2)}',
                     ),
-                    Text(
+                    ParameterText(
                       '${all.length} 件 · ${all.where((i) => i.price == null).length} 件价格未记录 · ${all.length - costs.length} 件未计算日均',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
@@ -161,7 +161,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
             Row(
               children: [
                 Expanded(
-                  child: Text(
+                  child: ParameterText(
                     [
                       if (useType.isNotEmpty)
                         useType == 'durable' ? '长期使用物' : '消耗品',
@@ -277,7 +277,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  subtitle: Text(
+                  subtitle: ParameterText(
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     '${itemTags(item.category).join('、')} · ${item.useType == 'durable' ? '长期使用物' : '消耗品'} · ${itemStatuses[item.status]}${item.quantity == null ? '' : ' · ${item.quantity}${item.unit ?? ''}'}\n${item.price == null ? '价格未记录' : decimalMoney(item.price!, currency)}${dailyCost(item.price, item.purchasedOn, item.archivedOn, DateTime.now()) == null ? '' : ' · 日均 ${(dailyCost(item.price, item.purchasedOn, item.archivedOn, DateTime.now())! / factor).toStringAsFixed(2)}'}',

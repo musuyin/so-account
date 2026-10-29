@@ -14,6 +14,7 @@ class AppSnapshot {
     this.adjustments = const [],
     this.goals = const [],
     this.contributions = const [],
+    this.investmentProducts = const [],
   ]);
   final List<Account> accounts;
   final List<Category> _categories;
@@ -47,6 +48,7 @@ class AppSnapshot {
   final List<BalanceAdjustment> adjustments;
   final List<WishGoal> goals;
   final List<GoalContribution> contributions;
+  final List<InvestmentProduct> investmentProducts;
   List<Account> get activeAccounts =>
       accounts.where((a) => !a.isArchived).toList();
   bool hasArchivedAccount(Entry entry) => accounts.any(

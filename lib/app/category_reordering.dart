@@ -56,12 +56,14 @@ class ReorderableCategoryGrid extends StatefulWidget {
     required this.onReorder,
     this.compact = false,
     this.enabled = true,
+    this.columns,
   });
   final List<String> ids;
   final String Function(String) label;
   final Widget Function(String) builder;
   final Future<void> Function(List<String>) onReorder;
   final bool compact, enabled;
+  final int? columns;
   @override
   State<ReorderableCategoryGrid> createState() =>
       _ReorderableCategoryGridState();
@@ -161,15 +163,17 @@ class _ReorderableCategoryGridState extends State<ReorderableCategoryGrid> {
       LayoutBuilder(
         builder: (context, constraints) {
           final scaler = MediaQuery.textScalerOf(context);
-          final columns = widget.compact
-              ? (constraints.maxWidth / (scaler.scale(14) > 18 ? 130 : 100))
-                    .floor()
-                    .clamp(2, 5)
-              : scaler.scale(14) > 18
-              ? 3
-              : constraints.maxWidth < 340
-              ? 4
-              : 5;
+          final columns =
+              widget.columns ??
+              (widget.compact
+                  ? (constraints.maxWidth / (scaler.scale(14) > 18 ? 130 : 100))
+                        .floor()
+                        .clamp(2, 5)
+                  : scaler.scale(14) > 18
+                  ? 3
+                  : constraints.maxWidth < 340
+                  ? 4
+                  : 5);
           final width = constraints.maxWidth / columns;
           final style = Theme.of(context).textTheme.labelMedium!;
           var labelHeight = 0.0;
@@ -180,11 +184,25 @@ class _ReorderableCategoryGridState extends State<ReorderableCategoryGrid> {
                   textDirection: Directionality.of(context),
                   textScaler: scaler,
                 )..layout(
-                  maxWidth: math.max(1, width - (widget.compact ? 48 : 16)),
+                  maxWidth: math.max(
+                    1,
+                    width -
+                        (widget.compact
+                            ? 48
+                            : widget.columns != null
+                            ? 4
+                            : 16),
+                  ),
                 );
             labelHeight = math.max(labelHeight, painter.height);
           }
-          final height = labelHeight + (widget.compact ? 28 : 80);
+          final height =
+              labelHeight +
+              (widget.compact
+                  ? 28
+                  : widget.columns != null
+                  ? 66
+                  : 80);
           return SizedBox(
             height: (order.length / columns).ceil() * height,
             child: Stack(
@@ -238,9 +256,7 @@ class _ReorderableCategoryGridState extends State<ReorderableCategoryGrid> {
                               child: IgnorePointer(child: widget.builder(id)),
                             ),
                           ),
-                          childWhenDragging: AnimatedContainer(
-                            duration: const Duration(milliseconds: 160),
-                            margin: const EdgeInsets.all(3),
+                          childWhenDragging: DecoratedBox(
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(

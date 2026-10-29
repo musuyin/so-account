@@ -54,6 +54,7 @@ class LedgerRepository {
     String bank = '',
     String customChannel = '',
     String? unitPrice,
+    int? creditLimit,
   }) async {
     if (name.trim().isEmpty || name.trim().length > 80) {
       throw const FormatException('账户名称为 1–80 字');
@@ -71,6 +72,10 @@ class LedgerRepository {
     bank = isBankChannel(channel) ? bank : '';
     customChannel = type.custom;
     unitPrice = kind == '投资理财' ? validateUnitPrice(unitPrice) : null;
+    if (creditLimit != null &&
+        (kind != '信贷账户' || creditLimit < 0 || creditLimit > 999999999999)) {
+      throw const FormatException('额度仅适用于信贷账户，须非负且不超出上限');
+    }
     if (openingBalance.abs() > 999999999999) {
       throw const FormatException('初始余额超出上限');
     }
@@ -102,6 +107,13 @@ class LedgerRepository {
         )..where((a) => a.id.equals(id))).getSingle();
         if (old.isArchived) {
           throw const FormatException('账户已归档，请先在设置中恢复');
+        }
+        final products = await (db.select(
+          db.investmentProducts,
+        )..where((p) => p.accountId.equals(id))).get();
+        if (products.isNotEmpty &&
+            (kind != '投资理财' || currency != old.currency)) {
+          throw const FormatException('已有理财产品，不能改变账户类型或币种');
         }
         final used =
             await (db.select(db.entries)..where(
@@ -137,6 +149,7 @@ class LedgerRepository {
               bank: Value(bank),
               customChannel: Value(customChannel),
               unitPrice: Value(unitPrice),
+              creditLimit: Value(creditLimit),
             ),
           );
       if (id != null) {
@@ -160,6 +173,13 @@ class LedgerRepository {
   }
 
   Future<void> deleteAccount(String id) => db.transaction(() async {
+    final affectedProducts =
+        (await (db.select(
+              db.entries,
+            )..where((e) => e.accountId.equals(id))).get())
+            .map((e) => e.investmentProductId)
+            .whereType<String>()
+            .toSet();
     // Include settlements of deleted principals even when another funds account
     // received or paid them. One statement keeps self-referencing FKs valid and
     // avoids a variable per historical entry for large imported ledgers.
@@ -178,6 +198,9 @@ class LedgerRepository {
       db.balanceAdjustments,
     )..where((a) => a.accountId.equals(id))).go();
     await (db.delete(db.accounts)..where((a) => a.id.equals(id))).go();
+    for (final product in affectedProducts) {
+      await _validateProductCost(product);
+    }
   });
 
   static void validateAdjustment(BalanceAdjustment adjustment) {
@@ -338,10 +361,16 @@ class LedgerRepository {
     String? debtId,
     String counterparty = '',
     String? debtAccountId,
+    String? investmentProductId,
+    String? unitPrice,
     required String date,
     String note = '',
     NewPurchaseItem? newItem,
   }) => db.transaction(() async {
+    if (!kind.isInvestment &&
+        (investmentProductId != null || unitPrice != null)) {
+      throw const FormatException('仅投资流水可关联理财产品或单价');
+    }
     if (newItem != null) {
       if (kind != EntryKind.expense) {
         throw const FormatException('只有支出可以同步记物');
@@ -365,8 +394,12 @@ class LedgerRepository {
     if (kind != EntryKind.transfer && account.kind == '债务') {
       throw const FormatException('请选择实际收付款的资金账户，债务账户需单独关联');
     }
-    if (kind == EntryKind.borrow || kind == EntryKind.lend) {
-      final side = kind == EntryKind.borrow ? '应付款' : '应收款';
+    if (kind.isPrincipal) {
+      final side = kind == EntryKind.borrow
+          ? '应付款'
+          : kind == EntryKind.reimburse
+          ? '报销'
+          : '应收款';
       final person = counterparty.isEmpty ? '未注明往来人' : counterparty;
       Account? debtAccount;
       if (debtAccountId != null) {
@@ -452,7 +485,7 @@ class LedgerRepository {
     } else {
       categoryId = null;
     }
-    if (kind == EntryKind.transfer) {
+    if (kind == EntryKind.transfer || kind.isInvestment) {
       final target = targetAccountId == null
           ? null
           : await (db.select(
@@ -464,6 +497,20 @@ class LedgerRepository {
         throw const FormatException('转账需选择另一个同币种账户');
       }
       if (target.isArchived) throw const FormatException('转入账户已归档，请先在设置中恢复');
+      if (kind.isInvestment) {
+        final product = investmentProductId == null
+            ? null
+            : await (db.select(db.investmentProducts)
+                    ..where((p) => p.id.equals(investmentProductId!)))
+                  .getSingleOrNull();
+        if (account.kind == '债务' ||
+            target.kind != '投资理财' ||
+            product == null ||
+            product.accountId != target.id) {
+          throw const FormatException('请选择同币种理财账户及其产品');
+        }
+        unitPrice = validateUnitPrice(unitPrice);
+      }
       for (final side in [account, target].where((a) => a.kind == '债务')) {
         final loans = await (db.select(
           db.entries,
@@ -483,10 +530,18 @@ class LedgerRepository {
             )..where((e) => e.id.equals(debtId!))).getSingleOrNull();
       if (debt == null ||
           debt.id == id ||
-          debt.kind != (kind == EntryKind.repay ? 'borrow' : 'lend')) {
+          debt.kind !=
+              (kind == EntryKind.repay
+                  ? 'borrow'
+                  : kind == EntryKind.reimbursement
+                  ? 'reimburse'
+                  : 'lend')) {
         throw const FormatException('请选择对应的原始借贷');
       }
       await _checkEntryAccountsActive(debt);
+      if (debtAccountId != null && debtAccountId != debt.debtAccountId) {
+        throw const FormatException('回款或还款账户须与原始记录关联的对象一致');
+      }
       if (counterparty.isNotEmpty && counterparty != debt.counterparty) {
         throw const FormatException('还款往来人须与原始借贷一致');
       }
@@ -510,10 +565,14 @@ class LedgerRepository {
       }
     } else {
       debtId = null;
-      if (kind != EntryKind.borrow && kind != EntryKind.lend) {
+      if (!kind.isPrincipal) {
         counterparty = '';
         debtAccountId = null;
       }
+    }
+    if (!kind.isInvestment) {
+      investmentProductId = null;
+      unitPrice = null;
     }
     final entryId = id ?? _uuid.v4();
     final now = DateTime.now().toUtc().millisecondsSinceEpoch;
@@ -530,12 +589,20 @@ class LedgerRepository {
             debtId: Value(debtId),
             counterparty: Value(counterparty),
             debtAccountId: Value(debtAccountId),
+            investmentProductId: Value(investmentProductId),
+            unitPrice: Value(unitPrice),
             date: date,
             note: Value(note.trim()),
             createdAt: old?.createdAt ?? now,
             updatedAt: now,
           ),
         );
+    if (old?.investmentProductId != null) {
+      await _validateProductCost(old!.investmentProductId!);
+    }
+    if (investmentProductId != null) {
+      await _validateProductCost(investmentProductId!);
+    }
     if (newItem != null) {
       await InventoryRepository(db).save(
         name: newItem.name,
@@ -574,10 +641,109 @@ class LedgerRepository {
     if (entry != null) await _checkEntryAccountsActive(entry);
     try {
       await (db.delete(db.entries)..where((e) => e.id.equals(id))).go();
+      if (entry?.investmentProductId != null) {
+        await _validateProductCost(entry!.investmentProductId!);
+      }
+    } on FormatException {
+      rethrow;
     } on Exception {
       throw const FormatException('此借贷已有还款，请先删除还款记录');
     }
   });
+
+  Future<String> saveInvestmentProduct({
+    String? id,
+    required String accountId,
+    required String name,
+    required String kind,
+  }) => db.transaction(() async {
+    final account = await (db.select(
+      db.accounts,
+    )..where((a) => a.id.equals(accountId))).getSingleOrNull();
+    if (account == null || account.kind != '投资理财' || account.isArchived) {
+      throw const FormatException('请选择可用的理财账户');
+    }
+    if (name.trim().isEmpty ||
+        name.trim().length > 80 ||
+        !accountTypes['投资理财']!.contains(kind)) {
+      throw const FormatException('请输入 1–80 字产品名称及有效类别');
+    }
+    final duplicate =
+        await (db.select(db.investmentProducts)..where(
+              (p) =>
+                  p.accountId.equals(accountId) &
+                  p.name.equals(name.trim()) &
+                  (id == null ? const Constant(true) : p.id.equals(id).not()),
+            ))
+            .get();
+    if (duplicate.isNotEmpty) throw const FormatException('此账户已有同名产品');
+    if (id != null) {
+      final old = await (db.select(
+        db.investmentProducts,
+      )..where((p) => p.id.equals(id))).getSingle();
+      if (old.accountId != accountId) {
+        throw const FormatException('产品不能移动到其他账户');
+      }
+    }
+    final productId = id ?? _uuid.v4();
+    await db
+        .into(db.investmentProducts)
+        .insertOnConflictUpdate(
+          InvestmentProductsCompanion.insert(
+            id: productId,
+            accountId: accountId,
+            name: name.trim(),
+            kind: kind,
+          ),
+        );
+    return productId;
+  });
+
+  Future<void> deleteInvestmentProduct(String id) => db.transaction(() async {
+    final product = await (db.select(
+      db.investmentProducts,
+    )..where((p) => p.id.equals(id))).getSingle();
+    final account = await (db.select(
+      db.accounts,
+    )..where((a) => a.id.equals(product.accountId))).getSingle();
+    if (account.isArchived) throw const FormatException('账户已归档，请先恢复');
+    if ((await (db.select(
+      db.entries,
+    )..where((e) => e.investmentProductId.equals(id))).get()).isNotEmpty) {
+      throw const FormatException('已有流水的产品不能删除');
+    }
+    await (db.delete(
+      db.investmentProducts,
+    )..where((p) => p.id.equals(id))).go();
+  });
+
+  Future<void> _validateProductCost(String id) async {
+    final rows =
+        await (db.select(db.entries)
+              ..where((e) => e.investmentProductId.equals(id))
+              ..orderBy([
+                (e) => OrderingTerm.asc(e.date),
+                (e) => OrderingTerm.asc(e.createdAt),
+                (e) => OrderingTerm.asc(e.id),
+              ]))
+            .get();
+    var cost = 0;
+    final daily = <String, int>{};
+    for (final e in rows) {
+      daily.update(
+        e.date,
+        (value) => value + (e.kind == 'invest' ? e.amount : -e.amount),
+        ifAbsent: () => e.kind == 'invest' ? e.amount : -e.amount,
+      );
+    }
+    for (final change in daily.values) {
+      // A date has no intraday transaction time: validate the closing cost.
+      cost += change;
+      if (cost < 0) {
+        throw const FormatException('收回金额不能超过该产品当日可收回的投入成本');
+      }
+    }
+  }
 
   Future<void> setBudget(String month, String currency, int amount) async {
     parseDate('$month-01');
@@ -597,10 +763,10 @@ class LedgerRepository {
   Selectable<QueryRow> _balanceRows() => db.customSelect(
     '''
     SELECT a.id, a.opening_balance + COALESCE((SELECT SUM(b.delta) FROM balance_adjustments b WHERE b.account_id=a.id),0) + COALESCE(SUM(
-      CASE WHEN e.debt_account_id = a.id THEN CASE WHEN e.kind IN ('borrow','lend') THEN e.amount ELSE -e.amount END
-      WHEN e.target_account_id = a.id THEN CASE WHEN a.kind='债务' AND a.channel='应付款' THEN -e.amount ELSE e.amount END
+      CASE WHEN e.debt_account_id = a.id THEN CASE WHEN e.kind IN ('borrow','lend','reimburse') THEN e.amount ELSE -e.amount END
+      WHEN e.target_account_id = a.id THEN CASE WHEN e.kind='redeem' THEN -e.amount WHEN a.kind='债务' AND a.channel='应付款' THEN -e.amount ELSE e.amount END
       WHEN a.kind='债务' AND a.channel='应付款' THEN e.amount
-      WHEN e.kind IN ('income', 'borrow', 'collect') THEN e.amount
+      WHEN e.kind IN ('income', 'borrow', 'collect', 'reimbursement', 'redeem') THEN e.amount
       ELSE -e.amount END), 0) AS balance
     FROM accounts a LEFT JOIN entries e ON e.account_id = a.id OR e.target_account_id = a.id OR e.debt_account_id = a.id
     GROUP BY a.id

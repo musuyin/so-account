@@ -10,6 +10,7 @@ import 'package:so_account/features/backup/domain/backup_codec.dart';
 import 'package:so_account/features/inventory/data/inventory_repository.dart';
 import 'package:so_account/features/inventory/domain/item_cost.dart';
 import 'package:so_account/features/ledger/data/ledger_repository.dart';
+import 'package:so_account/features/ledger/domain/entry_kind.dart';
 import 'package:so_account/features/ledger/domain/default_categories.dart';
 import 'package:so_account/features/settings/data/local_data_service.dart';
 import 'package:so_account/platform/media/media_store.dart';
@@ -34,6 +35,30 @@ void main() {
       paths: () async => LocalDataPaths(support, cache),
     );
     await seedRecoveryFixture(db, MediaStore(support));
+    final ledger = LedgerRepository(db);
+    final finance = await ledger.saveAccount(
+      name: '合成理财账户',
+      kind: '投资理财',
+      channel: '基金',
+      currency: 'CNY',
+      openingBalance: 0,
+    );
+    final product = await ledger.saveInvestmentProduct(
+      accountId: finance,
+      name: '合成基金',
+      kind: '基金',
+    );
+    final source = (await db.select(db.accounts).get()).firstWhere(
+      (a) => a.kind == '资金账户' && a.currency == 'CNY',
+    );
+    await ledger.saveEntry(
+      kind: EntryKind.invest,
+      amount: 100,
+      accountId: source.id,
+      targetAccountId: finance,
+      investmentProductId: product,
+      date: '2026-10-01',
+    );
     await db
         .into(db.preferences)
         .insertOnConflictUpdate(

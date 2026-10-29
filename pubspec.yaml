@@ -1,7 +1,7 @@
 name: so_account
 description: Local-first personal finance and belongings for Android and iOS.
 publish_to: none
-version: 1.6.0+21
+version: 1.7.0+22
 environment:
   sdk: ^3.13.0
 dependencies:

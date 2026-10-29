@@ -88,6 +88,7 @@ final snapshotProvider = StreamProvider.autoDispose((ref) {
           db.balanceAdjustments,
           db.wishGoals,
           db.goalContributions,
+          db.investmentProducts,
         },
       )
       .watch()
@@ -104,6 +105,7 @@ final snapshotProvider = StreamProvider.autoDispose((ref) {
             await db.select(db.balanceAdjustments).get(),
             await db.select(db.wishGoals).get(),
             await db.select(db.goalContributions).get(),
+            await db.select(db.investmentProducts).get(),
           ),
         ),
       );

@@ -120,6 +120,7 @@ class LocalDataService {
         await db.delete(db.items).go();
         await db.delete(db.entries).go();
         await db.delete(db.balanceAdjustments).go();
+        await db.delete(db.investmentProducts).go();
         await db.delete(db.accounts).go();
         await db.delete(db.budgets).go();
         if (action == LocalDataAction.resetApp) {

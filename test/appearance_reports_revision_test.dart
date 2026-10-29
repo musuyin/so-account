@@ -82,7 +82,7 @@ void main() {
     },
   );
   testWidgets(
-    'square calendar matrix keeps full amounts and distinct today selection',
+    'seven visible calendar columns keep full amounts and distinct today selection',
     (t) async {
       t.view.devicePixelRatio = 1;
       addTearDown(t.view.resetDevicePixelRatio);
@@ -133,19 +133,24 @@ void main() {
             final size = t.getSize(
               find.byKey(const ValueKey('calendar-2024-02-01')),
             );
-            expect(size.width, closeTo(size.height, .01));
+            expect(size.width, closeTo(width / 7, .01));
+            expect(size.height, greaterThanOrEqualTo(size.width - 4));
+            expect(find.byType(SingleChildScrollView), findsNothing);
+            final sunday = t.getRect(find.text('日'));
+            expect(sunday.right, lessThanOrEqualTo(width));
             expect(
               find.byKey(const ValueKey('calendar-2024-02-29')),
               findsOneWidget,
             );
-            expect(find.text('-9999.99'), findsOneWidget);
-            expect(find.text('-100.0万'), findsNothing);
-            expect(find.text('-10.0万'), findsOneWidget);
+            final cell = t.widget<Semantics>(
+              find.byKey(const ValueKey('calendar-2024-02-01')),
+            );
+            expect(cell.properties.label, contains('支出 9999.99'));
             if (width == 320 && scale == 2) {
               await helper.capture(
                 t,
                 boundary,
-                'v160-calendar-${brightness.name}-320-2x',
+                'v170-calendar-${brightness.name}-320-2x',
               );
             }
           }
@@ -330,7 +335,8 @@ void main() {
                     ..orderBy([(e) => OrderingTerm.desc(e.date)]))
                   .get(),
         );
-        expect(find.text('共 ${selected!.length} 笔 · 仅收入与支出'), findsOneWidget);
+        expect(find.text('共 ${selected!.length} 笔'), findsOneWidget);
+        expect(find.text('仅收入与支出'), findsOneWidget);
         Navigator.of(t.element(find.byType(ReportRecordsPage))).pop();
         await helper.settle(t);
         expect(
@@ -375,6 +381,7 @@ void main() {
       expect(find.text('其他'), findsOneWidget);
       expect(find.text('合成分类0'), findsNothing);
       final before = categoryColor('id0', Brightness.light);
+      await t.ensureVisible(find.text('展开全部分类'));
       await t.tap(find.text('展开全部分类'));
       await t.pumpAndSettle();
       expect(find.text('合成分类0'), findsOneWidget);

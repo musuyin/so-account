@@ -338,7 +338,7 @@ void main() {
         final selected = find.widgetWithText(FilterChip, day);
         await show(t, selected);
         expect(t.widget<FilterChip>(selected).selected, isTrue);
-        expect(find.text('$day · 1 笔'), findsOneWidget);
+        expect(find.text('1 笔'), findsOneWidget);
         await t.tap(selected);
         await t.pumpAndSettle();
         expect(t.takeException(), isNull);

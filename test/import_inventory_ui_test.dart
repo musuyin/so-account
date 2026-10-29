@@ -161,11 +161,11 @@ void main() {
       await tester.tap(find.text('消耗品').last);
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
-        find.text('数量 / 容量 · 可留空'),
+        find.text('数量 / 容量（可留空）'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      expect(find.text('单位 · 可留空'), findsOneWidget);
+      expect(find.text('单位（可留空）'), findsOneWidget);
       expect(itemStatuses.values, ['未使用', '使用中', '使用完']);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());

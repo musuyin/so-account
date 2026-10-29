@@ -5,13 +5,22 @@ enum EntryKind {
   borrow('借入', 1),
   lend('借出', -1),
   repay('偿还借入', -1),
-  collect('收回借出', 1);
+  collect('收回借出', 1),
+  reimburse('报销垫付', -1),
+  reimbursement('报销回款', 1),
+  invest('投资投入', -1),
+  redeem('投资收回', 1);
 
   const EntryKind(this.label, this.direction);
   final String label;
   final int direction;
   bool get needsCategory => this == expense || this == income;
-  bool get isSettlement => this == repay || this == collect;
+  bool get isSettlement =>
+      this == repay || this == collect || this == reimbursement;
+  bool get isReimbursement => this == reimburse || this == reimbursement;
+  bool get isInvestment => this == invest || this == redeem;
+  bool get isPrincipal => this == borrow || this == lend || this == reimburse;
+  bool get isDebt => isPrincipal || isSettlement;
 }
 
 const accountTypes = <String, List<String>>{

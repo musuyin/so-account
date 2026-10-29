@@ -173,7 +173,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                   .where((c) => c.kind == categoryKind)
                   .toList();
               return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Card(
                     borderOnForeground: false,
@@ -218,7 +218,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                           Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              '完整周期 ${r.days} 天 · 日均按该天数计算',
+                              '完整周期 ${r.days} 天，日均按该天数计算',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ),
@@ -229,7 +229,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                   _section(
                     '收支趋势',
                     Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Wrap(
                           spacing: 6,
@@ -379,7 +379,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                     _section(
                       '净资产走势',
                       Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           TextButton.icon(
                             onPressed: () => ref
@@ -429,7 +429,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
   Widget _section(String title, Widget child) => Padding(
     padding: const EdgeInsets.only(top: 12),
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(title, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 12),
@@ -452,21 +452,20 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              Expanded(
-                child: Text('${c.name} · ${c.kind == 'income' ? '收入' : '支出'}'),
-              ),
+              Expanded(child: Text(c.name)),
               Text(decimalMoney(c.amount, currency)),
             ],
           ),
           const SizedBox(height: 4),
-          Text(
-            '上期 ${decimalMoney(c.previous, currency)} · 差额 ${c.delta > 0 ? '+' : ''}${decimalMoney(c.delta, currency)} · $growth',
-            style: TextStyle(color: color, fontSize: 12),
-          ),
+          ParameterRow([
+            '上期 ${decimalMoney(c.previous, currency)}',
+            '差额 ${c.delta > 0 ? '+' : ''}${decimalMoney(c.delta, currency)}',
+            growth,
+          ], style: TextStyle(color: color, fontSize: 12)),
         ],
       ),
     );

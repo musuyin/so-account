@@ -24,6 +24,7 @@ class Accounts extends Table {
   TextColumn get unitPrice => text().nullable()();
   IntColumn get openingBalance => integer().withDefault(const Constant(0))();
   BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
+  IntColumn get creditLimit => integer().nullable()();
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -40,6 +41,20 @@ class Categories extends Table {
   ];
 }
 
+class InvestmentProducts extends Table {
+  TextColumn get id => text()();
+  TextColumn get accountId =>
+      text().references(Accounts, #id, onDelete: KeyAction.cascade)();
+  TextColumn get name => text().withLength(min: 1, max: 80)();
+  TextColumn get kind => text()();
+  @override
+  Set<Column> get primaryKey => {id};
+  @override
+  List<Set<Column>> get uniqueKeys => [
+    {accountId, name},
+  ];
+}
+
 class Entries extends Table {
   TextColumn get id => text()();
   TextColumn get kind => text()();
@@ -52,6 +67,9 @@ class Entries extends Table {
   TextColumn get debtId => text().nullable().references(Entries, #id)();
   TextColumn get counterparty => text().withDefault(const Constant(''))();
   TextColumn get debtAccountId => text().nullable().references(Accounts, #id)();
+  TextColumn get investmentProductId =>
+      text().nullable().references(InvestmentProducts, #id)();
+  TextColumn get unitPrice => text().nullable()();
   TextColumn get date => text()();
   TextColumn get note => text().withDefault(const Constant(''))();
   IntColumn get createdAt => integer()();
@@ -162,6 +180,7 @@ class GoalContributions extends Table {
     BalanceAdjustments,
     WishGoals,
     GoalContributions,
+    InvestmentProducts,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -177,7 +196,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   Future<void> migrateDebtAccounts() async {
     for (final account in await select(accounts).get()) {
@@ -304,6 +323,12 @@ class AppDatabase extends _$AppDatabase {
       await seedDefaults();
     },
     onUpgrade: (m, from, to) async {
+      if (from < 10) {
+        await m.addColumn(accounts, accounts.creditLimit);
+        await m.createTable(investmentProducts);
+        await m.addColumn(entries, entries.investmentProductId);
+        await m.addColumn(entries, entries.unitPrice);
+      }
       // Historical debt migrations read Accounts using the current generated
       // model, so new fields must exist before those reads.
       if (from < 9) {

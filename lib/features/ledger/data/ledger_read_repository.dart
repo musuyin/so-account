@@ -252,7 +252,7 @@ class LedgerReadRepository {
     final label = 'CASE e.kind $kindLabels END';
     // Same precedence as accountEntryDelta, including payable target accounts.
     const delta =
-        "CASE WHEN e.debt_account_id=a.id THEN CASE WHEN e.kind IN ('borrow','lend') THEN e.amount ELSE -e.amount END WHEN e.target_account_id=a.id THEN CASE WHEN a.kind='债务' AND a.channel='应付款' THEN -e.amount ELSE e.amount END WHEN a.kind='债务' AND a.channel='应付款' THEN e.amount WHEN e.kind IN ('income','borrow','collect') THEN e.amount ELSE -e.amount END";
+        "CASE WHEN e.debt_account_id=a.id THEN CASE WHEN e.kind IN ('borrow','lend','reimburse') THEN e.amount ELSE -e.amount END WHEN e.target_account_id=a.id THEN CASE WHEN e.kind='redeem' THEN -e.amount WHEN a.kind='债务' AND a.channel='应付款' THEN -e.amount ELSE e.amount END WHEN a.kind='债务' AND a.channel='应付款' THEN e.amount WHEN e.kind IN ('income','borrow','collect','reimbursement','redeem') THEN e.amount ELSE -e.amount END";
     final parts = [
       ('e.category_id IS NOT NULL', "COALESCE(c.name,'往来')"),
       ('src.id<>a.id', 'src.name'),

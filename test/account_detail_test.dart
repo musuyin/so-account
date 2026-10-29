@@ -64,10 +64,7 @@ void main() {
       await t.pumpAndSettle();
       await t.ensureVisible(find.textContaining('筛选结果 1 笔'));
       await t.pumpAndSettle();
-      expect(
-        find.text('${dateKey(DateTime.now())}\n工资 · 本月工资'),
-        findsOneWidget,
-      );
+      expect(find.text('${dateKey(DateTime.now())}\n工资\n本月工资'), findsOneWidget);
       await t.ensureVisible(search);
       await t.enterText(search, '不存在的内容');
       await t.pumpAndSettle();

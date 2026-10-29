@@ -320,3 +320,70 @@ class _ClearableSearchState extends State<ClearableSearch> {
     ),
   );
 }
+
+/// Parameters occupy stable left / middle / right positions and wrap naturally.
+class ParameterRow extends StatelessWidget {
+  const ParameterRow(this.values, {super.key, this.style});
+  final List<String> values;
+  final TextStyle? style;
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      for (var i = 0; i < values.length; i++) ...[
+        if (i > 0) const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            values[i],
+            style: style,
+            textAlign: i == 0
+                ? TextAlign.left
+                : i == values.length - 1
+                ? TextAlign.right
+                : TextAlign.center,
+          ),
+        ),
+      ],
+    ],
+  );
+}
+
+/// Multi-line metadata with two or three parameters on each row.
+class ParameterText extends StatelessWidget {
+  const ParameterText(
+    this.data, {
+    super.key,
+    this.style,
+    this.maxLines,
+    this.overflow,
+    this.textAlign,
+  });
+  final String data;
+  final TextStyle? style;
+  final int? maxLines;
+  final TextOverflow? overflow;
+  final TextAlign? textAlign;
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: MediaQuery.sizeOf(context).width > 32
+        ? MediaQuery.sizeOf(context).width - 32
+        : null,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final line in data.split('\n'))
+          if (line.contains(' · '))
+            ParameterRow(line.split(' · '), style: style)
+          else
+            Text(
+              line,
+              style: style,
+              maxLines: maxLines,
+              overflow: overflow,
+              textAlign: textAlign,
+            ),
+      ],
+    ),
+  );
+}

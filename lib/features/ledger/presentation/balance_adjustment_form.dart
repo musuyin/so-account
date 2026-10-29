@@ -131,7 +131,7 @@ class _BalanceAdjustmentState extends ConsumerState<BalanceAdjustmentForm> {
                 title: Text(
                   '${decimalMoney(adjustment.beforeBalance, widget.account.currency)} → ${decimalMoney(adjustment.afterBalance, widget.account.currency)}',
                 ),
-                subtitle: Text(
+                subtitle: ParameterText(
                   '${adjustment.date}${adjustment.reason.isEmpty ? '' : ' · ${adjustment.reason}'}',
                 ),
               ),

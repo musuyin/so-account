@@ -1,3 +1,5 @@
+import '../../../app/widgets.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -73,7 +75,7 @@ class _UpdatePageState extends ConsumerState<UpdatePage> {
                           '新版本 ${update.version}',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
-                        Text(
+                        ParameterText(
                           'Android · ${update.abi} · 完整包 ${(update.apk.size / 1024 / 1024).toStringAsFixed(1)} MB',
                         ),
                         const Text('优先匹配差分补丁；旧包不匹配或合成失败时自动下载完整包。'),

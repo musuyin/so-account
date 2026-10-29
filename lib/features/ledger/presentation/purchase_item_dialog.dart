@@ -167,14 +167,14 @@ class _PurchaseItemDialogState extends ConsumerState<PurchaseItemDialog> {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  decoration: const InputDecoration(labelText: '数量 / 容量 · 可留空'),
+                  decoration: const InputDecoration(labelText: '数量 / 容量（可留空）'),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: unit,
                   maxLength: 20,
                   decoration: const InputDecoration(
-                    labelText: '单位 · 可留空',
+                    labelText: '单位（可留空）',
                     counterText: '',
                   ),
                 ),

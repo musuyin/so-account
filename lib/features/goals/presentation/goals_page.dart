@@ -145,7 +145,7 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('进行中 · ${active.length} 个目标'),
+                    ParameterText('进行中 · ${active.length} 个目标'),
                     const SizedBox(height: 8),
                     Text(
                       decimalMoney(saved, currency),
@@ -265,14 +265,14 @@ class GoalProgress extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Text(
+        ParameterText(
           remaining == 0
               ? '已达到目标${saved > goal.target ? ' · 超出 ${decimalMoney(saved - goal.target, goal.currency)}' : ''}'
               : '还差 ${decimalMoney(remaining, goal.currency)}',
         ),
         if (days != null) ...[
           const SizedBox(height: 4),
-          Text(
+          ParameterText(
             '${goal.deadline} · ${days < 0
                 ? '已逾期 ${-days} 天'
                 : days == 0
@@ -507,7 +507,7 @@ class _GoalDetailState extends ConsumerState<GoalDetailPage> {
       final saved = goalSaved(goal.id, records);
       return Scaffold(
         appBar: AppBar(
-          title: Text('心愿 · ${goal.currency}'),
+          title: ParameterText('心愿 · ${goal.currency}'),
           actions: [
             IconButton(
               tooltip: '编辑目标',
@@ -611,7 +611,7 @@ class _GoalDetailState extends ConsumerState<GoalDetailPage> {
                 label: const Text('恢复进行中'),
               ),
             const SizedBox(height: 24),
-            Text(
+            ParameterText(
               '攒钱记录 · ${records.length} 笔',
               style: Theme.of(context).textTheme.titleMedium,
             ),
@@ -629,7 +629,7 @@ class _GoalDetailState extends ConsumerState<GoalDetailPage> {
                 title: Text(
                   '${row.amount > 0 ? '+' : '−'} ${decimalMoney(row.amount.abs(), goal.currency)}',
                 ),
-                subtitle: Text(
+                subtitle: ParameterText(
                   '${row.date}${row.note.isEmpty ? '' : ' · ${row.note}'}',
                 ),
                 trailing: goal.status != 'active'

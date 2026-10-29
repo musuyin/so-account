@@ -12,6 +12,7 @@ import '../domain/debt_relationship.dart';
 import '../domain/entry_draft.dart';
 import '../domain/entry_kind.dart';
 import 'accounts_page.dart';
+import 'finance_page.dart';
 import 'amount_pad.dart';
 import 'category_icons.dart';
 import 'purchase_item_dialog.dart';
@@ -26,6 +27,8 @@ class EntryForm extends ConsumerStatefulWidget {
     this.initialCounterparty,
     this.initialDebtAccountId,
     this.initialAccountId,
+    this.initialTargetId,
+    this.initialProductId,
     this.initialCurrency,
     this.initialRecordItem = false,
   });
@@ -35,6 +38,7 @@ class EntryForm extends ConsumerStatefulWidget {
   final String? initialCounterparty;
   final String? initialDebtAccountId;
   final String? initialAccountId;
+  final String? initialTargetId, initialProductId;
   final String? initialCurrency;
   final bool initialRecordItem;
   final DateTime? initialDate;
@@ -51,7 +55,10 @@ class _EntryFormState extends ConsumerState<EntryForm> {
         widget.entry?.accountId ??
         widget.initialDebt?.accountId ??
         widget.initialAccountId,
-    targetId: widget.entry?.targetAccountId,
+    targetId: widget.entry?.targetAccountId ?? widget.initialTargetId,
+    investmentProductId:
+        widget.entry?.investmentProductId ?? widget.initialProductId,
+    unitPrice: widget.entry?.unitPrice,
     categoryId: widget.entry?.categoryId,
     debtId: widget.entry?.debtId ?? widget.initialDebt?.id,
     debtAccountId:
@@ -66,11 +73,19 @@ class _EntryFormState extends ConsumerState<EntryForm> {
   String? get accountId => draft.accountId;
   set accountId(String? value) => draft.accountId = value;
   String? get targetId => draft.targetId;
-  set targetId(String? value) => draft.targetId = value;
+  set targetId(String? value) {
+    if (draft.targetId != value) draft.investmentProductId = null;
+    draft.targetId = value;
+  }
+
   String? get categoryId => draft.categoryId;
   set categoryId(String? value) => draft.categoryId = value;
   String? get debtId => draft.debtId;
-  set debtId(String? value) => draft.debtId = value;
+  set debtId(String? value) {
+    if (draft.debtId != value) draft.debtAccountId = null;
+    draft.debtId = value;
+  }
+
   String? get debtAccountId => draft.debtAccountId;
   set debtAccountId(String? value) => draft.debtAccountId = value;
   DateTime get date => draft.date;
@@ -78,6 +93,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
   NewPurchaseItem? get item => draft.item;
   set item(NewPurchaseItem? value) => draft.item = value;
   final amount = TextEditingController();
+  late final price = TextEditingController(text: widget.entry?.unitPrice);
   bool promptedItem = false;
   late final note = TextEditingController(text: widget.entry?.note);
   late final counterparty = TextEditingController(
@@ -87,6 +103,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
   @override
   void dispose() {
     amount.dispose();
+    price.dispose();
     note.dispose();
     counterparty.dispose();
     super.dispose();
@@ -104,7 +121,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
             children: [
               const Text('关联账户已归档，历史记录只读。如需修改或结算，请先在设置 → 归档账户中恢复。'),
               const SizedBox(height: 16),
-              Text(
+              ParameterText(
                 '${EntryKind.values.byName(historical.kind).label} · ${money(historical.amount, data.account(historical.accountId).currency)}',
               ),
               Text(historical.date),
@@ -124,9 +141,8 @@ class _EntryFormState extends ConsumerState<EntryForm> {
             a.isArchived &&
             [
               accountId,
-              if (kind == EntryKind.transfer) targetId,
-              if (kind == EntryKind.borrow || kind == EntryKind.lend)
-                debtAccountId,
+              if (kind == EntryKind.transfer || kind.isInvestment) targetId,
+              if (kind.isPrincipal) debtAccountId,
             ].contains(a.id),
       );
       if (archivedSelection) {
@@ -190,9 +206,16 @@ class _EntryFormState extends ConsumerState<EntryForm> {
         categoryId = categories.firstOrNull?.id;
       }
       final targets = data.activeAccounts
-          .where((a) => a.id != accountId && a.currency == account.currency)
+          .where(
+            (a) =>
+                a.id != accountId &&
+                a.currency == account.currency &&
+                (!kind.isInvestment || a.kind == '投资理财'),
+          )
           .toList();
-      if (!targets.any((a) => a.id == targetId)) {
+      if (targetId == null ||
+          (data.accounts.any((a) => a.id == targetId) &&
+              !targets.any((a) => a.id == targetId))) {
         targetId = targets.firstOrNull?.id;
       }
       final debts = data.entries
@@ -200,7 +223,12 @@ class _EntryFormState extends ConsumerState<EntryForm> {
             (e) =>
                 e.id != widget.entry?.id &&
                 !data.hasArchivedAccount(e) &&
-                e.kind == (kind == EntryKind.repay ? 'borrow' : 'lend') &&
+                e.kind ==
+                    (kind == EntryKind.repay
+                        ? 'borrow'
+                        : kind == EntryKind.reimbursement
+                        ? 'reimburse'
+                        : 'lend') &&
                 (debtRemaining(e, data.entries, excludingId: widget.entry?.id) >
                         0 ||
                     e.id == debtId) &&
@@ -208,7 +236,11 @@ class _EntryFormState extends ConsumerState<EntryForm> {
           )
           .toList();
       if (!debts.any((e) => e.id == debtId)) debtId = null;
-      final debtSide = kind == EntryKind.borrow ? '应付款' : '应收款';
+      final debtSide = kind == EntryKind.borrow
+          ? '应付款'
+          : kind.isReimbursement
+          ? '报销'
+          : '应收款';
       final debtAccounts = data.activeAccounts
           .where(
             (a) =>
@@ -218,7 +250,10 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                     (debtSide == '应收款' && a.channel == '报销')),
           )
           .toList();
-      if (!debtAccounts.any((a) => a.id == debtAccountId)) debtAccountId = null;
+      if (data.accounts.any((a) => a.id == debtAccountId) &&
+          !debtAccounts.any((a) => a.id == debtAccountId)) {
+        debtAccountId = null;
+      }
       if (widget.initialRecordItem &&
           !promptedItem &&
           kind == EntryKind.expense) {
@@ -227,7 +262,17 @@ class _EntryFormState extends ConsumerState<EntryForm> {
           if (mounted) editItem(data, account.currency);
         });
       }
-      final isDebt = !kind.needsCategory && kind != EntryKind.transfer;
+      final isDebt = kind.isDebt && !kind.isReimbursement;
+      final selectedTab = kind.isReimbursement
+          ? '报销'
+          : kind.isInvestment
+          ? '投资'
+          : isDebt
+          ? '债务'
+          : kind.label;
+      final products = data.investmentProducts
+          .where((p) => p.accountId == targetId)
+          .toList();
       final selectedDebt = debts.where((e) => e.id == debtId).firstOrNull;
       final debtAccount = debtAccounts
           .where((a) => a.id == debtAccountId)
@@ -246,7 +291,9 @@ class _EntryFormState extends ConsumerState<EntryForm> {
         role,
         kind.isSettlement
             ? selectedDebt == null
-                  ? '选择原始借贷'
+                  ? kind.isReimbursement
+                        ? '选择原始报销'
+                        : '选择原始借贷'
                   : '${selectedDebt.counterparty} · 剩余 ${decimalMoney(debtRemaining(selectedDebt, data.entries, excludingId: widget.entry?.id), account.currency)}'
             : debtAccount?.name ?? '选择$debtSide账户',
         () async {
@@ -266,9 +313,9 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                   height: MediaQuery.sizeOf(context).height * .65,
                   child: Column(
                     children: [
-                      const Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Text('选择原始借贷'),
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(kind.isReimbursement ? '选择原始报销' : '选择原始借贷'),
                       ),
                       Expanded(
                         child: ListView(
@@ -276,7 +323,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                             if (debts.isEmpty)
                               const Padding(
                                 padding: EdgeInsets.all(20),
-                                child: Text('暂无可结算借贷，请先记录借入或借出。'),
+                                child: Text('暂无可结算记录，请先添加垫付或借贷。'),
                               ),
                             for (final e in debts)
                               ListTile(
@@ -285,7 +332,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                                       ? '未注明往来人'
                                       : e.counterparty,
                                 ),
-                                subtitle: Text(
+                                subtitle: ParameterText(
                                   '${e.date} · 剩余 ${money(debtRemaining(e, data.entries, excludingId: widget.entry?.id), account.currency)}${e.note.isEmpty ? '' : ' · ${e.note}'}',
                                 ),
                                 selected: e.id == debtId,
@@ -317,7 +364,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 1),
                       child: Semantics(
-                        selected: tab == (isDebt ? '债务' : kind.label),
+                        selected: tab == (selectedTab),
                         child: InkWell(
                           key: ValueKey('entry-tab-$tab'),
                           borderRadius: BorderRadius.circular(10),
@@ -332,7 +379,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             decoration: BoxDecoration(
-                              color: tab == (isDebt ? '债务' : kind.label)
+                              color: tab == (selectedTab)
                                   ? colors.primaryContainer
                                   : colors.surfaceContainerLow,
                               borderRadius: BorderRadius.circular(10),
@@ -348,6 +395,40 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                     ),
                   ),
               ],
+            ),
+            bottom: PreferredSize(
+              preferredSize: Size.fromHeight(
+                MediaQuery.textScalerOf(context).scale(16) + 32,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+                child: Row(
+                  children: [
+                    for (final tab in ['报销', '投资'])
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: OutlinedButton(
+                            key: ValueKey('entry-tab-$tab'),
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: selectedTab == tab
+                                  ? colors.primaryContainer
+                                  : null,
+                            ),
+                            onPressed: saving
+                                ? null
+                                : () => changeKind(
+                                    tab == '报销'
+                                        ? EntryKind.reimburse
+                                        : EntryKind.invest,
+                                  ),
+                            child: Text(tab),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
             actions: [
               Padding(
@@ -377,12 +458,9 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                           builder: (context, constraints) {
                             final scaled = MediaQuery.textScalerOf(context)
                                 .scale(14);
-                            final columns = scaled > 18
-                                ? 3
-                                : constraints.maxWidth < 340
-                                ? 4
-                                : 5;
+                            final columns = scaled > 18 ? 3 : 6;
                             return ReorderableCategoryGrid(
+                              columns: columns,
                               key: ValueKey('entry-reorder-${kind.name}'),
                               ids: categories.map((c) => c.id).toList(),
                               label: (id) =>
@@ -460,6 +538,116 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                             );
                           },
                         ),
+                      if (kind.isReimbursement || kind.isInvestment)
+                        Wrap(
+                          spacing: 8,
+                          children: [
+                            for (final value
+                                in kind.isReimbursement
+                                    ? [
+                                        EntryKind.reimburse,
+                                        EntryKind.reimbursement,
+                                      ]
+                                    : [EntryKind.invest, EntryKind.redeem])
+                              ChoiceChip(
+                                label: Text(value.label),
+                                selected: kind == value,
+                                onSelected: saving
+                                    ? null
+                                    : (_) => changeKind(value),
+                              ),
+                          ],
+                        ),
+                      if (kind.isInvestment) ...[
+                        fundsParty(kind == EntryKind.invest ? '付款账户' : '收款账户'),
+                        party(
+                          '理财账户',
+                          targets
+                                  .where((a) => a.id == targetId)
+                                  .firstOrNull
+                                  ?.name ??
+                              '选择理财账户',
+                          () => pickAccount(
+                            '选择理财账户',
+                            targets,
+                            targetId,
+                            (v) => targetId = v,
+                          ),
+                        ),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            for (final product in products)
+                              ChoiceChip(
+                                label: Text(product.name),
+                                selected:
+                                    draft.investmentProductId == product.id,
+                                onSelected: saving
+                                    ? null
+                                    : (_) => setState(
+                                        () => draft.investmentProductId =
+                                            product.id,
+                                      ),
+                              ),
+                          ],
+                        ),
+                        if (targetId != null)
+                          TextButton.icon(
+                            icon: const Icon(Icons.add),
+                            label: const Text('添加理财产品'),
+                            onPressed: saving
+                                ? null
+                                : () async {
+                                    final id = await Navigator.of(context)
+                                        .push<String>(
+                                          MaterialPageRoute(
+                                            builder: (_) => ProductForm(
+                                              accountId: targetId!,
+                                            ),
+                                          ),
+                                        );
+                                    if (mounted && id != null) {
+                                      setState(
+                                        () => draft.investmentProductId = id,
+                                      );
+                                    }
+                                  },
+                          ),
+                        TextButton.icon(
+                          icon: const Icon(Icons.account_balance_outlined),
+                          label: const Text('添加理财账户'),
+                          onPressed: saving
+                              ? null
+                              : () async {
+                                  final id = await Navigator.of(context)
+                                      .push<String>(
+                                        MaterialPageRoute(
+                                          builder: (_) => AccountForm(
+                                            initialKind: '投资理财',
+                                            initialChannel: '基金',
+                                            initialCurrency: account.currency,
+                                          ),
+                                        ),
+                                      );
+                                  if (mounted && id != null) {
+                                    setState(() => targetId = id);
+                                  }
+                                },
+                        ),
+                        TextField(
+                          controller: price,
+                          enabled: !saving,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: '当次单价 / 股价（选填）',
+                            helperText: '仅记录手填值，不计算份额或当前价值',
+                          ),
+                        ),
+                        const Text('金额按投入成本记录，收回不得超过产品剩余投入；收益请另记收支。'),
+                      ],
                       if (isDebt) ...[
                         Wrap(
                           spacing: 8,
@@ -496,7 +684,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                           ),
                         ),
                       ],
-                      if (!kind.needsCategory) ...[
+                      if (!kind.needsCategory && !kind.isInvestment) ...[
                         if (kind == EntryKind.transfer || kind.direction < 0)
                           fundsParty('付款方')
                         else
@@ -507,7 +695,17 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                             tooltip: '交换付款方与收款方',
                             onPressed: saving
                                 ? null
-                                : () => setState(draft.exchangeParties),
+                                : () => setState(() {
+                                    if (kind.isReimbursement) {
+                                      draft.changeKind(
+                                        kind == EntryKind.reimburse
+                                            ? EntryKind.reimbursement
+                                            : EntryKind.reimburse,
+                                      );
+                                    } else {
+                                      draft.exchangeParties();
+                                    }
+                                  }),
                             icon: const Icon(Icons.swap_vert),
                           ),
                         ),
@@ -528,10 +726,10 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                             key: const ValueKey('entry-target'),
                           )
                         else if (kind.direction < 0)
-                          debtParty('收款方')
+                          debtParty(kind.isReimbursement ? '报销对象' : '收款方')
                         else
                           fundsParty('收款方'),
-                        if (isDebt && !kind.isSettlement)
+                        if (kind.isPrincipal)
                           TextButton.icon(
                             icon: const Icon(Icons.person_add_outlined),
                             label: Text('创建$debtSide账户'),
@@ -560,7 +758,9 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                           kind == EntryKind.transfer
                               ? '转账只在两个同币种账户之间移动资金，不计入收支。'
                               : kind.isSettlement
-                              ? '选择原始借贷后结算，金额不能超过剩余本金。'
+                              ? '选择原始记录后结算，金额不能超过待收款或剩余本金。'
+                              : kind.isReimbursement
+                              ? '垫付扣除付款账户余额，增加待报销款，不计支出；回款不计收入。'
                               : '借贷本金不计入收入或支出，后续在“偿还 / 收回”中结算。',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
@@ -598,81 +798,77 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    toolbar: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          TextButton.icon(
-                            key: const ValueKey('entry-date'),
-                            icon: const Icon(
-                              Icons.calendar_today_outlined,
+                    toolbar: Wrap(
+                      spacing: 10,
+                      runSpacing: 4,
+                      children: [
+                        OutlinedButton.icon(
+                          key: const ValueKey('entry-date'),
+                          icon: const Icon(
+                            Icons.calendar_today_outlined,
+                            size: 18,
+                          ),
+                          label: Text(
+                            '日期 ${dateKey(date) == dateKey(DateTime.now()) ? '今天' : dateKey(date)}',
+                          ),
+                          onPressed: saving
+                              ? null
+                              : () async {
+                                  final value = await showDatePicker(
+                                    context: context,
+                                    initialDate: date,
+                                    firstDate: DateTime(1900),
+                                    lastDate: DateTime(2100),
+                                  );
+                                  if (mounted && value != null) {
+                                    setState(() => date = value);
+                                  }
+                                },
+                        ),
+                        OutlinedButton.icon(
+                          key: const ValueKey('entry-account-shortcut'),
+                          icon: const Icon(
+                            Icons.account_balance_wallet_outlined,
+                            size: 18,
+                          ),
+                          label: Text(account.name),
+                          onPressed: saving
+                              ? null
+                              : () => pickAccount('选择收支账户', funds, accountId, (
+                                  value,
+                                ) {
+                                  if (data.account(value).currency !=
+                                      account.currency) {
+                                    item = null;
+                                  }
+                                  accountId = value;
+                                }),
+                        ),
+                        if (kind == EntryKind.expense)
+                          OutlinedButton.icon(
+                            key: const ValueKey('entry-item'),
+                            icon: Icon(
+                              item == null
+                                  ? Icons.inventory_2_outlined
+                                  : Icons.check_circle_outline,
                               size: 18,
                             ),
                             label: Text(
-                              '日期 ${dateKey(date) == dateKey(DateTime.now()) ? '今天' : dateKey(date)}',
+                              item == null ? '记物' : '记物 ${item!.name}',
                             ),
                             onPressed: saving
                                 ? null
-                                : () async {
-                                    final value = await showDatePicker(
-                                      context: context,
-                                      initialDate: date,
-                                      firstDate: DateTime(1900),
-                                      lastDate: DateTime(2100),
-                                    );
-                                    if (mounted && value != null) {
-                                      setState(() => date = value);
-                                    }
-                                  },
+                                : () => editItem(data, account.currency),
                           ),
-                          TextButton.icon(
-                            key: const ValueKey('entry-account-shortcut'),
-                            icon: const Icon(
-                              Icons.account_balance_wallet_outlined,
-                              size: 18,
-                            ),
-                            label: Text(account.name),
+                        if (kind == EntryKind.expense && item != null)
+                          IconButton(
+                            tooltip: '取消记物',
                             onPressed: saving
                                 ? null
-                                : () => pickAccount(
-                                    '选择收支账户',
-                                    funds,
-                                    accountId,
-                                    (value) {
-                                      if (data.account(value).currency !=
-                                          account.currency) {
-                                        item = null;
-                                      }
-                                      accountId = value;
-                                    },
-                                  ),
+                                : () => setState(() => item = null),
+                            icon: const Icon(Icons.close, size: 18),
                           ),
-                          if (kind == EntryKind.expense)
-                            TextButton.icon(
-                              key: const ValueKey('entry-item'),
-                              icon: Icon(
-                                item == null
-                                    ? Icons.inventory_2_outlined
-                                    : Icons.check_circle_outline,
-                                size: 18,
-                              ),
-                              label: Text(
-                                item == null ? '记物' : '记物 · ${item!.name}',
-                              ),
-                              onPressed: saving
-                                  ? null
-                                  : () => editItem(data, account.currency),
-                            ),
-                          if (kind == EntryKind.expense && item != null)
-                            IconButton(
-                              tooltip: '取消记物',
-                              onPressed: saving
-                                  ? null
-                                  : () => setState(() => item = null),
-                              icon: const Icon(Icons.close, size: 18),
-                            ),
-                        ],
-                      ),
+                      ],
                     ),
                   ),
                 ),
@@ -696,7 +892,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
           key: key,
           leading: const Icon(Icons.account_balance_wallet_outlined),
           title: Text(role),
-          subtitle: Text(value),
+          subtitle: ParameterText(value),
           trailing: const Icon(Icons.chevron_right),
           onTap: saving ? null : action,
         ),
@@ -742,9 +938,10 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                         ))
                           ListTile(
                             title: Text(account.name),
-                            subtitle: Text(
-                              '${account.channel} · ${account.currency}',
-                            ),
+                            subtitle: ParameterRow([
+                              account.channel,
+                              account.currency,
+                            ]),
                             selected: account.id == selected,
                             trailing: account.id == selected
                                 ? const Icon(Icons.check)
@@ -811,6 +1008,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
     if (saving) return;
     setState(() => saving = true);
     final ok = await perform(context, () async {
+      draft.unitPrice = price.text;
       await draft.save(
         ref.read(ledgerProvider),
         id: widget.entry?.id,

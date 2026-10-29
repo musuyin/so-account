@@ -71,10 +71,10 @@ class _ReportRecordsPageState extends ConsumerState<ReportRecordsPage> {
           return ListView(
             padding: const EdgeInsets.all(12),
             children: [
-              Text(
+              ParameterText(
                 '${widget.start} 至 ${widget.end}（不含结束日） · ${widget.currency}',
               ),
-              Text('共 ${view.count} 笔 · 仅收入与支出'),
+              ParameterText('共 ${view.count} 笔 · 仅收入与支出'),
               if (groups.isEmpty)
                 const EmptyState('没有匹配的账目', '可返回统计选择其他日期或分类。'),
               for (final group in groups.entries)

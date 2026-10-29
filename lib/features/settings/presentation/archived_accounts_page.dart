@@ -41,7 +41,7 @@ class _ArchivedAccountsState extends ConsumerState<ArchivedAccountsPage> {
                         contentPadding: EdgeInsets.zero,
                         leading: AccountAvatar(account: account),
                         title: Text(account.name),
-                        subtitle: Text(
+                        subtitle: ParameterText(
                           '${account.kind} · ${account.channel == '自定义' ? account.customChannel : account.channel} · ${account.currency}',
                         ),
                         onTap: () => openForm(

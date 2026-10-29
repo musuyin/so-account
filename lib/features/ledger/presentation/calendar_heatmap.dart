@@ -33,21 +33,7 @@ class LedgerCalendar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final scale = MediaQuery.textScalerOf(context);
-    final painter = TextPainter(
-      text: TextSpan(
-        text: '-9999.99',
-        style: DefaultTextStyle.of(context).style
-            .merge(AppTypography.calendarAmount),
-      ),
-      textDirection: TextDirection.ltr,
-      textScaler: scale,
-    )..layout();
-    final minSide = math.max(
-      painter.width + 8,
-      scale.scale(13) * 1.2 + scale.scale(10) * 2.4 + 12,
-    );
-    painter.dispose();
+    final scaler = MediaQuery.textScalerOf(context);
     final offset = month.weekday - 1;
     final count = DateTime(month.year, month.month + 1, 0).day;
     final maxNet = daily.values.fold<int>(
@@ -56,67 +42,145 @@ class LedgerCalendar extends StatelessWidget {
     );
     return LayoutBuilder(
       builder: (context, constraints) {
-        final side = math.max(minSide, constraints.maxWidth / 7);
-        return SingleChildScrollView(
-          key: const ValueKey('calendar-scroll'),
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: side * 7,
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    for (final label in ['一', '二', '三', '四', '五', '六', '日'])
-                      SizedBox(
-                        width: side,
-                        child: Center(child: Text(label)),
-                      ),
-                  ],
-                ),
-                Wrap(
-                  children: [
-                    for (var i = 0; i < ((offset + count + 6) ~/ 7) * 7; i++)
-                      SizedBox(
-                        width: side,
-                        height: side,
-                        child: i < offset || i >= offset + count
-                            ? null
-                            : Builder(
+        final side = constraints.maxWidth / 7;
+        final textWidth = math.max(1.0, side - 14);
+        final amountStyle = DefaultTextStyle.of(context).style
+            .merge(AppTypography.calendarAmount);
+        Size measure(String text) {
+          if (text.isEmpty) return Size.zero;
+          final painter = TextPainter(
+            text: TextSpan(text: text, style: amountStyle),
+            textDirection: TextDirection.ltr,
+            textScaler: scaler,
+          )..layout(maxWidth: textWidth);
+          final size = painter.size;
+          painter.dispose();
+          return size;
+        }
+
+        bool fits(String text) {
+          final painter = TextPainter(
+            text: TextSpan(text: text, style: amountStyle),
+            textDirection: TextDirection.ltr,
+            textScaler: scaler,
+          )..layout();
+          final result = painter.width <= textWidth;
+          painter.dispose();
+          return result;
+        }
+
+        String display(int value, String sign) {
+          if (value == 0) return '';
+          final exact = '$sign${calendarMoney(value, currency)}';
+          if (fits(exact)) return exact;
+          final units = currency == 'JPY' ? value.toDouble() : value / 100;
+          if (units >= 1000) {
+            final divisor = units >= 100000000
+                ? 100000000
+                : units >= 10000
+                ? 10000
+                : 1000;
+            final suffix = divisor == 100000000
+                ? '亿'
+                : divisor == 10000
+                ? '万'
+                : '千';
+            for (final digits in [1, 0]) {
+              final number = (units / divisor)
+                  .toStringAsFixed(digits)
+                  .replaceFirst(RegExp(r'\.0$'), '');
+              final compact = '$sign$number$suffix';
+              if (fits(compact)) return compact;
+            }
+            return '$sign${(units / divisor).toStringAsFixed(0)}\n$suffix';
+          }
+          final raw = '$sign${decimalMoney(value, currency)}';
+          return raw.replaceFirst('.', '\n.');
+        }
+
+        String key(int index) =>
+            dateKey(DateTime(month.year, month.month, index - offset + 1));
+        int value(int index, String kind) =>
+            index < offset || index >= offset + count
+            ? 0
+            : daily[key(index)]?[kind] ?? 0;
+        final weeks = (offset + count + 6) ~/ 7;
+        return SizedBox(
+          key: const ValueKey('calendar-grid'),
+          width: constraints.maxWidth,
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  for (final label in ['一', '二', '三', '四', '五', '六', '日'])
+                    Expanded(child: Center(child: Text(label))),
+                ],
+              ),
+              for (var week = 0; week < weeks; week++)
+                Builder(
+                  builder: (context) {
+                    var height = math.max(
+                      side - 4,
+                      scaler.scale(13) * 1.2 + 12,
+                    );
+                    for (var day = 0; day < 7; day++) {
+                      final i = week * 7 + day;
+                      height = math.max(
+                        height,
+                        scaler.scale(13) * 1.2 +
+                            measure(display(value(i, 'expense'), '-')).height +
+                            measure(display(value(i, 'income'), '+')).height +
+                            20,
+                      );
+                    }
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (var day = 0; day < 7; day++)
+                          Expanded(
+                            child: SizedBox(
+                              height: height,
+                              child: Builder(
                                 builder: (context) {
-                                  final date = dateKey(
-                                    DateTime(
-                                      month.year,
-                                      month.month,
-                                      i - offset + 1,
-                                    ),
-                                  );
-                                  final inc = daily[date]?['income'] ?? 0;
-                                  final out = daily[date]?['expense'] ?? 0;
+                                  final i = week * 7 + day;
+                                  if (i < offset || i >= offset + count) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  final date = key(i),
+                                      inc = value(i, 'income'),
+                                      out = value(i, 'expense');
                                   final today = date == dateKey(DateTime.now());
                                   Widget amount(
                                     int value,
                                     String sign,
                                     Color color,
-                                  ) => Text(
-                                    value == 0
-                                        ? ''
-                                        : '$sign${calendarMoney(value, currency)}',
-                                    style: AppTypography.calendarAmount
-                                        .copyWith(color: color),
-                                    maxLines: 1,
-                                  );
+                                  ) => value == 0
+                                      ? const SizedBox.shrink()
+                                      : Text(
+                                          display(value, sign),
+                                          textAlign: TextAlign.center,
+                                          style: amountStyle.copyWith(
+                                            color: color,
+                                          ),
+                                        );
                                   return Semantics(
                                     key: ValueKey('calendar-$date'),
                                     label:
                                         '$date${today ? '，今天' : ''}，$currency，收入 ${decimalMoney(inc, currency)}，支出 ${decimalMoney(out, currency)}，净额 ${decimalMoney(inc - out, currency)}',
-                                    button: true,
                                     selected: selected == date,
+                                    button: true,
                                     excludeSemantics: true,
                                     child: InkWell(
                                       onTap: () => onSelected(date),
                                       borderRadius: BorderRadius.circular(8),
                                       child: Container(
                                         margin: const EdgeInsets.all(2),
+                                        padding: EdgeInsets.fromLTRB(
+                                          2,
+                                          selected == date ? 2 : 4,
+                                          2,
+                                          0,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: calendarHeatColor(
                                             colors,
@@ -136,32 +200,34 @@ class LedgerCalendar extends StatelessWidget {
                                         ),
                                         child: Column(
                                           mainAxisAlignment:
-                                              MainAxisAlignment.center,
+                                              MainAxisAlignment.start,
                                           children: [
-                                            Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                Text(
-                                                  '${i - offset + 1}',
-                                                  style: const TextStyle(
-                                                    fontSize: 13,
-                                                    height: 1.2,
-                                                  ),
-                                                ),
-                                                if (today)
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                          left: 2,
-                                                        ),
-                                                    child: Icon(
-                                                      Icons.circle,
-                                                      size: 4,
-                                                      color: colors.primary,
+                                            SizedBox(
+                                              width: double.infinity,
+                                              child: Stack(
+                                                alignment: Alignment.center,
+                                                children: [
+                                                  Text(
+                                                    '${i - offset + 1}',
+                                                    softWrap: false,
+                                                    maxLines: 1,
+                                                    style: const TextStyle(
+                                                      fontSize: 13,
+                                                      height: 1.2,
                                                     ),
                                                   ),
-                                              ],
+                                                  if (today)
+                                                    Positioned(
+                                                      right: 0,
+                                                      top: 1,
+                                                      child: Icon(
+                                                        Icons.circle,
+                                                        size: 4,
+                                                        color: colors.primary,
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
                                             ),
                                             amount(
                                               out,
@@ -184,11 +250,13 @@ class LedgerCalendar extends StatelessWidget {
                                   );
                                 },
                               ),
-                      ),
-                  ],
+                            ),
+                          ),
+                      ],
+                    );
+                  },
                 ),
-              ],
-            ),
+            ],
           ),
         );
       },
@@ -259,14 +327,7 @@ class CalendarHeatLegend extends StatelessWidget {
         spacing: 12,
         runSpacing: 2,
         crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          scale('日净支出', -1),
-          scale('日净收入', 1),
-          Text(
-            '浅少 · 深多 · 可左右滑动',
-            style: Theme.of(context).textTheme.labelSmall,
-          ),
-        ],
+        children: [scale('日净支出', -1), scale('日净收入', 1)],
       ),
     );
   }

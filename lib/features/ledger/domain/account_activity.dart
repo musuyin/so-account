@@ -3,18 +3,25 @@ import 'entry_kind.dart';
 
 int accountEntryDelta(Account account, Entry entry) {
   if (entry.debtAccountId == account.id) {
-    return ['borrow', 'lend'].contains(entry.kind)
+    return ['borrow', 'lend', 'reimburse'].contains(entry.kind)
         ? entry.amount
         : -entry.amount;
   }
   if (entry.targetAccountId == account.id) {
+    if (entry.kind == 'redeem') return -entry.amount;
     return account.kind == '债务' && account.channel == '应付款'
         ? -entry.amount
         : entry.amount;
   }
   if (entry.accountId != account.id) return 0;
   if (account.kind == '债务' && account.channel == '应付款') return entry.amount;
-  return ['income', 'borrow', 'collect'].contains(entry.kind)
+  return [
+        'income',
+        'borrow',
+        'collect',
+        'reimbursement',
+        'redeem',
+      ].contains(entry.kind)
       ? entry.amount
       : -entry.amount;
 }

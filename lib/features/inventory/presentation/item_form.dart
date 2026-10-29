@@ -126,7 +126,7 @@ class _ItemFormState extends ConsumerState<ItemForm> {
             maxLength: 100,
             decoration: const InputDecoration(labelText: '物品名称'),
           ),
-          const Text('物品种类 · 可多选'),
+          const Text('物品种类（可多选）'),
           ReorderableCategoryGrid(
             compact: true,
             ids: {...data.itemCategoryNames, ...categories}.toList(),
@@ -179,7 +179,7 @@ class _ItemFormState extends ConsumerState<ItemForm> {
                 decimal: true,
               ),
               decoration: const InputDecoration(
-                labelText: '数量 / 容量 · 可留空',
+                labelText: '数量 / 容量（可留空）',
                 hintText: '例如：500',
               ),
             ),
@@ -187,7 +187,7 @@ class _ItemFormState extends ConsumerState<ItemForm> {
               controller: unit,
               maxLength: 20,
               decoration: const InputDecoration(
-                labelText: '单位 · 可留空',
+                labelText: '单位（可留空）',
                 hintText: '例如：ml、g、包、个',
               ),
             ),
@@ -237,7 +237,7 @@ class _ItemFormState extends ConsumerState<ItemForm> {
             controller: price,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: const InputDecoration(
-              labelText: '购入价格 · 可留空',
+              labelText: '购入价格（可留空）',
               helperText: '填写这件物品自己的价格；关联账目不会自动分摊或覆盖价格。',
             ),
           ),
@@ -263,7 +263,7 @@ class _ItemFormState extends ConsumerState<ItemForm> {
             },
           ),
           if (widget.item?.price != null && widget.item?.purchasedOn != null)
-            Text(
+            ParameterText(
               '记录日均 $currency ${(dailyCost(widget.item!.price, widget.item!.purchasedOn, widget.item!.archivedOn, DateTime.now())! / (currency == 'JPY' ? 1 : 100)).toStringAsFixed(2)}${widget.item!.archivedOn == null ? '' : ' · 截止归档日'}',
             ),
           if (photo != null)
@@ -316,7 +316,7 @@ class _ItemFormState extends ConsumerState<ItemForm> {
             maxLines: 3,
             decoration: const InputDecoration(labelText: '备注'),
           ),
-          Text('关联购买支出 · 可多选', style: Theme.of(context).textTheme.titleMedium),
+          Text('关联购买支出（可多选）', style: Theme.of(context).textTheme.titleMedium),
           if (expenses.isEmpty) const Text('暂无同币种支出，物品也可以独立保存。'),
           for (final entry in expenses)
             CheckboxListTile(
@@ -329,7 +329,7 @@ class _ItemFormState extends ConsumerState<ItemForm> {
                   links.remove(entry.id);
                 }
               }),
-              title: Text(
+              title: ParameterText(
                 '${entry.date} · ${data.category(entry.categoryId)} · ${decimalMoney(entry.amount, currency)}',
               ),
               subtitle: Row(

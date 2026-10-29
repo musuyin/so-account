@@ -50,10 +50,10 @@ void main() {
       await tester.tap(find.text('收回借出'));
       await tester.pumpAndSettle();
       expect(find.text('收回借出'), findsOneWidget);
-      expect(find.text('小林 · 剩余 20.00'), findsOneWidget);
+      expect(find.text('剩余 20.00'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('entry-debt')));
       await tester.pumpAndSettle();
-      expect(find.text('2026-10-01 · 剩余 CNY 20.00'), findsOneWidget);
+      expect(find.text('剩余 CNY 20.00'), findsOneWidget);
       await tester.tap(find.widgetWithText(ListTile, '小林').last);
       await tester.pumpAndSettle();
       await tester.tap(find.text('5'));

@@ -476,7 +476,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                         .textTheme
                                         .titleLarge,
                                   ),
-                                  Text(
+                                  ParameterText(
                                     '共 ${plan.length} 条 · 忽略 ${plan.where((r) => r.ignored).length} 条 · 错误 ${plan.where((r) => r.error != null).length} 条',
                                   ),
                                   const Text('有效记录默认全部勾选；相同记录逐条保留，再次导入会继续追加。'),
@@ -508,13 +508,13 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                   ),
                                   ExpansionTile(
                                     tilePadding: EdgeInsets.zero,
-                                    title: const Text('选中金额汇总 · 币种分开'),
+                                    title: const ParameterText('选中金额汇总 · 币种分开'),
                                     children: [
                                       for (final entry in totals.entries)
                                         ListTile(
                                           dense: true,
                                           title: Text(entry.key),
-                                          trailing: Text(
+                                          trailing: ParameterText(
                                             decimalMoney(
                                               entry.value,
                                               entry.key.split(' · ').first,
@@ -590,14 +590,14 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                         selected.remove(result.row);
                                       }
                                     }),
-                              title: Text(
+                              title: ParameterText(
                                 entry == null
                                     ? '第 ${result.row} 行：${result.error ?? result.ignoredReason}'
                                     : '第 ${result.row} 行 · ${entry.date} · ${entry.kind.label} · ${money(entry.amount, entry.currency)}',
                               ),
                               subtitle: entry == null
                                   ? null
-                                  : Text(
+                                  : ParameterText(
                                       '${accountName(entry.accountId)} · ${data.category(entry.categoryId)}${entry.note.isEmpty ? '' : ' · ${entry.note}'}',
                                     ),
                             );
@@ -632,7 +632,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                         children: [
                           if (setupStep == 0) ...[
                             const Text('关联列名', style: TextStyle(fontSize: 20)),
-                            Text(
+                            ParameterText(
                               '${table.name} · ${table.rows.length} 条明细。识别结果仅为建议，请核对后继续。',
                             ),
                             const Text('请关联收入和支出使用的“收支账户”列。零金额、空账户和非收支记录直接忽略。'),
@@ -793,7 +793,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
+                                  ParameterText(
                                     '${accountSources.firstWhere((s) => s.name == value).roles.join('、')} · ${accountSources.firstWhere((s) => s.name == value).rows.length} 条明细',
                                   ),
                                   select(

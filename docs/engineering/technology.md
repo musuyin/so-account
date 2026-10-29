@@ -15,7 +15,7 @@
 | 文件交付 | file_picker 13.1.0 保存 / 读取系统文件，share_plus 13.3.1 分享 |
 | 明细导入 | XLSX ZIP/XML、只读 XLS BIFF8/CFB 解析、SpreadsheetML、html 解析文本型 XLS；隔离线程处理，独立夹具回归 |
 | 备份 | archive 4.5.2 ZIP、crypto SHA-256、逻辑 JSON 快照、隔离 SQLite 验证、事务恢复 |
-| 数据库生成 | drift_dev 2.35.x、build_runner；提交 .g.dart 与 Schema v1–v7 快照 |
+| 数据库生成 | drift_dev 2.35.x、build_runner；提交 .g.dart 与 Schema v1–v10 快照 |
 | 测试 | flutter_test / integration_test；金额日期、SQLite、CSV、关联、恢复和页面 |
 | 自动构建 | GitHub Actions 的 Android 检查 / APK 和 macOS iOS 模拟器构建配置 |
 

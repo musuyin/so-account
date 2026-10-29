@@ -50,7 +50,7 @@ void main() {
         expect(find.textContaining('还款含义'), findsNothing);
         await tester.tap(find.text('预览明细'));
         await settle(tester);
-        expect(find.textContaining('忽略 1 条 · 错误 0 条'), findsOneWidget);
+        expect(find.text('忽略 1 条'), findsOneWidget);
         expect(
           tester
               .widget<FilledButton>(

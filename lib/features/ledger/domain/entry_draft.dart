@@ -14,12 +14,15 @@ class EntryDraft {
     this.categoryId,
     this.debtId,
     this.debtAccountId,
+    this.investmentProductId,
+    this.unitPrice,
   });
 
   EntryKind kind;
   DateTime date;
   String? accountId, targetId, categoryId, debtId, debtAccountId;
   NewPurchaseItem? item;
+  String? investmentProductId, unitPrice;
 
   void changeKind(EntryKind value) {
     if (value == kind) return;
@@ -55,8 +58,7 @@ class EntryDraft {
     required String note,
     required String counterparty,
   }) {
-    if ([EntryKind.borrow, EntryKind.lend].contains(kind) &&
-        debtAccountId == null) {
+    if (kind.isPrincipal && debtAccountId == null) {
       throw const FormatException('请选择或创建债务账户');
     }
     if (accountId == null) throw const FormatException('请选择收支账户');
@@ -70,6 +72,8 @@ class EntryDraft {
       debtId: debtId,
       counterparty: kind.isSettlement ? '' : counterparty,
       debtAccountId: debtAccountId,
+      investmentProductId: kind.isInvestment ? investmentProductId : null,
+      unitPrice: kind.isInvestment ? unitPrice : null,
       date: dateKey(date),
       note: note,
       newItem: kind == EntryKind.expense ? item : null,

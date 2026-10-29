@@ -70,7 +70,7 @@ void main() {
         expect(find.text('默认账户'), findsNothing);
         await tester.tap(find.text('预览明细'));
         await settle(tester);
-        expect(find.textContaining('忽略 3 条 · 错误 0 条'), findsOneWidget);
+        expect(find.text('忽略 3 条'), findsOneWidget);
         expect(find.text('导入后如何调整账户余额？'), findsNothing);
         await tester.tap(find.text('确认导入 2 条'));
         await settle(tester);

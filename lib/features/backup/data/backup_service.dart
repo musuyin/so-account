@@ -105,12 +105,49 @@ class BackupService {
           bank: a.bank,
           customChannel: a.customChannel,
           unitPrice: a.unitPrice,
+          creditLimit: a.creditLimit,
+        );
+      }
+      for (final p in snapshot.products) {
+        await ledger.saveInvestmentProduct(
+          id: p.id,
+          accountId: p.accountId,
+          name: p.name,
+          kind: p.kind,
         );
       }
       for (final c in snapshot.categories) {
         await ledger.saveCategory(c.name, c.kind, id: c.id);
       }
       for (final e in snapshot.entries) {
+        if ([
+          'reimburse',
+          'reimbursement',
+          'invest',
+          'redeem',
+        ].contains(e.kind)) {
+          if (e.categoryId != null ||
+              (e.kind == 'reimburse' &&
+                  (e.debtId != null ||
+                      e.debtAccountId == null ||
+                      e.targetAccountId != null)) ||
+              (['invest', 'redeem'].contains(e.kind) &&
+                  (e.debtId != null ||
+                      e.debtAccountId != null ||
+                      e.counterparty.isNotEmpty))) {
+            throw const FormatException('报销或投资关联字段无效');
+          }
+          if (e.kind == 'reimbursement') {
+            final principal = snapshot.entries
+                .where((p) => p.id == e.debtId)
+                .firstOrNull;
+            if (principal == null ||
+                e.debtAccountId != principal.debtAccountId ||
+                e.targetAccountId != null) {
+              throw const FormatException('报销回款须关联原始垫付及同一对象');
+            }
+          }
+        }
         await ledger.saveEntry(
           id: e.id,
           kind: EntryKind.values.byName(e.kind),
@@ -121,6 +158,8 @@ class BackupService {
           debtId: e.debtId,
           counterparty: e.counterparty,
           debtAccountId: e.debtAccountId,
+          investmentProductId: e.investmentProductId,
+          unitPrice: e.unitPrice,
           date: e.date,
           note: e.note,
         );
@@ -227,12 +266,16 @@ class BackupService {
         await db.delete(db.items).go();
         await db.delete(db.entries).go();
         await db.delete(db.balanceAdjustments).go();
+        await db.delete(db.investmentProducts).go();
         await db.delete(db.accounts).go();
         await db.delete(db.categories).go();
         await db.delete(db.budgets).go();
         await db.delete(db.preferences).go();
         for (final row in data.accounts) {
           await db.into(db.accounts).insert(row);
+        }
+        for (final row in data.products) {
+          await db.into(db.investmentProducts).insert(row);
         }
         for (final row in data.categories) {
           await db.into(db.categories).insert(row);
@@ -280,6 +323,7 @@ class _Snapshot {
     this.adjustments = const [],
     this.goals = const [],
     this.contributions = const [],
+    this.products = const [],
   ]);
   final List<Account> accounts;
   final List<Category> categories;
@@ -291,6 +335,7 @@ class _Snapshot {
   final List<BalanceAdjustment> adjustments;
   final List<WishGoal> goals;
   final List<GoalContribution> contributions;
+  final List<InvestmentProduct> products;
   static Future<_Snapshot> read(AppDatabase db) async => _Snapshot(
     await db.select(db.accounts).get(),
     await db.select(db.categories).get(),
@@ -304,6 +349,7 @@ class _Snapshot {
     await db.select(db.balanceAdjustments).get(),
     await db.select(db.wishGoals).get(),
     await db.select(db.goalContributions).get(),
+    await db.select(db.investmentProducts).get(),
   );
   Map<String, Object?> toJson() => {
     'accounts': accounts.map((r) => r.toJson()).toList(),
@@ -316,11 +362,13 @@ class _Snapshot {
     'adjustments': adjustments.map((r) => r.toJson()).toList(),
     'goals': goals.map((r) => r.toJson()).toList(),
     'contributions': contributions.map((r) => r.toJson()).toList(),
+    'investmentProducts': products.map((r) => r.toJson()).toList(),
   };
   factory _Snapshot.fromJson(Map<String, dynamic> json, BackupLimits limits) {
     json.putIfAbsent('adjustments', () => []);
     json.putIfAbsent('goals', () => []);
     json.putIfAbsent('contributions', () => []);
+    json.putIfAbsent('investmentProducts', () => []);
     List<T> rows<T>(String key, T Function(Map<String, dynamic>) decode) {
       final list = json[key] as List;
       limits.checkRows(list.length, key);
@@ -336,14 +384,20 @@ class _Snapshot {
           'customChannel': '',
           'unitPrice': null,
           'isArchived': false,
+          'creditLimit': null,
           ...r,
         }),
       ),
       rows('categories', Category.fromJson),
       rows(
         'entries',
-        (r) =>
-            Entry.fromJson({'counterparty': '', 'debtAccountId': null, ...r}),
+        (r) => Entry.fromJson({
+          'counterparty': '',
+          'debtAccountId': null,
+          'investmentProductId': null,
+          'unitPrice': null,
+          ...r,
+        }),
       ),
       rows('budgets', Budget.fromJson),
       rows(
@@ -364,6 +418,7 @@ class _Snapshot {
       rows('adjustments', BalanceAdjustment.fromJson),
       rows('goals', WishGoal.fromJson),
       rows('contributions', GoalContribution.fromJson),
+      rows('investmentProducts', InvestmentProduct.fromJson),
     );
   }
   _Snapshot withPhotos(Map<String, String> remap) => _Snapshot(
@@ -382,5 +437,6 @@ class _Snapshot {
     adjustments,
     goals,
     contributions,
+    products,
   );
 }

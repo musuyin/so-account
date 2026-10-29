@@ -303,6 +303,14 @@ void main() {
         await old.customStatement(
           'ALTER TABLE accounts DROP COLUMN is_archived',
         );
+        await old.customStatement(
+          'ALTER TABLE entries DROP COLUMN investment_product_id',
+        );
+        await old.customStatement('ALTER TABLE entries DROP COLUMN unit_price');
+        await old.customStatement('DROP TABLE investment_products');
+        await old.customStatement(
+          'ALTER TABLE accounts DROP COLUMN credit_limit',
+        );
         await old.customStatement('PRAGMA user_version = 3');
         await old.close();
         final next = AppDatabase(NativeDatabase(file));

@@ -102,7 +102,7 @@ class _DebtAccountsState extends ConsumerState<PeopleDebtsPage> {
                                 title: Text(
                                   '${debt.kind == 'borrow' ? '借入' : '借出'} ${decimalMoney(debt.amount, currency)}',
                                 ),
-                                subtitle: Text(
+                                subtitle: ParameterText(
                                   '${debt.date} · 剩余 ${decimalMoney(debtRemaining(debt, data.entries), currency)}',
                                 ),
                                 onTap: () =>
@@ -127,7 +127,7 @@ class _DebtAccountsState extends ConsumerState<PeopleDebtsPage> {
                                 (e) => e.debtId == debt.id,
                               ))
                                 ListTile(
-                                  title: Text(
+                                  title: ParameterText(
                                     '${payment.date} · ${decimalMoney(payment.amount, currency)}',
                                   ),
                                   subtitle: Text(

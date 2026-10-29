@@ -169,8 +169,8 @@ void main() {
       await t.tap(find.widgetWithText(ChoiceChip, '消耗品'));
       await t.pumpAndSettle();
       for (final input in {
-        '数量 / 容量 · 可留空': '500',
-        '单位 · 可留空': 'ml',
+        '数量 / 容量（可留空）': '500',
+        '单位（可留空）': 'ml',
         '物品价格（选填）': '12.50',
       }.entries) {
         await showField(t, field(input.key));

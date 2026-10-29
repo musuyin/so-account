@@ -18,6 +18,7 @@ import 'balance_adjustment_form.dart';
 import '../../goals/presentation/goals_page.dart';
 import 'account_detail_page.dart';
 import 'account_actions.dart';
+import 'finance_page.dart';
 
 class AccountsPage extends ConsumerStatefulWidget {
   const AccountsPage({super.key});
@@ -327,7 +328,15 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  mini('报销', [('待收', reimbursement)], Icons.receipt_outlined),
+                  mini(
+                    '报销',
+                    [('待收', reimbursement)],
+                    Icons.receipt_outlined,
+                    onTap: () => openForm(
+                      context,
+                      FinancePage(investment: false, currency: currency),
+                    ),
+                  ),
                   const SizedBox(width: 6),
                   mini(
                     '债务',
@@ -336,7 +345,15 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                     onTap: () => openForm(context, const PeopleDebtsPage()),
                   ),
                   const SizedBox(width: 6),
-                  mini('理财', [('持有成本', investment)], Icons.stacked_line_chart),
+                  mini(
+                    '理财',
+                    [('成本', investment)],
+                    Icons.trending_up,
+                    onTap: () => openForm(
+                      context,
+                      FinancePage(investment: true, currency: currency),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -451,18 +468,43 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                                       ),
                                     ],
                                   ),
-                                  subtitle: Text(
-                                    [
-                                      if (account.bank.isNotEmpty)
-                                        bankLabels[account.bank] ?? '其他银行',
-                                      account.channel == '自定义' &&
-                                              account.customChannel.isNotEmpty
-                                          ? account.customChannel
-                                          : account.channel,
-                                      if (account.kind == '投资理财') '按买入成本',
-                                    ].join(' · '),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      ParameterRow([
+                                        if (account.bank.isNotEmpty)
+                                          bankLabels[account.bank] ?? '其他银行',
+                                        account.channel == '自定义' &&
+                                                account.customChannel.isNotEmpty
+                                            ? account.customChannel
+                                            : account.channel,
+                                        if (account.kind == '投资理财') '按买入成本',
+                                      ]),
+                                      if (account.creditLimit != null)
+                                        ParameterRow([
+                                          '额度',
+                                          hidden
+                                              ? '••••'
+                                              : decimalMoney(
+                                                  account.creditLimit!,
+                                                  currency,
+                                                ),
+                                        ]),
+                                      if (account.creditLimit != null)
+                                        ParameterRow([
+                                          '可用',
+                                          hidden
+                                              ? '••••'
+                                              : decimalMoney(
+                                                  account.creditLimit! +
+                                                      (balance(account) < 0
+                                                          ? balance(account)
+                                                          : 0),
+                                                  currency,
+                                                ),
+                                        ]),
+                                    ],
                                   ),
                                   onTap: () => openForm(
                                     context,
@@ -530,6 +572,11 @@ class _AccountFormState extends ConsumerState<AccountForm> {
   late final custom = TextEditingController(
     text: widget.account?.customChannel,
   );
+  late final creditLimit = TextEditingController(
+    text: widget.account?.creditLimit == null
+        ? ''
+        : decimalMoney(widget.account!.creditLimit!, currency ?? 'CNY'),
+  );
   late final unitPrice = TextEditingController(text: widget.account?.unitPrice);
   late final opening = TextEditingController(
     text: widget.importContext == null
@@ -582,6 +629,7 @@ class _AccountFormState extends ConsumerState<AccountForm> {
     opening.dispose();
     custom.dispose();
     unitPrice.dispose();
+    creditLimit.dispose();
     super.dispose();
   }
 
@@ -612,6 +660,9 @@ class _AccountFormState extends ConsumerState<AccountForm> {
               bank: bank,
               customChannel: custom.text,
               unitPrice: unitPrice.text,
+              creditLimit: kind == '信贷账户' && creditLimit.text.trim().isNotEmpty
+                  ? parseMoney(creditLimit.text, currency!)
+                  : null,
             );
       });
       if (mounted && context.mounted) {
@@ -677,7 +728,7 @@ class _AccountFormState extends ConsumerState<AccountForm> {
               accountChannelIcon(channel ?? '自定义'),
               color: accountChannelColor(context, channel ?? '自定义'),
             ),
-            title: Text(
+            title: ParameterText(
               kind == null || channel == null ? '选择账户类型' : '$channel · $kind',
             ),
             subtitle: balanceLocked ? const Text('已有流水或余额调整，账户类型及币种受保护') : null,
@@ -703,7 +754,7 @@ class _AccountFormState extends ConsumerState<AccountForm> {
           onSelected: selectType,
         ),
       if (isBankChannel(channel)) ...[
-        const Text('银行类型 · 选填'),
+        const ParameterText('银行类型（选填）'),
         Wrap(
           spacing: 6,
           runSpacing: 4,
@@ -759,6 +810,15 @@ class _AccountFormState extends ConsumerState<AccountForm> {
               : '必填；无余额请填 0，信贷欠款填负数。已有流水后可使用余额调整。',
         ),
       ),
+      if (kind == '信贷账户')
+        TextField(
+          controller: creditLimit,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: '信贷额度（选填）',
+            helperText: '空白表示未设置，额度不计入资产',
+          ),
+        ),
       if (kind == '投资理财')
         TextField(
           controller: unitPrice,
