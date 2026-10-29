@@ -1,0 +1,60 @@
+{
+  "release": "https://github.com/musuyin/so-account/releases/tag/v1.5.0",
+  "version": "1.5.0",
+  "verified_date": "2026-10-29",
+  "source_commit": "e1a355d7334f6e0a390e11a17c612ab43bb19466",
+  "source_tag": "v1.5.0",
+  "schema": 9,
+  "ci": {
+    "release": {
+      "run_id": 40691318812,
+      "conclusion": "success",
+      "flutter_tests_passed": 304,
+      "python_tests_passed": 17,
+      "artifacts": {
+        "release-ui-evidence": 12817502271,
+        "release-build-logs": 12817862237
+      }
+    },
+    "mobile": {
+      "run_id": 40691317615,
+      "conclusion": "success",
+      "android": "success",
+      "ios_simulator": "success",
+      "device_recovery": "skipped",
+      "flutter_tests_passed": 304,
+      "python_tests_passed": 17,
+      "artifacts": {
+        "android-ui-evidence": 12816599316,
+        "android-build-logs": 12818200748,
+        "android-debug-apk": 12818240773
+      }
+    }
+  },
+  "local_windows": {
+    "flutter_tests_passed": 303,
+    "flutter_tests_skipped": 1,
+    "python_tests_passed": 17,
+    "wal_focused_tests_passed": 6,
+    "wal_focused_tests_skipped": 1,
+    "signed_apk_variants_verified": ["universal", "arm64-v8a", "armeabi-v7a", "x86_64"]
+  },
+  "update_client": {
+    "build_19_discovers_build_20": true,
+    "universal_and_three_abis_verified": true,
+    "delta_used_without_full_download_fallback": true,
+    "downloaded_apk_sha256_verified": true,
+    "build_20_up_to_date": true,
+    "execution_environment": "host client, not a physical Android install"
+  },
+  "physical_device_reset_upgrade_and_process_kill_verified": false,
+  "build": 20,
+  "assets": 20,
+  "arm64_sha256": "50ffecd1b115627138047ecc5eb6dcdffca72cc5637b06e2189ff6300b4fa050",
+  "arm64_size": 38729121,
+  "same_release_signer": true,
+  "archive_schema_present": true,
+  "local_data_cleanup_present": true,
+  "delta_reconstructed": true,
+  "signer_sha256": "f0db22ad213879a06fcc7e55a40dd80fa230725ab52f230e77c5d55fd1469634"
+}
