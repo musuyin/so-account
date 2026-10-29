@@ -1,0 +1,47 @@
+{
+  "release": "https://github.com/musuyin/so-account/releases/tag/v1.8.0",
+  "version": "1.8.0",
+  "build": 23,
+  "assets": 20,
+  "arm64_sha256": "2ce75c660e78dea3cc85f4d3fc44460f47d5d7573ad5f41744d1922dbd1e0e30",
+  "arm64_size": 35698061,
+  "same_release_signer": true,
+  "schema": 10,
+  "category_account_memory_present": true,
+  "finance_schema_present": true,
+  "archive_schema_present": true,
+  "local_data_cleanup_present": true,
+  "plain_theme_assets_verified": true,
+  "delta_reconstructed": true,
+  "signer_sha256": "f0db22ad213879a06fcc7e55a40dd80fa230725ab52f230e77c5d55fd1469634",
+  "source_commit": "652f09b6c93f5749e5075dc69babfb1d02333f1d",
+  "local_flutter_tests": 335,
+  "local_skipped": 1,
+  "ci_flutter_tests": 336,
+  "python_tests": 17,
+  "release_run": {
+    "id": 40900618769,
+    "conclusion": "success"
+  },
+  "mobile_run": {
+    "id": 40900618805,
+    "conclusion": "success",
+    "android": "success",
+    "ios_simulator": "success",
+    "device_recovery": "skipped"
+  },
+  "artifacts": {
+    "release_ui": 12910045589,
+    "release_logs": 12909407372,
+    "android_ui": 12909730967,
+    "android_logs": 12909678029,
+    "android_debug_apk": 12909452690
+  },
+  "update_client": {
+    "build_22_discovers_23": true,
+    "all_abis": true,
+    "arm64_delta_no_full_fallback": true,
+    "build_23_up_to_date": true
+  },
+  "physical_device_validation": false
+}

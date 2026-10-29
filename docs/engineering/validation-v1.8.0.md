@@ -26,7 +26,17 @@
 
 ## CI 与公开更新
 
-本地发布门禁已通过；待推送标签并核验 CI、公开资产、签名和 v1.7.0 ARM64 实际增量重建后补充结果。
+发布源码 `652f09b6c93f5749e5075dc69babfb1d02333f1d`，标签 `v1.8.0`，已核对两条 CI 的 head SHA 和最终成功状态。
+
+- [发布流水线 40900618769](https://github.com/musuyin/so-account/actions/runs/40900618769) 成功：336 项 Flutter 测试、17 项 Python 测试、格式、静态分析、通用／三架构签名 APK、增量生成和正式发布均通过。
+- [Mobile checks 40900618805](https://github.com/musuyin/so-account/actions/runs/40900618805) 成功：Android 336 项测试含本地跳过的符号链接用例，数据库生成一致性及调试包通过；iOS 模拟器构建通过。device-recovery 按配置跳过。
+- 通过 GitHub 连接读取两条作业日志，确认 `+336: All tests passed!` 与 17 项 Python 测试。截图 artifact：release-ui-evidence `12910045589`、android-ui-evidence `12909730967`；另保留 release-build-logs `12909407372`、android-build-logs `12909678029` 和 android-debug-apk `12909452690`。
+- [公开 v1.8.0](https://github.com/musuyin/so-account/releases/tag/v1.8.0) 为正式最新版，共 20 个资产；更新清单、通用及三架构资产大小、SHA-256 与 GitHub 资产摘要一致。
+- 实际下载 ARM64 包为 1.8.0/build 23、包名 `dev.soaccount.so_account`，35,698,061 字节，SHA-256 `2ce75c660e78dea3cc85f4d3fc44460f47d5d7573ad5f41744d1922dbd1e0e30`；固定签名与 v1.7.0 相同，包内含分类账户记忆代码。
+- 实际下载 v1.7.0 ARM64 增量文件并重建，结果与公开新签名 APK 摘要完全相同。
+- 使用真实 AppUpdateService 联网验证通用／三架构选择、build 22 发现 build 23；ARM64 实际下载增量、合成和校验成功，没有回退整包；build 23 显示已是最新版。
+
+结构化证据见 [public-release.json](evidence/v1.8.0/public-release.json)。
 
 ## 设备边界
 
