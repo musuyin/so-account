@@ -199,6 +199,18 @@ class BackupService {
         );
       }
       for (final pref in snapshot.preferences) {
+        if (pref.key.startsWith('recent_account_')) {
+          // Deleted categories/accounts can leave a stale hint. It is harmless:
+          // the composer only recalls live accounts in the current currency.
+          if (!RegExp(r'^recent_account_(expense|income)_.{1,200}$')
+                  .hasMatch(pref.key) ||
+              pref.value.isEmpty ||
+              pref.value.length > 200 ||
+              RegExp(r'[\x00-\x1f]').hasMatch(pref.value)) {
+            throw const FormatException('分类账户记忆无效');
+          }
+          continue;
+        }
         if (pref.key == 'category_defaults_20261025' && pref.value == 'done') {
           continue;
         }

@@ -85,7 +85,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
           children: [
-            section('常用'),
+            section('选项'),
             tiles([
               _SettingsTile(
                 label: '归档账户',
@@ -123,6 +123,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 tooltip: '完整备份与恢复 · 包括照片和全部关联',
                 icon: Icons.backup_outlined,
                 onTap: () => openForm(context, const BackupPage()),
+              ),
+              _SettingsTile(
+                label: '数据管理',
+                tooltip: '本地数据管理 · 清空或重置',
+                icon: Icons.delete_sweep_outlined,
+                onTap: () =>
+                    Navigator.of(context, rootNavigator: true).push<void>(
+                      MaterialPageRoute(builder: (_) => const LocalDataPage()),
+                    ),
               ),
               _SettingsTile(
                 label: '更新',
@@ -182,18 +191,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   onTap: busy ? null : () => preference('theme', value),
                 ),
             ]),
-            section('数据管理'),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.delete_sweep_outlined),
-              title: const Text('本地数据管理'),
-              subtitle: const Text('清空业务数据或完全重置软件，需要确认'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () =>
-                  Navigator.of(context, rootNavigator: true).push<void>(
-                    MaterialPageRoute(builder: (_) => const LocalDataPage()),
-                  ),
-            ),
             const SizedBox(height: 24),
             const Text('素帐 · 本机存储'),
           ],

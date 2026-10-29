@@ -6,14 +6,8 @@ import '../../../app/theme/app_typography.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/business_date.dart';
 
-String calendarMoney(int minor, String currency) {
-  final factor = currency == 'JPY' ? 1 : 100;
-  if (minor.abs() < 10000 * factor) return decimalMoney(minor, currency);
-  if (minor.abs() >= 99995000 * factor) {
-    return '${(minor / factor / 100000000).toStringAsFixed(1)}亿';
-  }
-  return '${(minor / factor / 10000).toStringAsFixed(1)}万';
-}
+String calendarMoney(int minor, String currency) =>
+    decimalMoney(minor, currency);
 
 class LedgerCalendar extends StatelessWidget {
   const LedgerCalendar({
@@ -36,199 +30,131 @@ class LedgerCalendar extends StatelessWidget {
     final scaler = MediaQuery.textScalerOf(context);
     final offset = month.weekday - 1;
     final count = DateTime(month.year, month.month + 1, 0).day;
-    final maxNet = daily.values.fold<int>(
+    final maximum = daily.values.fold<int>(
       0,
       (v, d) => math.max(v, ((d['income'] ?? 0) - (d['expense'] ?? 0)).abs()),
     );
     return LayoutBuilder(
       builder: (context, constraints) {
         final side = constraints.maxWidth / 7;
-        final textWidth = math.max(1.0, side - 14);
-        final amountStyle = DefaultTextStyle.of(context).style
-            .merge(AppTypography.calendarAmount);
-        Size measure(String text) {
-          if (text.isEmpty) return Size.zero;
-          final painter = TextPainter(
-            text: TextSpan(text: text, style: amountStyle),
-            textDirection: TextDirection.ltr,
-            textScaler: scaler,
-          )..layout(maxWidth: textWidth);
-          final size = painter.size;
-          painter.dispose();
-          return size;
-        }
-
-        bool fits(String text) {
-          final painter = TextPainter(
-            text: TextSpan(text: text, style: amountStyle),
-            textDirection: TextDirection.ltr,
-            textScaler: scaler,
-          )..layout();
-          final result = painter.width <= textWidth;
-          painter.dispose();
-          return result;
-        }
-
-        String display(int value, String sign) {
-          if (value == 0) return '';
-          final exact = '$sign${calendarMoney(value, currency)}';
-          if (fits(exact)) return exact;
-          final units = currency == 'JPY' ? value.toDouble() : value / 100;
-          if (units >= 1000) {
-            final divisor = units >= 100000000
-                ? 100000000
-                : units >= 10000
-                ? 10000
-                : 1000;
-            final suffix = divisor == 100000000
-                ? '亿'
-                : divisor == 10000
-                ? '万'
-                : '千';
-            for (final digits in [1, 0]) {
-              final number = (units / divisor)
-                  .toStringAsFixed(digits)
-                  .replaceFirst(RegExp(r'\.0$'), '');
-              final compact = '$sign$number$suffix';
-              if (fits(compact)) return compact;
-            }
-            return '$sign${(units / divisor).toStringAsFixed(0)}\n$suffix';
-          }
-          final raw = '$sign${decimalMoney(value, currency)}';
-          return raw.replaceFirst('.', '\n.');
-        }
-
-        String key(int index) =>
-            dateKey(DateTime(month.year, month.month, index - offset + 1));
-        int value(int index, String kind) =>
-            index < offset || index >= offset + count
-            ? 0
-            : daily[key(index)]?[kind] ?? 0;
-        final weeks = (offset + count + 6) ~/ 7;
-        return SizedBox(
+        // Keep text at the system size. Disclose fewer rows when it cannot fit;
+        // the selected date and tooltip always retain exact income and expense.
+        final dateHeight = scaler.scale(13) * 1.2;
+        final amountHeight = scaler.scale(10) * 1.2;
+        final available = side - 8;
+        final showBoth = dateHeight + amountHeight * 2 <= available;
+        final showNet = dateHeight + amountHeight <= available;
+        return Column(
           key: const ValueKey('calendar-grid'),
-          width: constraints.maxWidth,
-          child: Column(
-            children: [
+          children: [
+            Row(
+              children: [
+                for (final label in ['一', '二', '三', '四', '五', '六', '日'])
+                  Expanded(child: Center(child: Text(label))),
+              ],
+            ),
+            for (var week = 0; week < (offset + count + 6) ~/ 7; week++)
               Row(
                 children: [
-                  for (final label in ['一', '二', '三', '四', '五', '六', '日'])
-                    Expanded(child: Center(child: Text(label))),
-                ],
-              ),
-              for (var week = 0; week < weeks; week++)
-                Builder(
-                  builder: (context) {
-                    var height = math.max(
-                      side - 4,
-                      scaler.scale(13) * 1.2 + 12,
-                    );
-                    for (var day = 0; day < 7; day++) {
-                      final i = week * 7 + day;
-                      height = math.max(
-                        height,
-                        scaler.scale(13) * 1.2 +
-                            measure(display(value(i, 'expense'), '-')).height +
-                            measure(display(value(i, 'income'), '+')).height +
-                            20,
-                      );
-                    }
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (var day = 0; day < 7; day++)
-                          Expanded(
-                            child: SizedBox(
-                              height: height,
-                              child: Builder(
-                                builder: (context) {
-                                  final i = week * 7 + day;
-                                  if (i < offset || i >= offset + count) {
-                                    return const SizedBox.shrink();
-                                  }
-                                  final date = key(i),
-                                      inc = value(i, 'income'),
-                                      out = value(i, 'expense');
-                                  final today = date == dateKey(DateTime.now());
-                                  Widget amount(
-                                    int value,
-                                    String sign,
-                                    Color color,
-                                  ) => value == 0
-                                      ? const SizedBox.shrink()
-                                      : Text(
-                                          display(value, sign),
-                                          textAlign: TextAlign.center,
-                                          style: amountStyle.copyWith(
-                                            color: color,
-                                          ),
-                                        );
-                                  return Semantics(
-                                    key: ValueKey('calendar-$date'),
-                                    label:
-                                        '$date${today ? '，今天' : ''}，$currency，收入 ${decimalMoney(inc, currency)}，支出 ${decimalMoney(out, currency)}，净额 ${decimalMoney(inc - out, currency)}',
-                                    selected: selected == date,
-                                    button: true,
-                                    excludeSemantics: true,
-                                    child: InkWell(
-                                      onTap: () => onSelected(date),
+                  for (var day = 0; day < 7; day++)
+                    Expanded(
+                      child: SizedBox(
+                        height: side,
+                        child: Builder(
+                          builder: (context) {
+                            final index = week * 7 + day;
+                            if (index < offset || index >= offset + count) {
+                              return const SizedBox.shrink();
+                            }
+                            final date = dateKey(
+                              DateTime(
+                                month.year,
+                                month.month,
+                                index - offset + 1,
+                              ),
+                            );
+                            final inc = daily[date]?['income'] ?? 0,
+                                out = daily[date]?['expense'] ?? 0;
+                            final net = inc - out;
+                            final today = date == dateKey(DateTime.now());
+                            final description =
+                                '$date${today ? '，今天' : ''}，$currency，收入 ${decimalMoney(inc, currency)}，支出 ${decimalMoney(out, currency)}，净额 ${decimalMoney(net, currency)}';
+                            Widget amount(
+                              int value,
+                              String sign,
+                              Color color,
+                            ) => Text(
+                              '$sign${calendarMoney(value, currency)}',
+                              softWrap: false,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: AppTypography.calendarAmount.copyWith(
+                                color: color,
+                              ),
+                            );
+                            return Semantics(
+                              key: ValueKey('calendar-$date'),
+                              label: description,
+                              selected: selected == date,
+                              button: true,
+                              excludeSemantics: true,
+                              child: Tooltip(
+                                message: description,
+                                child: InkWell(
+                                  onTap: () => onSelected(date),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    margin: const EdgeInsets.all(2),
+                                    decoration: BoxDecoration(
+                                      color: calendarHeatColor(
+                                        colors,
+                                        inc,
+                                        out,
+                                        maximum,
+                                      ),
                                       borderRadius: BorderRadius.circular(8),
-                                      child: Container(
-                                        margin: const EdgeInsets.all(2),
-                                        padding: EdgeInsets.fromLTRB(
-                                          2,
-                                          selected == date ? 2 : 4,
-                                          2,
-                                          0,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: calendarHeatColor(
-                                            colors,
-                                            inc,
-                                            out,
-                                            maxNet,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                          border: selected == date
-                                              ? Border.all(
-                                                  color: colors.primary,
-                                                  width: 2,
-                                                )
-                                              : null,
-                                        ),
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.start,
+                                      border: Border.all(
+                                        color: selected == date
+                                            ? colors.primary
+                                            : Colors.transparent,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
+                                      children: [
+                                        Stack(
+                                          alignment: Alignment.center,
                                           children: [
                                             SizedBox(
                                               width: double.infinity,
-                                              child: Stack(
-                                                alignment: Alignment.center,
-                                                children: [
-                                                  Text(
-                                                    '${i - offset + 1}',
-                                                    softWrap: false,
-                                                    maxLines: 1,
-                                                    style: const TextStyle(
-                                                      fontSize: 13,
-                                                      height: 1.2,
-                                                    ),
-                                                  ),
-                                                  if (today)
-                                                    Positioned(
-                                                      right: 0,
-                                                      top: 1,
-                                                      child: Icon(
-                                                        Icons.circle,
-                                                        size: 4,
-                                                        color: colors.primary,
-                                                      ),
-                                                    ),
-                                                ],
+                                              child: Text(
+                                                '${index - offset + 1}',
+                                                textAlign: TextAlign.center,
+                                                softWrap: false,
+                                                maxLines: 1,
+                                                style: const TextStyle(
+                                                  fontSize: 13,
+                                                  height: 1.2,
+                                                ),
                                               ),
                                             ),
+                                            if (today)
+                                              Positioned(
+                                                right: 0,
+                                                top: 1,
+                                                child: Icon(
+                                                  Icons.circle,
+                                                  size: 4,
+                                                  color: colors.primary,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        if (showBoth) ...[
+                                          if (out != 0)
                                             amount(
                                               out,
                                               '-',
@@ -236,6 +162,7 @@ class LedgerCalendar extends StatelessWidget {
                                                 colors.brightness,
                                               ),
                                             ),
+                                          if (inc != 0)
                                             amount(
                                               inc,
                                               '+',
@@ -243,21 +170,32 @@ class LedgerCalendar extends StatelessWidget {
                                                 colors.brightness,
                                               ),
                                             ),
-                                          ],
-                                        ),
-                                      ),
+                                        ] else if (showNet &&
+                                            (inc != 0 || out != 0))
+                                          amount(
+                                            net.abs(),
+                                            net < 0 ? '-' : '+',
+                                            net < 0
+                                                ? calendarExpenseColor(
+                                                    colors.brightness,
+                                                  )
+                                                : calendarIncomeColor(
+                                                    colors.brightness,
+                                                  ),
+                                          ),
+                                      ],
                                     ),
-                                  );
-                                },
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-            ],
-          ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+          ],
         );
       },
     );

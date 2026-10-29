@@ -90,21 +90,26 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
     final key = (period.name, dateKey(r.start), dateKey(r.end), currency);
     final report = ref.watch(reportProvider(key));
     return Scaffold(
-      appBar: AppBar(title: const Text('统计')),
+      appBar: AppBar(
+        title: const Text('统计'),
+        actions: [
+          DropdownButton<String>(
+            key: const ValueKey('statistics-currency'),
+            value: currency,
+            underline: const SizedBox.shrink(),
+            items: [
+              for (final value in currencies)
+                DropdownMenuItem(value: value, child: Text(value)),
+            ],
+            onChanged: (value) {
+              if (value != null) setState(() => currency = value);
+            },
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
-          Wrap(
-            spacing: 6,
-            children: [
-              for (final value in currencies)
-                ChoiceChip(
-                  label: Text(value),
-                  selected: currency == value,
-                  onSelected: (_) => setState(() => currency = value),
-                ),
-            ],
-          ),
           Wrap(
             spacing: 6,
             children: [
@@ -226,6 +231,38 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                       ),
                     ),
                   ),
+                  if (data.borrow != 0 ||
+                      data.lend != 0 ||
+                      data.repay != 0 ||
+                      data.collect != 0)
+                    Card(
+                      key: const ValueKey('statistics-loans'),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('借贷本金（独立统计，不计入收支）'),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 16,
+                              runSpacing: 8,
+                              children: [
+                                for (final row in [
+                                  ('借入', data.borrow),
+                                  ('借出', data.lend),
+                                  ('偿还借入', data.repay),
+                                  ('收回借出', data.collect),
+                                ])
+                                  ParameterText(
+                                    '${row.$1} ${decimalMoney(row.$2, currency)}',
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   _section(
                     '收支趋势',
                     Column(

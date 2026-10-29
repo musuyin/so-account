@@ -37,12 +37,15 @@ class _DebtAccountsState extends ConsumerState<PeopleDebtsPage> {
       builder: (data) {
         final balances = ref.watch(balancesProvider).value ?? {};
         final accounts = data.activeAccounts
-            .where((a) => a.kind == '债务' && a.currency == currency)
+            .where(
+              (a) =>
+                  a.kind == '债务' && a.channel != '报销' && a.currency == currency,
+            )
             .toList();
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            for (final side in accountTypes['债务']!) ...[
+            for (final side in ['应付款', '应收款']) ...[
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(

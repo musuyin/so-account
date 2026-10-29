@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:drift/drift.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
@@ -129,9 +130,12 @@ class LocalDataService {
           await db.seedDefaults();
         } else {
           await settings.write('item_categories', itemCategories!);
-          await (db.delete(
-            db.preferences,
-          )..where((row) => row.key.equals('account_order'))).go();
+          await (db.delete(db.preferences)..where(
+                (row) =>
+                    row.key.equals('account_order') |
+                    row.key.like(r'recent\_account\_%', escapeChar: '\\'),
+              ))
+              .go();
         }
         await settings.write(localCleanupKey, {
           'version': 1,

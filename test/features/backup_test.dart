@@ -290,6 +290,32 @@ void main() {
     expect(entries.singleWhere((e) => e.kind == 'repay').counterparty, '小林');
     expect(entries.singleWhere((e) => e.kind == 'repay').debtId, loan);
   });
+  test('category account hints round trip and invalid hints cannot replace live data', () async {
+    final expected = (await db.select(db.preferences).get()).singleWhere(
+      (p) => p.key == 'recent_account_expense_expense-0',
+    );
+    final bytes = await service.export();
+    await db.delete(db.preferences).go();
+    await service.restore(bytes);
+    expect(
+      (await db.select(db.preferences).get()).singleWhere(
+        (p) => p.key == expected.key,
+      ),
+      expected,
+    );
+    final files = decodeBackup(bytes);
+    final data =
+        jsonDecode(utf8.decode(files['data.json']!)) as Map<String, dynamic>;
+    (data['preferences'] as List).cast<Map<String, dynamic>>().singleWhere(
+      (p) => p['key'] == expected.key,
+    )['value'] = '';
+    files['data.json'] = Uint8List.fromList(utf8.encode(jsonEncode(data)));
+    await expectLater(
+      service.restore(encodeBackup(files)),
+      throwsFormatException,
+    );
+    expect((await db.select(db.entries).get()).single.amount, 123);
+  });
   test('appearance preferences survive backup and restore', () async {
     await db
         .into(db.preferences)

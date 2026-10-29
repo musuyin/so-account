@@ -38,3 +38,5 @@ v1.3.0 起导出与恢复共用 `BackupLimits`：每类逻辑记录最多 100,00
 0.2.0 的资产、图表和归档新规则以 [产品调整](../product/revision-0.2.md) 为准。
 
 Schema 10 增加账户 creditLimit、investmentProducts 产品集合，以及流水 investmentProductId / unitPrice。旧备份默认空额度、空产品列表和空产品／单价字段；恢复时先写账户和产品，再写流水，在隔离库验证分次报销回款及产品逐日剩余成本，成功后一次替换。旧版应用不能读取 Schema 10 备份，升级前保留旧版备份便于回退。
+
+v1.8.0 增加 `recent_account_<expense|income>_<categoryId>` 字符串偏好，不改变 Schema。恢复校验键结构和非空有界账户 ID；允许指向已删除账户／分类的旧提示，记账时仅回忆当前币种的有效账户。备份缺省该偏好时正常回退。未知或非法偏好继续拒绝恢复。

@@ -116,7 +116,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               key: const ValueKey('monthly-summary'),
               borderOnForeground: false,
               child: Padding(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -234,13 +234,13 @@ class _HomePageState extends ConsumerState<HomePage> {
               ),
               const CalendarHeatLegend(),
             ],
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             ClearableSearch(
               value: search,
               hint: '搜索备注、往来人、分类或账户',
               onChanged: (value) => setState(() => search = value),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             Wrap(
               spacing: 8,
               children: [
@@ -300,7 +300,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
             Padding(
               key: const ValueKey('ledger-list-heading'),
-              padding: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(vertical: 2),
               child: ParameterText(
                 '${day ?? monthKey(month)} · ${view.count} 笔',
                 style: Theme.of(context).textTheme.labelMedium,
@@ -400,7 +400,7 @@ class EntryDayCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 2),
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 2),
             child: Wrap(
               spacing: 8,
               runSpacing: 2,

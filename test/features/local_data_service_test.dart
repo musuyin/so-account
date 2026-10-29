@@ -120,9 +120,17 @@ void main() {
     await service.execute(LocalDataAction.clearData);
     await expectBusinessEmpty();
     expect(await db.select(db.categories).get(), categories);
-    for (final p in prefs.where((p) => p.key != 'account_order')) {
+    for (final p in prefs.where(
+      (p) => p.key != 'account_order' && !p.key.startsWith('recent_account_'),
+    )) {
       expect(await CategorySettingsStore(db).read(p.key), p.value);
     }
+    expect(
+      (await db.select(db.preferences).get()).where(
+        (p) => p.key.startsWith('recent_account_'),
+      ),
+      isEmpty,
+    );
     for (final photo in photos) {
       expect(await MediaStore(support).resolve(photo).exists(), isFalse);
     }

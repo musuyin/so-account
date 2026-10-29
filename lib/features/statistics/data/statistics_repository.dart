@@ -32,11 +32,16 @@ class FinanceReport {
     this.expense = 0,
     this.previousIncome = 0,
     this.previousExpense = 0,
+    this.borrow = 0,
+    this.lend = 0,
+    this.repay = 0,
+    this.collect = 0,
     this.points = const [],
     this.categories = const [],
   });
   final ReportRange range;
   final int income, expense, previousIncome, previousExpense;
+  final int borrow, lend, repay, collect;
   final List<ReportPoint> points;
   final List<CategoryComparison> categories;
   int get surplus => income - expense;
@@ -70,7 +75,7 @@ class StatisticsRepository {
               '''
       SELECT e.kind, CASE WHEN e.date >= ? THEN 'current' ELSE 'previous' END AS period, SUM(e.amount) AS amount
       FROM entries e JOIN accounts a ON a.id=e.account_id
-      WHERE a.currency=? AND e.date>=? AND e.date<? AND e.kind IN ('income','expense')
+      WHERE a.currency=? AND e.date>=? AND e.date<? AND e.kind IN ('income','expense','borrow','lend','repay','collect')
       GROUP BY e.kind,period
     ''',
               variables: [
@@ -170,6 +175,10 @@ class StatisticsRepository {
           expense: total('expense', 'current'),
           previousIncome: total('income', 'previous'),
           previousExpense: total('expense', 'previous'),
+          borrow: total('borrow', 'current'),
+          lend: total('lend', 'current'),
+          repay: total('repay', 'current'),
+          collect: total('collect', 'current'),
           points: points,
           categories: categoryRows
               .map(

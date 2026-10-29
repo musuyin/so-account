@@ -54,7 +54,7 @@ void main() {
         closeTo(t.getSize(find.text('8888.88')).width, .01),
       );
       expect(calendarMoney(999999, 'CNY'), '9999.99');
-      expect(calendarMoney(999999999999, 'CNY'), '100.0亿');
+      expect(calendarMoney(999999999999, 'CNY'), '9999999999.99');
       final today = dateKey(DateTime.now());
       await t.pumpWidget(
         MaterialApp(
@@ -134,7 +134,7 @@ void main() {
               find.byKey(const ValueKey('calendar-2024-02-01')),
             );
             expect(size.width, closeTo(width / 7, .01));
-            expect(size.height, greaterThanOrEqualTo(size.width - 4));
+            expect(size.height, closeTo(size.width, .01));
             expect(find.byType(SingleChildScrollView), findsNothing);
             final sunday = t.getRect(find.text('日'));
             expect(sunday.right, lessThanOrEqualTo(width));
@@ -146,11 +146,12 @@ void main() {
               find.byKey(const ValueKey('calendar-2024-02-01')),
             );
             expect(cell.properties.label, contains('支出 9999.99'));
-            if (width == 320 && scale == 2) {
+            if ((width == 320 && (scale == 2 || scale == 1.3)) ||
+                (width == 390 && scale == 1)) {
               await helper.capture(
                 t,
                 boundary,
-                'v170-calendar-${brightness.name}-320-2x',
+                'v180-calendar-${brightness.name}-$width-${scale}x',
               );
             }
           }

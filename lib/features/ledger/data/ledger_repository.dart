@@ -1,4 +1,7 @@
 import 'package:drift/drift.dart';
+
+import '../../../core/recent_category_account.dart';
+
 import 'package:uuid/uuid.dart';
 
 import '../../../core/category_preferences.dart';
@@ -615,6 +618,16 @@ class LedgerRepository {
         unit: newItem.unit,
         entryIds: [entryId],
       );
+    }
+    if (id == null && kind.needsCategory) {
+      await db
+          .into(db.preferences)
+          .insertOnConflictUpdate(
+            PreferencesCompanion.insert(
+              key: recentCategoryAccountKey(kind.name, categoryId!),
+              value: accountId,
+            ),
+          );
     }
     return entryId;
   });

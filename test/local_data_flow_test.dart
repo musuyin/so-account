@@ -39,13 +39,13 @@ Future<void> enterManagement(WidgetTester t) async {
   await t.tap(find.text('设置').last);
   await settle(t);
   await t.scrollUntilVisible(
-    find.text('本地数据管理'),
+    find.text('数据管理'),
     280,
     scrollable: find.byType(Scrollable).first,
   );
-  await t.ensureVisible(find.text('本地数据管理'));
+  await t.ensureVisible(find.text('数据管理'));
   await t.pumpAndSettle();
-  await t.tap(find.text('本地数据管理'));
+  await t.tap(find.text('数据管理'));
   await t.pumpAndSettle();
   expect(find.byType(NavigationBar), findsNothing);
 }

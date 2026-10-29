@@ -5,6 +5,7 @@ import '../../../app/category_reordering.dart';
 import '../../../app/providers/providers.dart';
 import '../../../app/widgets.dart';
 import '../../../core/money/money.dart';
+import '../../../core/recent_category_account.dart';
 import '../../../core/time/business_date.dart';
 import '../../../data/database/app_database.dart';
 import '../../inventory/domain/new_purchase_item.dart';
@@ -100,6 +101,22 @@ class _EntryFormState extends ConsumerState<EntryForm> {
     text: widget.entry?.counterparty ?? widget.initialCounterparty,
   );
   bool initialized = false, saving = false;
+  String? rememberedCategory;
+
+  void recallAccount(AppSnapshot data, String currency) {
+    if (widget.entry != null || !kind.needsCategory || categoryId == null) {
+      return;
+    }
+    final id = data.preference(
+      recentCategoryAccountKey(kind.name, categoryId!),
+      '',
+    );
+    final remembered = data.activeAccounts
+        .where((a) => a.id == id && a.kind != '债务' && a.currency == currency)
+        .firstOrNull;
+    if (remembered != null) accountId = remembered.id;
+  }
+
   @override
   void dispose() {
     amount.dispose();
@@ -192,7 +209,8 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                 ?.id ??
             funds.first.id;
       }
-      final account = data.account(accountId!);
+      var account = data.account(accountId!);
+      final firstBuild = !initialized;
       if (!initialized) {
         if (widget.entry != null) {
           amount.text = decimalMoney(widget.entry!.amount, account.currency);
@@ -204,6 +222,14 @@ class _EntryFormState extends ConsumerState<EntryForm> {
           .toList();
       if (!categories.any((c) => c.id == categoryId)) {
         categoryId = categories.firstOrNull?.id;
+      }
+      final categoryKey = '${kind.name}:$categoryId';
+      if (rememberedCategory != categoryKey) {
+        rememberedCategory = categoryKey;
+        if (!firstBuild || widget.initialAccountId == null) {
+          recallAccount(data, account.currency);
+          account = data.account(accountId!);
+        }
       }
       final targets = data.activeAccounts
           .where(
@@ -355,79 +381,27 @@ class _EntryFormState extends ConsumerState<EntryForm> {
         canPop: !saving,
         child: Scaffold(
           appBar: AppBar(
+            leading: const BackButton(),
             leadingWidth: 36,
+            toolbarHeight: MediaQuery.textScalerOf(context).scale(16) + 40,
             titleSpacing: 0,
-            title: Row(
-              children: [
-                for (final tab in ['支出', '收入', '转账', '债务'])
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 1),
-                      child: Semantics(
-                        selected: tab == (selectedTab),
-                        child: InkWell(
-                          key: ValueKey('entry-tab-$tab'),
-                          borderRadius: BorderRadius.circular(10),
-                          onTap: saving
-                              ? null
-                              : () => changeKind(switch (tab) {
-                                  '支出' => EntryKind.expense,
-                                  '收入' => EntryKind.income,
-                                  '转账' => EntryKind.transfer,
-                                  _ => isDebt ? kind : EntryKind.borrow,
-                                }),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            decoration: BoxDecoration(
-                              color: tab == (selectedTab)
-                                  ? colors.primaryContainer
-                                  : colors.surfaceContainerLow,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              tab,
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.labelLarge,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+            title: MediaQuery(
+              data: MediaQuery.of(context),
+              child: tabRow(['支出', '收入', '转账', '债务'], selectedTab, colors),
             ),
             bottom: PreferredSize(
               preferredSize: Size.fromHeight(
-                MediaQuery.textScalerOf(context).scale(16) + 32,
+                MediaQuery.textScalerOf(context).scale(16) + 28,
               ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
-                child: Row(
-                  children: [
-                    for (final tab in ['报销', '投资'])
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: OutlinedButton(
-                            key: ValueKey('entry-tab-$tab'),
-                            style: OutlinedButton.styleFrom(
-                              backgroundColor: selectedTab == tab
-                                  ? colors.primaryContainer
-                                  : null,
-                            ),
-                            onPressed: saving
-                                ? null
-                                : () => changeKind(
-                                    tab == '报销'
-                                        ? EntryKind.reimburse
-                                        : EntryKind.invest,
-                                  ),
-                            child: Text(tab),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 36),
+                  Expanded(
+                    child: tabRow(['报销', '投资', '', ''], selectedTab, colors),
+                  ),
+                  // Match the currency action in the first row.
+                  const SizedBox(width: 48),
+                ],
               ),
             ),
             actions: [
@@ -488,9 +462,15 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                                         borderRadius: BorderRadius.circular(12),
                                         onTap: saving
                                             ? null
-                                            : () => setState(
-                                                () => categoryId = c.id,
-                                              ),
+                                            : () => setState(() {
+                                                categoryId = c.id;
+                                                rememberedCategory =
+                                                    '${kind.name}:${c.id}';
+                                                recallAccount(
+                                                  data,
+                                                  account.currency,
+                                                );
+                                              }),
                                         child: Column(
                                           children: [
                                             Container(
@@ -880,6 +860,57 @@ class _EntryFormState extends ConsumerState<EntryForm> {
     },
   );
 
+  Widget tabRow(List<String> tabs, String selected, ColorScheme colors) => Row(
+    children: [
+      for (final tab in tabs)
+        Expanded(
+          child: tab.isEmpty
+              ? const SizedBox.shrink()
+              : Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 1,
+                    vertical: 2,
+                  ),
+                  child: Semantics(
+                    selected: selected == tab,
+                    button: true,
+                    child: InkWell(
+                      key: ValueKey('entry-tab-$tab'),
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: saving
+                          ? null
+                          : () => changeKind(switch (tab) {
+                              '支出' => EntryKind.expense,
+                              '收入' => EntryKind.income,
+                              '转账' => EntryKind.transfer,
+                              '报销' => EntryKind.reimburse,
+                              '投资' => EntryKind.invest,
+                              _ =>
+                                kind.isDebt && !kind.isReimbursement
+                                    ? kind
+                                    : EntryKind.borrow,
+                            }),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: selected == tab
+                              ? colors.primaryContainer
+                              : colors.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          tab,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+        ),
+    ],
+  );
+
   void changeKind(EntryKind value) {
     if (value == kind) return;
     setState(() => draft.changeKind(value));
@@ -907,54 +938,71 @@ class _EntryFormState extends ConsumerState<EntryForm> {
     final value = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      builder: (context) => SafeArea(
-        child: SizedBox(
-          height: MediaQuery.sizeOf(context).height * .65,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              Expanded(
-                child: ListView(
-                  children: [
-                    if (accounts.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.all(20),
-                        child: Text('暂无可选账户，请先创建对应币种和类型的账户。'),
-                      ),
-                    for (final group in accountKinds)
-                      if (accounts.any((a) => a.kind == group)) ...[
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                          child: Text(group),
-                        ),
-                        for (final account in accounts.where(
-                          (a) => a.kind == group,
-                        ))
-                          ListTile(
-                            title: Text(account.name),
-                            subtitle: ParameterRow([
-                              account.channel,
-                              account.currency,
-                            ]),
-                            selected: account.id == selected,
-                            trailing: account.id == selected
-                                ? const Icon(Icons.check)
-                                : null,
-                            onTap: () => Navigator.pop(context, account.id),
+      builder: (context) => Consumer(
+        builder: (context, ref, _) {
+          final balances = ref.watch(balancesProvider).asData?.value;
+          final hidden = ref.watch(assetAmountsHiddenProvider);
+          return SafeArea(
+            child: SizedBox(
+              height: MediaQuery.sizeOf(context).height * .65,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  Expanded(
+                    child: ListView(
+                      children: [
+                        if (accounts.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.all(20),
+                            child: Text('暂无可选账户，请先创建对应币种和类型的账户。'),
                           ),
+                        for (final group in accountKinds)
+                          if (accounts.any((a) => a.kind == group)) ...[
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                              child: Text(group),
+                            ),
+                            for (final account in accounts.where(
+                              (a) => a.kind == group,
+                            ))
+                              ListTile(
+                                title: Text(account.name),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${account.channel} · ${account.currency}',
+                                    ),
+                                    Text(
+                                      hidden
+                                          ? '余额 ••••'
+                                          : balances == null
+                                          ? '余额读取中'
+                                          : '余额 ${decimalMoney(balances[account.id] ?? account.openingBalance, account.currency)}',
+                                    ),
+                                  ],
+                                ),
+                                selected: account.id == selected,
+                                trailing: account.id == selected
+                                    ? const Icon(Icons.check)
+                                    : null,
+                                onTap: () => Navigator.pop(context, account.id),
+                              ),
+                          ],
                       ],
-                  ],
-                ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
     if (mounted && value != null) setState(() => onSelected(value));
