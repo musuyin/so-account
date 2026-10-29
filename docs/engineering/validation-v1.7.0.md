@@ -22,7 +22,21 @@
 
 通用、ARM64、ARM32、x86_64 四个签名正式 APK 均通过包名、版本 1.7.0/build 22 和证书检查。证书 SHA-256 `f0db22ad213879a06fcc7e55a40dd80fa230725ab52f230e77c5d55fd1469634` 与公开 v1.6.0 一致；本地通用 APK SHA-256 `551738c6394d421677ebd303eef900161f6b06ab49f396cf3c459d35eec4bf82`。公开构建另核验，不假定跨主机构建摘要相同。
 
-首次本地 `--no-pub` 构建被残留的测试插件注册拦截，改用正式构建的插件生成流程后四包重建通过，没有手改插件注册代码。发布与公开包验证尚未完成，完成后补充对应流水线和独立证据。
+首次本地 `--no-pub` 构建被残留的测试插件注册拦截，改用正式构建的插件生成流程后四包重建通过，没有手改插件注册代码。两条 CI 及公开包验证已完成，详见下节。
+
+## CI 与公开更新
+
+发布源码 `a25fa2ee5e9a3030398825756b17d1642c8f291b`，标签 `v1.7.0`，已核对两条运行的 head SHA。
+
+- [发布流水线 40844440051](https://github.com/musuyin/so-account/actions/runs/40844440051) 成功：330 项 Flutter 测试、17 项 Python 工具测试、格式、静态分析、通用／三架构签名构建、差分生成及正式发布通过。
+- [Mobile checks 40844440103](https://github.com/musuyin/so-account/actions/runs/40844440103) 成功：Android 330 项 Flutter 测试（含本地跳过的符号链接用例）、17 项 Python 工具测试、生成一致性和调试 APK；iOS 模拟器构建成功。device-recovery 按配置跳过，不计为设备验证。
+- 通过 GitHub 连接实际读取成功作业日志，确认 `+330: All tests passed!`。截图 artifact：release-ui-evidence `12884905190`、android-ui-evidence `12884800464`；另保留 release-build-logs `12885240522`、android-build-logs `12885125569` 和 android-debug-apk `12884024787`。
+- [公开 v1.7.0](https://github.com/musuyin/so-account/releases/tag/v1.7.0) 为正式最新版，共 20 个资产。通用／三架构清单的大小、SHA-256、GitHub 资产摘要及增量文件一致；更新清单摘要也已核对。
+- 实际下载的 ARM64 包为 1.7.0/build 22、包名 `dev.soaccount.so_account`，35,698,061 字节，SHA-256 `5eeb1d8340382fdf487f4984dd0440e5709cbdc3dd980ff48225142652fb5546`。固定签名与公开 v1.6.0 相同，包内含理财产品和额度 Schema 字段。
+- 实际下载 4,183,093 字节的 v1.6.0 ARM64 差分，重建结果与公开新签名 APK 摘要完全相同。
+- 使用真实 AppUpdateService 联网验证通用及三架构选择、build 21 发现 build 22、ARM64 实际下载差分并合成／校验且没有回退完整包、build 22 显示已是最新版。
+
+结构化证据见 [public-release.json](evidence/v1.7.0/public-release.json)。
 
 ## 设备边界
 

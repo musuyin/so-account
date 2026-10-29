@@ -30,7 +30,7 @@ Flutter + Dart 的个人记账与物品管理应用，Android / iOS 共享代码
 
 ## 验证状态
 
-v1.7.0（2026-10-29）本地 329 项 Flutter 测试通过、Windows 跳过 1 项符号链接用例；17 项 Python 工具测试、静态分析、生成一致性、浅深主题及窄屏大字截图、固定签名通用／三架构正式 APK 构建通过。实施顺序和金额规则见 [计划](docs/engineering/v1.7.0-plan.md)，CI、公开更新和真机验收边界见 [验证记录](docs/engineering/validation-v1.7.0.md)。
+v1.7.0（2026-10-29）本地 329 项 Flutter 测试通过、Windows 跳过 1 项符号链接用例；17 项 Python 工具测试、静态分析、生成一致性、浅深主题及窄屏大字截图、固定签名通用／三架构正式 APK 构建通过。Linux CI 的 330 项测试、Android／iOS 构建和 20 个公开资产、签名及 v1.6.0 真实差分重建均已核验。实施顺序和金额规则见 [计划](docs/engineering/v1.7.0-plan.md)，CI、公开更新和真机验收边界见 [验证记录](docs/engineering/validation-v1.7.0.md)。
 
 v1.5.0 新增本地数据清空与完全重置，2026-10-29 完成公开发布验收。本地 303 项 Flutter 测试通过、Windows 跳过 1 项符号链接用例；Linux CI 的 304 项测试全部通过，另有 17 项构建工具测试、WAL 专项、静态分析、数据库生成一致性及 Android/iOS 构建检查。20 个公开资产、ARM64 正式签名与 v1.4.0 增量重建已核验；详情及真机验证边界见 [v1.5.0 验证记录](docs/engineering/validation-v1.5.0.md)。
 

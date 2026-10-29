@@ -1,0 +1,134 @@
+{
+  "release": "https://github.com/musuyin/so-account/releases/tag/v1.7.0",
+  "version": "1.7.0",
+  "build": 22,
+  "assets": 20,
+  "arm64_sha256": "5eeb1d8340382fdf487f4984dd0440e5709cbdc3dd980ff48225142652fb5546",
+  "arm64_size": 35698061,
+  "same_release_signer": true,
+  "schema": 10,
+  "finance_schema_present": true,
+  "archive_schema_present": true,
+  "local_data_cleanup_present": true,
+  "plain_theme_assets_verified": true,
+  "delta_reconstructed": true,
+  "signer_sha256": "f0db22ad213879a06fcc7e55a40dd80fa230725ab52f230e77c5d55fd1469634",
+  "source_commit": "a25fa2ee5e9a3030398825756b17d1642c8f291b",
+  "local_flutter_tests": 329,
+  "local_skipped_tests": 1,
+  "ci_flutter_tests": 330,
+  "python_tests": 17,
+  "update_client": {
+    "build_21_discovers_22": true,
+    "build_22_up_to_date": true,
+    "all_abis_selected": true,
+    "delta_used_without_full_fallback": true
+  },
+  "workflows": [
+    {
+      "id": 40844440103,
+      "name": "Mobile checks",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "a25fa2ee5e9a3030398825756b17d1642c8f291b",
+      "html_url": "https://github.com/musuyin/so-account/actions/runs/40844440103",
+      "jobs": [
+        {
+          "id": 123348371195,
+          "name": "android",
+          "status": "completed",
+          "conclusion": "success",
+          "check_lines": [
+            "2026-10-29T08:46:00.2720364Z Ran 17 tests in 0.019s",
+            "2026-10-29T08:46:15.5444416Z No issues found! (ran in 12.0s)",
+            "2026-10-29T08:48:32.7123822Z 02:08 +330: All tests passed!",
+            "2026-10-29T08:53:20.5298502Z [ +929 ms] ✓ Built build/app/outputs/flutter-apk/app-debug.apk"
+          ]
+        },
+        {
+          "id": 123348371653,
+          "name": "ios",
+          "status": "completed",
+          "conclusion": "success",
+          "check_lines": [
+            "2026-10-29T08:50:11.5762350Z ✓ Built build/ios/iphonesimulator/Runner.app"
+          ]
+        },
+        {
+          "id": 123348373262,
+          "name": "device-recovery",
+          "status": "completed",
+          "conclusion": "skipped"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 12885125569,
+          "name": "android-build-logs",
+          "size_in_bytes": 232656,
+          "digest": "sha256:8a8f6c9fbfe8ac92528ffa564b8f5f6d28453f8ef9cb81bd6bcd720649f9beaa",
+          "head_sha": "a25fa2ee5e9a3030398825756b17d1642c8f291b"
+        },
+        {
+          "id": 12884800464,
+          "name": "android-ui-evidence",
+          "size_in_bytes": 12781811,
+          "digest": "sha256:d9aa0dcf88f48e1f13657af7f975e9b9549de908868715222cb5549435ccee57",
+          "head_sha": "a25fa2ee5e9a3030398825756b17d1642c8f291b"
+        },
+        {
+          "id": 12884024787,
+          "name": "android-debug-apk",
+          "size_in_bytes": 101890949,
+          "digest": "sha256:87c535e77688ac37106db0ba5efaf07c83887ecf3ec2e734a40574d5c7954263",
+          "head_sha": "a25fa2ee5e9a3030398825756b17d1642c8f291b"
+        }
+      ]
+    },
+    {
+      "id": 40844440051,
+      "name": "Publish Android release",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "a25fa2ee5e9a3030398825756b17d1642c8f291b",
+      "html_url": "https://github.com/musuyin/so-account/actions/runs/40844440051",
+      "jobs": [
+        {
+          "id": 123348370974,
+          "name": "release",
+          "status": "completed",
+          "conclusion": "success",
+          "check_lines": [
+            "2026-10-29T08:46:18.1796192Z Ran 17 tests in 0.028s",
+            "2026-10-29T08:46:38.0590956Z No issues found! (ran in 15.9s)",
+            "2026-10-29T08:49:25.7035225Z 02:34 +330: All tests passed!",
+            "2026-10-29T08:54:52.4698125Z [ +729 ms] ✓ Built build/app/outputs/flutter-apk/app-release.apk (83.0MB)",
+            "2026-10-29T08:55:24.1096473Z [ +422 ms] ✓ Built build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk (33.7MB)",
+            "2026-10-29T08:55:24.1098743Z [ +276 ms] ✓ Built build/app/outputs/flutter-apk/app-arm64-v8a-release.apk (35.7MB)",
+            "2026-10-29T08:55:24.1100618Z [ +294 ms] ✓ Built build/app/outputs/flutter-apk/app-x86_64-release.apk (37.2MB)",
+            "2026-10-29T08:56:18.7624250Z https://github.com/musuyin/***/releases/tag/v1.7.0"
+          ]
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 12885240522,
+          "name": "release-build-logs",
+          "size_in_bytes": 36290,
+          "digest": "sha256:e2be98c6e1af8d030d6bf16fae5e0c27c4eb1b92d8a76acc841c0c01e4262056",
+          "head_sha": "a25fa2ee5e9a3030398825756b17d1642c8f291b"
+        },
+        {
+          "id": 12884905190,
+          "name": "release-ui-evidence",
+          "size_in_bytes": 12781811,
+          "digest": "sha256:bd626b3280b5e8ab1b812efbc91447d54663f5a9ef2a0501e4b62d302df6bd3a",
+          "head_sha": "a25fa2ee5e9a3030398825756b17d1642c8f291b"
+        }
+      ]
+    }
+  ],
+  "physical_device_acceptance": false
+}
