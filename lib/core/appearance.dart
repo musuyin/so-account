@@ -1,9 +1,9 @@
 /// Stable preference IDs, shared by UI and backup validation.
 enum AppPalette {
-  classic('经典暖白'),
-  cucumber('夏日黄瓜花'),
-  sky('晴空浅蓝'),
-  lavender('雾紫花园');
+  classic('橙色'),
+  cucumber('绿色'),
+  sky('蓝色'),
+  lavender('紫色');
 
   const AppPalette(this.label);
   final String label;

@@ -166,6 +166,40 @@ void main() {
       limit: 100,
     ));
     expect(literal.count, expected.where((e) => e.note.contains('%_')).length);
+    expect(
+      view.filteredDaily['2026-10-01']!['expense'],
+      expected
+          .where((e) => e.kind == 'expense')
+          .fold<int>(0, (s, e) => s + e.amount),
+    );
+    expect(
+      literal.filteredDaily['2026-10-01']!['expense'],
+      expected
+          .where((e) => e.kind == 'expense' && e.note.contains('%_'))
+          .fold<int>(0, (s, e) => s + e.amount),
+    );
+    final one = await reads.home((
+      month: q.month,
+      currency: q.currency,
+      day: null,
+      kind: 'expense',
+      category: 'expense-0',
+      search: '',
+      limit: 1,
+    ));
+    expect(one.data.entries.length, 1);
+    expect(
+      one.filteredDaily['2026-10-01']!['expense'],
+      view.filteredDaily['2026-10-01']!['expense'],
+    );
+    expect(one.filteredDaily['2026-10-01']!.containsKey('income'), isFalse);
+    final detail = await reads.watchRange(q, '2026-09-01', '2026-10-04').first;
+    expect(
+      detail.data.entries.every((e) => ['income', 'expense'].contains(e.kind)),
+      isTrue,
+    );
+    expect(detail.count, greaterThan(view.count - 3));
+
     await ledger.deleteEntry(view.data.entries.last.id);
     final reloaded = await reads.home(q);
     expect(reloaded.data.entries.length, 100);

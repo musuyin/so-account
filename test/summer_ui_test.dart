@@ -8,28 +8,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:so_account/app/providers/providers.dart';
 import 'package:so_account/app/theme/app_theme.dart';
-import 'package:so_account/app/theme/botanical_surfaces.dart';
 import 'package:so_account/core/appearance.dart';
 import 'package:so_account/features/settings/presentation/settings_page.dart';
 
 void main() {
   testWidgets(
-    'four palettes and botanical fields render at narrow width and large text',
+    'four plain palettes and fields render at narrow width and large text',
     (tester) async {
       tester.view.physicalSize = const Size(320, 850);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-      final art = await tester.runAsync(() async {
+      await tester.runAsync(() async {
         await (FontLoader(
           'NotoSansSC',
         )..addFont(rootBundle.load('assets/fonts/NotoSansSC.ttf'))).load();
         await (FontLoader(
           'MaterialIcons',
         )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
-        return container.read(botanicalArtProvider.future);
       });
       final boundary = GlobalKey();
       Future<void> capture(String name) async {
@@ -54,9 +50,12 @@ void main() {
             ProviderScope(
               overrides: [
                 snapshotProvider.overrideWith((ref) => Stream.value(data)),
+                preferencesProvider.overrideWith(
+                  (ref) => Stream.value(data.preferences),
+                ),
               ],
               child: MaterialApp(
-                theme: appTheme(brightness, palette: palette, art: art),
+                theme: appTheme(brightness, palette: palette),
                 home: RepaintBoundary(
                   key: boundary,
                   child: const SettingsPage(),
@@ -66,7 +65,7 @@ void main() {
           );
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
-          expect(find.text('夏日黄瓜花'), findsOneWidget);
+          expect(find.text('绿色'), findsOneWidget);
           await capture('settings-${palette.name}-${brightness.name}');
         }
       }
@@ -74,9 +73,12 @@ void main() {
         ProviderScope(
           overrides: [
             snapshotProvider.overrideWith((ref) => Stream.value(data)),
+            preferencesProvider.overrideWith(
+              (ref) => Stream.value(data.preferences),
+            ),
           ],
           child: MaterialApp(
-            theme: appTheme(Brightness.light, art: art),
+            theme: appTheme(Brightness.light),
             builder: (context, child) => MediaQuery(
               data: MediaQuery.of(context)
                   .copyWith(textScaler: TextScaler.linear(1.8)),
@@ -97,11 +99,11 @@ void main() {
         final focus = FocusNode();
         await tester.pumpWidget(
           MaterialApp(
-            theme: appTheme(brightness, art: art),
+            theme: appTheme(brightness),
             home: RepaintBoundary(
               key: boundary,
               child: Scaffold(
-                appBar: AppBar(title: const Text('夏日黄瓜花')),
+                appBar: AppBar(title: const Text('绿色')),
                 body: ListView(
                   padding: const EdgeInsets.all(20),
                   children: [
@@ -141,11 +143,11 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        await capture('botanical-${brightness.name}');
+        await capture('plain-${brightness.name}');
         focus.requestFocus();
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
-        await capture('botanical-focused-${brightness.name}');
+        await capture('plain-focused-${brightness.name}');
         await tester.pumpWidget(const SizedBox.shrink());
         focus.dispose();
       }

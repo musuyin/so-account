@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../app/theme/app_typography.dart';
 import '../../../core/money/money.dart';
 import '../data/statistics_repository.dart';
 
@@ -14,215 +15,403 @@ Color expenseColor(BuildContext context) =>
     ? const Color(0xFFF28B82)
     : const Color(0xFFB3261E);
 
-class FlowBars extends StatelessWidget {
-  const FlowBars({super.key, required this.points, required this.currency});
+String _axisLabel(String label) =>
+    label.length == 10 || label.length == 7 ? label.substring(5) : label;
+
+enum FlowMetric { compare, expense, income, surplus }
+
+class FlowBars extends StatefulWidget {
+  const FlowBars({
+    super.key,
+    required this.points,
+    required this.currency,
+    this.line = false,
+    this.metric = FlowMetric.compare,
+    this.onRecords,
+  });
   final List<ReportPoint> points;
   final String currency;
+  final bool line;
+  final FlowMetric metric;
+  final ValueChanged<ReportPoint>? onRecords;
+  @override
+  State<FlowBars> createState() => _FlowBarsState();
+}
+
+class _FlowBarsState extends State<FlowBars> {
+  int? selected;
+  @override
+  void didUpdateWidget(covariant FlowBars oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.points != widget.points) selected = null;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final maxAmount = points.fold<int>(
-      1,
-      (s, p) => math.max(s, math.max(p.income, p.expense)),
-    );
+    final points = widget.points;
+    if (points.isEmpty) return const Text('暂无收支数据');
+    final series = switch (widget.metric) {
+      FlowMetric.compare => [
+        points.map((p) => p.income).toList(),
+        points.map((p) => p.expense).toList(),
+      ],
+      FlowMetric.income => [points.map((p) => p.income).toList()],
+      FlowMetric.expense => [points.map((p) => p.expense).toList()],
+      FlowMetric.surplus => [points.map((p) => p.income - p.expense).toList()],
+    };
+    final colors = switch (widget.metric) {
+      FlowMetric.compare => [incomeColor(context), expenseColor(context)],
+      FlowMetric.income => [incomeColor(context)],
+      FlowMetric.expense => [expenseColor(context)],
+      FlowMetric.surplus => [Theme.of(context).colorScheme.primary],
+    };
+    final labels = switch (widget.metric) {
+      FlowMetric.compare => ['收入', '支出'],
+      FlowMetric.income => ['收入'],
+      FlowMetric.expense => ['支出'],
+      FlowMetric.surplus => ['结余'],
+    };
+    final values = series.expand((s) => s);
+    final minValue = values.fold<int>(0, math.min);
+    final maxValue = values.fold<int>(1, math.max);
+    final point = selected == null ? null : points[selected!];
+    String detail(ReportPoint p) =>
+        '${p.label} · ${widget.currency}\n收入 ${decimalMoney(p.income, widget.currency)} · 支出 ${decimalMoney(p.expense, widget.currency)} · 结余 ${decimalMoney(p.income - p.expense, widget.currency)}';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Wrap(
-          spacing: 16,
+          spacing: 12,
           children: [
-            Text('● 收入', style: TextStyle(color: incomeColor(context))),
-            Text('● 支出', style: TextStyle(color: expenseColor(context))),
+            for (var i = 0; i < labels.length; i++)
+              Text('● ${labels[i]}', style: TextStyle(color: colors[i])),
           ],
+        ),
+        Text(
+          '${widget.currency} · ${decimalMoney(minValue, widget.currency)} ～ ${decimalMoney(maxValue, widget.currency)}',
+          style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 8),
         LayoutBuilder(
           builder: (context, constraints) {
-            final width = math.max(constraints.maxWidth, points.length * 30.0);
-            final unit = width / math.max(1, points.length);
+            final width = math.max(
+              constraints.maxWidth,
+              points.length > 36 ? points.length * 14.0 : 0.0,
+            );
             return SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: SizedBox(
                 width: width,
-                height: 214,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                child: Column(
                   children: [
-                    for (var i = 0; i < points.length; i++)
-                      SizedBox(
-                        width: unit,
-                        child: Tooltip(
-                          message:
-                              '${points[i].label}\n收入 ${decimalMoney(points[i].income, currency)}\n支出 ${decimalMoney(points[i].expense, currency)}',
-                          child: Semantics(
-                            label:
-                                '${points[i].label} 收入 ${points[i].income} 支出 ${points[i].expense}',
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                SizedBox(
-                                  height: 160,
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Container(
-                                        width: math.min(10, unit / 4),
-                                        height: points[i].income == 0
-                                            ? 1
-                                            : math.max(
-                                                2,
-                                                160 *
-                                                    points[i].income /
-                                                    maxAmount,
-                                              ),
-                                        decoration: BoxDecoration(
-                                          color: incomeColor(context),
-                                          borderRadius:
-                                              const BorderRadius.vertical(
-                                                top: Radius.circular(3),
-                                              ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 3),
-                                      Container(
-                                        width: math.min(10, unit / 4),
-                                        height: points[i].expense == 0
-                                            ? 1
-                                            : math.max(
-                                                2,
-                                                160 *
-                                                    points[i].expense /
-                                                    maxAmount,
-                                              ),
-                                        decoration: BoxDecoration(
-                                          color: expenseColor(context),
-                                          borderRadius:
-                                              const BorderRadius.vertical(
-                                                top: Radius.circular(3),
-                                              ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                SizedBox(
-                                  height: 38,
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    alignment: Alignment.topCenter,
-                                    child: Text(
-                                      points[i].label.length > 7
-                                          ? points[i].label.substring(
-                                              points.length <= 7 ? 5 : 8,
-                                            )
-                                          : points[i].label.substring(
-                                              points[i].label.length - 2,
-                                            ),
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelSmall,
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                    Semantics(
+                      label: '收支${widget.line ? '折线图' : '柱状图'}，可展开数据列表逐项查看',
+                      child: GestureDetector(
+                        key: const ValueKey('flow-chart'),
+                        onTapUp: (event) => setState(
+                          () => selected =
+                              (event.localPosition.dx / width * points.length)
+                                  .floor()
+                                  .clamp(0, points.length - 1),
+                        ),
+                        child: CustomPaint(
+                          size: Size(width, 160),
+                          painter: _FlowPainter(
+                            series,
+                            colors,
+                            minValue,
+                            maxValue,
+                            widget.line,
+                            Theme.of(context).colorScheme.outlineVariant,
+                            selected,
                           ),
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _axisLabel(points.first.label),
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
+                        if (points.length > 1)
+                          Text(
+                            _axisLabel(points.last.label),
+                            style: Theme.of(context).textTheme.labelSmall,
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),
             );
           },
         ),
-        Text(
-          '纵轴最高 ${decimalMoney(maxAmount, currency)} · 长按柱形查看数值',
-          style: Theme.of(context).textTheme.bodySmall,
+        Text('零基线 · 点击图形查看数值', style: Theme.of(context).textTheme.bodySmall),
+        if (point != null) ...[
+          Text(detail(point)),
+          if (widget.onRecords != null)
+            TextButton(
+              onPressed: () => widget.onRecords!(point),
+              child: const Text('查看记录'),
+            ),
+        ],
+        ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          title: const Text('数据列表'),
+          children: [
+            for (final point in points)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(detail(point)),
+                onTap: widget.onRecords == null
+                    ? null
+                    : () => widget.onRecords!(point),
+                trailing: widget.onRecords == null
+                    ? null
+                    : const Icon(Icons.chevron_right),
+              ),
+          ],
         ),
       ],
     );
   }
 }
 
-class CategoryPie extends StatelessWidget {
+class _FlowPainter extends CustomPainter {
+  _FlowPainter(
+    this.series,
+    this.colors,
+    this.minimum,
+    this.maximum,
+    this.line,
+    this.axis,
+    this.selected,
+  );
+  final List<List<int>> series;
+  final List<Color> colors;
+  final int minimum, maximum;
+  final bool line;
+  final Color axis;
+  final int? selected;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final n = series.first.length, unit = size.width / series.first.length;
+    double y(int v) =>
+        8 + (size.height - 16) * (maximum - v) / (maximum - minimum);
+    final zero = y(0);
+    canvas.drawLine(
+      Offset(0, zero),
+      Offset(size.width, zero),
+      Paint()
+        ..color = axis
+        ..strokeWidth = 1,
+    );
+    for (var s = 0; s < series.length; s++) {
+      final paint = Paint()
+        ..color = colors[s]
+        ..strokeWidth = 2
+        ..style = PaintingStyle.stroke;
+      final path = Path();
+      for (var i = 0; i < n; i++) {
+        final x = unit * (i + .5), valueY = y(series[s][i]);
+        if (line) {
+          if (i == 0) {
+            path.moveTo(x, valueY);
+          } else {
+            path.lineTo(x, valueY);
+          }
+          canvas.drawCircle(
+            Offset(x, valueY),
+            selected == i ? 5 : 2.5,
+            Paint()..color = colors[s],
+          );
+        } else if (series[s][i] != 0) {
+          final w = math.min(18.0, unit / (series.length + 2));
+          final left = x + (s - series.length / 2) * w;
+          canvas.drawRect(
+            Rect.fromLTRB(
+              left,
+              math.min(zero, valueY),
+              left + w - 2,
+              math.max(zero, valueY),
+            ),
+            Paint()..color = colors[s],
+          );
+        }
+      }
+      if (line) canvas.drawPath(path, paint);
+    }
+    if (selected != null) {
+      final x = unit * (selected! + .5);
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x, size.height),
+        Paint()
+          ..color = axis
+          ..strokeWidth = 1,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _FlowPainter old) => true;
+}
+
+Color categoryColor(String id, Brightness brightness) {
+  var hash = 0;
+  for (final c in id.runes) {
+    hash = (hash * 31 + c) % 360;
+  }
+  return HSLColor.fromAHSL(
+    1,
+    (hash * 137.508) % 360,
+    .55,
+    brightness == Brightness.dark ? .68 : .40,
+  ).toColor();
+}
+
+class CategoryPie extends StatefulWidget {
   const CategoryPie({
     super.key,
     required this.categories,
     required this.currency,
+    this.bars = false,
+    this.onRecords,
   });
   final List<CategoryComparison> categories;
   final String currency;
+  final bool bars;
+  final ValueChanged<CategoryComparison>? onRecords;
+  @override
+  State<CategoryPie> createState() => _CategoryPieState();
+}
+
+class _CategoryPieState extends State<CategoryPie> {
+  bool expanded = false;
   @override
   Widget build(BuildContext context) {
-    final rows = categories.where((c) => c.amount > 0).toList();
-    final total = rows.fold<int>(0, (s, c) => s + c.amount);
+    final all = widget.categories.where((c) => c.amount > 0).toList()
+      ..sort((a, b) => b.amount.compareTo(a.amount));
+    final total = all.fold<int>(0, (s, c) => s + c.amount);
     if (total == 0) {
-      return const Padding(padding: EdgeInsets.all(24), child: Text('暂无分类数据'));
+      return const Padding(padding: EdgeInsets.all(16), child: Text('暂无分类数据'));
     }
-    final scheme = Theme.of(context).colorScheme;
+    final rows = expanded || all.length <= 5
+        ? all
+        : [
+            ...all.take(5),
+            CategoryComparison(
+              '__other__',
+              '其他',
+              all.first.kind,
+              all.skip(5).fold<int>(0, (s, c) => s + c.amount),
+              0,
+            ),
+          ];
     final colors = [
-      scheme.primary,
-      scheme.secondary,
-      scheme.tertiary,
-      scheme.primaryContainer,
-      scheme.secondaryContainer,
-      scheme.tertiaryContainer,
+      for (final c in rows) categoryColor(c.id, Theme.of(context).brightness),
     ];
     return Column(
       children: [
-        Semantics(
-          label: rows
-              .map(
-                (r) =>
-                    '${r.name} ${(r.amount / total * 100).toStringAsFixed(1)}%',
-              )
-              .join('，'),
-          child: SizedBox(
-            width: 180,
-            height: 180,
-            child: CustomPaint(
-              painter: _PiePainter(
-                rows.map((r) => r.amount / total).toList(),
-                colors,
-                scheme.surface,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        for (var i = 0; i < rows.length; i++)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
+        if (!widget.bars)
+          SizedBox(
+            width: 200,
+            height: 200,
+            child: Stack(
+              alignment: Alignment.center,
               children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  color: colors[i % colors.length],
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _RingPainter(
+                      rows.map((r) => r.amount / total).toList(),
+                      colors,
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(child: Text(rows[i].name)),
-                Text(
-                  '${decimalMoney(rows[i].amount, currency)} · ${(rows[i].amount / total * 100).toStringAsFixed(1)}%',
+                SizedBox(
+                  width: 130,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.currency,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      Text(
+                        decimalMoney(total, widget.currency),
+                        style: AppTypography.amount,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
+          ),
+        for (var i = 0; i < rows.length; i++)
+          InkWell(
+            onTap: rows[i].id == '__other__'
+                ? () => setState(() => expanded = true)
+                : widget.onRecords == null
+                ? null
+                : () => widget.onRecords!(rows[i]),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 2,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.circle, size: 10, color: colors[i]),
+                          const SizedBox(width: 6),
+                          Flexible(child: Text(rows[i].name)),
+                        ],
+                      ),
+                      Text(
+                        '${decimalMoney(rows[i].amount, widget.currency)} · ${(rows[i].amount / total * 100).toStringAsFixed(1)}%',
+                      ),
+                      if (widget.onRecords != null)
+                        const Icon(Icons.chevron_right, size: 16),
+                    ],
+                  ),
+                  if (widget.bars)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: LinearProgressIndicator(
+                        value: rows[i].amount / all.first.amount,
+                        color: colors[i],
+                        minHeight: 8,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        if (all.length > 5)
+          TextButton(
+            onPressed: () => setState(() => expanded = !expanded),
+            child: Text(expanded ? '收起分类' : '展开全部分类'),
           ),
       ],
     );
   }
 }
 
-class _PiePainter extends CustomPainter {
-  _PiePainter(this.values, this.colors, this.border);
+class _RingPainter extends CustomPainter {
+  _RingPainter(this.values, this.colors);
   final List<double> values;
   final List<Color> colors;
-  final Color border;
   @override
   void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
+    final rect = (Offset.zero & size).deflate(15);
     var start = -math.pi / 2;
     for (var i = 0; i < values.length; i++) {
       final sweep = values[i] * math.pi * 2;
@@ -230,25 +419,18 @@ class _PiePainter extends CustomPainter {
         rect,
         start,
         sweep,
-        true,
-        Paint()..color = colors[i % colors.length],
-      );
-      canvas.drawArc(
-        rect,
-        start,
-        sweep,
-        true,
+        false,
         Paint()
-          ..color = border
+          ..color = colors[i]
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5,
+          ..strokeWidth = 24,
       );
       start += sweep;
     }
   }
 
   @override
-  bool shouldRepaint(covariant _PiePainter old) => true;
+  bool shouldRepaint(covariant _RingPainter old) => true;
 }
 
 class AssetLine extends StatelessWidget {

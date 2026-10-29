@@ -31,14 +31,20 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   bool busy = false;
 
   Future<void> preference(String key, String value) async {
-    await perform(context, () async {
-      final db = ref.read(databaseProvider);
-      await db
-          .into(db.preferences)
-          .insertOnConflictUpdate(
-            PreferencesCompanion.insert(key: key, value: value),
-          );
-    });
+    if (busy) return;
+    setState(() => busy = true);
+    try {
+      await perform(context, () async {
+        final db = ref.read(databaseProvider);
+        await db
+            .into(db.preferences)
+            .insertOnConflictUpdate(
+              PreferencesCompanion.insert(key: key, value: value),
+            );
+      });
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
   }
 
   Widget section(String title) => Padding(
@@ -71,10 +77,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     appBar: AppBar(title: const Text('设置')),
     body: DataView(
       builder: (data) {
-        final palette = AppPalette.parse(
-          data.preference('palette', 'cucumber'),
-        );
-        final mode = data.preference('theme', 'system');
+        final preferences = ref.watch(preferencesProvider).value ?? [];
+        String? value(String key) =>
+            preferences.where((p) => p.key == key).firstOrNull?.value;
+        final palette = AppPalette.parse(value('palette'));
+        final mode = value('theme') ?? 'system';
         return ListView(
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
           children: [
@@ -123,7 +130,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 onTap: () => openForm(context, const UpdatePage()),
               ),
             ]),
-            section('配色主题'),
+            section('颜色'),
             tiles([
               for (final value in AppPalette.values)
                 _SettingsTile(
@@ -161,10 +168,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   ),
                 ),
             ]),
-            section('外观'),
+            section('模式'),
             tiles([
               for (final (value, label, icon) in [
-                ('system', '自动', Icons.brightness_auto_outlined),
+                ('system', '跟随系统', Icons.brightness_auto_outlined),
                 ('light', '浅色', Icons.light_mode_outlined),
                 ('dark', '深色', Icons.dark_mode_outlined),
               ])

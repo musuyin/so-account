@@ -152,9 +152,10 @@ class StatisticsRepository {
         }
         final points = <ReportPoint>[];
         for (final key in range.buckets) {
+          final until = dateKey(range.intervalFor(key).$2);
           var income = 0, expense = 0, correction = 0;
           while (index < changes.length &&
-              changes[index].read<String>('date').startsWith(key)) {
+              changes[index].read<String>('date').compareTo(until) < 0) {
             income += changes[index].read<int>('income');
             expense += changes[index].read<int>('expense');
             correction += changes[index].read<int>('correction');

@@ -60,12 +60,27 @@ class ReportRange {
     for (
       var date = start;
       date.isBefore(end);
-      date = period == ReportPeriod.year
+      date = monthlyBuckets
           ? DateTime(date.year, date.month + 1)
-          : DateTime(date.year, date.month, date.day + 1)
+          : DateTime(date.year, date.month, date.day + (weeklyBuckets ? 7 : 1))
     ) {
-      result.add(period == ReportPeriod.year ? monthKey(date) : dateKey(date));
+      result.add(monthlyBuckets ? monthKey(date) : dateKey(date));
     }
     return result;
+  }
+
+  bool get monthlyBuckets =>
+      period == ReportPeriod.year ||
+      (period == ReportPeriod.custom && days > 90);
+  bool get weeklyBuckets =>
+      period == ReportPeriod.custom && days > 31 && days <= 90;
+  (DateTime, DateTime) intervalFor(String label) {
+    var from = parseDate(label.length == 7 ? '$label-01' : label);
+    var until = monthlyBuckets
+        ? DateTime(from.year, from.month + 1)
+        : DateTime(from.year, from.month, from.day + (weeklyBuckets ? 7 : 1));
+    if (from.isBefore(start)) from = start;
+    if (until.isAfter(end)) until = end;
+    return (from, until);
   }
 }

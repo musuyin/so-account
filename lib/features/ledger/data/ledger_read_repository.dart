@@ -28,10 +28,14 @@ class HomeLedgerView {
     this.daily,
     this.totals,
     this.count,
-    this.monthCount,
-  );
+    this.monthCount, [
+    this.filteredDaily = const {},
+  ]);
   final AppSnapshot data;
   final Map<String, Map<String, int>> daily;
+
+  /// Full matching range, independent of the visible LIMIT.
+  final Map<String, Map<String, int>> filteredDaily;
   final Map<String, int> totals;
   final int count, monthCount;
 }
@@ -87,17 +91,34 @@ class LedgerReadRepository {
     db.purchaseLinks,
   }, () => home(query));
 
-  Future<HomeLedgerView> home(HomeQuery q) => db.transaction(() async {
-    final start = '${q.month}-01';
+  Stream<HomeLedgerView> watchRange(
+    HomeQuery query,
+    String start,
+    String end,
+  ) => _watch({
+    db.accounts,
+    db.categories,
+    db.entries,
+    db.budgets,
+    db.items,
+    db.purchaseLinks,
+  }, () => home(query, rangeStart: start, rangeEnd: end));
+
+  Future<HomeLedgerView> home(
+    HomeQuery q, {
+    String? rangeStart,
+    String? rangeEnd,
+  }) => db.transaction(() async {
+    final start = rangeStart ?? '${q.month}-01';
     // ISO dates sort lexicographically; the next month is the exclusive end.
     final date = DateTime.parse(start);
-    final end = DateTime(
-      date.year,
-      date.month + 1,
-    ).toIso8601String().substring(0, 10);
+    final end =
+        rangeEnd ??
+        DateTime(date.year, date.month + 1).toIso8601String().substring(0, 10);
     const join =
         'FROM entries e JOIN accounts a ON a.id=e.account_id LEFT JOIN categories c ON c.id=e.category_id';
-    const monthWhere = 'a.currency=? AND e.date>=? AND e.date<?';
+    final monthWhere =
+        'a.currency=? AND e.date>=? AND e.date<?${rangeStart == null ? '' : " AND e.kind IN ('income','expense')"}';
     final base = <Variable>[
       Variable(q.currency),
       Variable(start),
@@ -143,6 +164,20 @@ class LedgerReadRepository {
                 )
                 .getSingle())
             .read<int>('n');
+    final matchingDays = await db
+        .customSelect(
+          'SELECT e.date,e.kind,SUM(e.amount) AS amount $join WHERE $where GROUP BY e.date,e.kind',
+          variables: variables,
+        )
+        .get();
+    final filteredDaily = <String, Map<String, int>>{};
+    for (final row in matchingDays) {
+      (filteredDaily[row.read<String>('date')] ??= {})[row.read<String>(
+        'kind',
+      )] = row.read<int>(
+        'amount',
+      );
+    }
     final rows = await db
         .customSelect(
           'SELECT e.* $join WHERE $where ORDER BY e.date DESC,e.created_at DESC,e.id DESC LIMIT ?',
@@ -172,7 +207,14 @@ class LedgerReadRepository {
       links,
       const [],
     );
-    return HomeLedgerView(data, daily, totals, count, monthCount);
+    return HomeLedgerView(
+      data,
+      daily,
+      totals,
+      count,
+      monthCount,
+      filteredDaily,
+    );
   });
 
   Stream<AccountLedgerView> watchAccount(AccountQuery query) => _watch({

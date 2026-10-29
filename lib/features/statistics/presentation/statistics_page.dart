@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/providers.dart';
+import '../../../app/theme/app_typography.dart';
+import '../../../app/widgets.dart';
+import 'report_records_page.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/business_date.dart';
 import '../domain/report_range.dart';
@@ -29,6 +32,9 @@ class StatisticsPage extends ConsumerStatefulWidget {
 
 class _StatisticsPageState extends ConsumerState<StatisticsPage> {
   ReportPeriod period = ReportPeriod.month;
+  bool line = false, categoryBars = false;
+  bool get assetsHidden => ref.watch(assetAmountsHiddenProvider);
+  FlowMetric metric = FlowMetric.compare;
   DateTime anchor = DateTime.now();
   DateTime? customStart, customEnd;
   String currency = 'CNY', categoryKind = 'expense';
@@ -84,38 +90,34 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
     final key = (period.name, dateKey(r.start), dateKey(r.end), currency);
     final report = ref.watch(reportProvider(key));
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('统计'),
-        actions: [
-          DropdownButton(
-            value: currency,
-            items: currencies
-                .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-                .toList(),
-            onChanged: (v) => setState(() => currency = v!),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('统计')),
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
-          Row(
+          Wrap(
+            spacing: 6,
+            children: [
+              for (final value in currencies)
+                ChoiceChip(
+                  label: Text(value),
+                  selected: currency == value,
+                  onSelected: (_) => setState(() => currency = value),
+                ),
+            ],
+          ),
+          Wrap(
+            spacing: 6,
             children: [
               for (final entry in {
-                ReportPeriod.week: '周',
+                ReportPeriod.week: '近7天',
                 ReportPeriod.month: '月',
                 ReportPeriod.year: '年',
                 ReportPeriod.custom: '自定义',
               }.entries)
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    child: ChoiceChip(
-                      label: Text(entry.value),
-                      selected: period == entry.key,
-                      onSelected: (_) => setState(() => period = entry.key),
-                    ),
-                  ),
+                ChoiceChip(
+                  label: Text(entry.value),
+                  selected: period == entry.key,
+                  onSelected: (_) => setState(() => period = entry.key),
                 ),
             ],
           ),
@@ -167,22 +169,6 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                   ? '7天'
                   : '';
               final factor = currency == 'JPY' ? 1 : 100;
-              Widget metric(String label, int value) => Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(label),
-                    const SizedBox(height: 4),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        decimalMoney(value, currency),
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ),
-                  ],
-                ),
-              );
               final categories = data.categories
                   .where((c) => c.kind == categoryKind)
                   .toList();
@@ -195,11 +181,23 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                       padding: const EdgeInsets.all(12),
                       child: Column(
                         children: [
-                          Row(
-                            children: [
-                              metric('$prefix支出', data.expense),
-                              metric('$prefix收入', data.income),
-                              metric('$prefix结余', data.surplus),
+                          MoneySummary(
+                            values: [
+                              (
+                                label: '$prefix支出',
+                                amount: decimalMoney(data.expense, currency),
+                                color: expenseColor(context),
+                              ),
+                              (
+                                label: '$prefix收入',
+                                amount: decimalMoney(data.income, currency),
+                                color: incomeColor(context),
+                              ),
+                              (
+                                label: '$prefix结余',
+                                amount: decimalMoney(data.surplus, currency),
+                                color: null,
+                              ),
                             ],
                           ),
                           const SizedBox(height: 10),
@@ -207,12 +205,12 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  '日均支出 ${(data.dailyExpense / factor).toStringAsFixed(2)}',
+                                  '日均支出 ${(data.dailyExpense / factor).toStringAsFixed(fractionDigits(currency))}',
                                 ),
                               ),
                               Expanded(
                                 child: Text(
-                                  '日均收入 ${(data.dailyIncome / factor).toStringAsFixed(2)}',
+                                  '日均收入 ${(data.dailyIncome / factor).toStringAsFixed(fractionDigits(currency))}',
                                 ),
                               ),
                             ],
@@ -220,7 +218,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                           Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              '${r.days} 天',
+                              '完整周期 ${r.days} 天 · 日均按该天数计算',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ),
@@ -229,12 +227,62 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                     ),
                   ),
                   _section(
-                    '收入 / 支出柱状图',
-                    FlowBars(points: data.points, currency: currency),
+                    '收支趋势',
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 6,
+                          children: [
+                            for (final value in [false, true])
+                              ChoiceChip(
+                                label: Text(value ? '折线图' : '柱状图'),
+                                selected: line == value,
+                                onSelected: (_) => setState(() => line = value),
+                              ),
+                          ],
+                        ),
+                        Wrap(
+                          spacing: 6,
+                          children: [
+                            for (final entry in {
+                              FlowMetric.compare: '收支对比',
+                              FlowMetric.expense: '支出',
+                              FlowMetric.income: '收入',
+                              FlowMetric.surplus: '结余',
+                            }.entries)
+                              ChoiceChip(
+                                label: Text(entry.value),
+                                selected: metric == entry.key,
+                                onSelected: (_) =>
+                                    setState(() => metric = entry.key),
+                              ),
+                          ],
+                        ),
+                        FlowBars(
+                          points: data.points,
+                          currency: currency,
+                          line: line,
+                          metric: metric,
+                          onRecords: (p) {
+                            final interval = r.intervalFor(p.label);
+                            records(
+                              interval.$1,
+                              interval.$2,
+                              kind: metric == FlowMetric.expense
+                                  ? 'expense'
+                                  : metric == FlowMetric.income
+                                  ? 'income'
+                                  : null,
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                  if (period != ReportPeriod.week) ...[
+                  ...[
                     _section(
-                      '收支对比',
+                      '上期收支对比',
                       FlowBars(
                         points: [
                           ReportPoint(
@@ -249,7 +297,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                       ),
                     ),
                     _section(
-                      '分类占比',
+                      '分类构成与排名',
                       Column(
                         children: [
                           Wrap(
@@ -269,10 +317,29 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 6,
+                            children: [
+                              for (final value in [false, true])
+                                ChoiceChip(
+                                  label: Text(value ? '条形排名' : '环形图'),
+                                  selected: categoryBars == value,
+                                  onSelected: (_) =>
+                                      setState(() => categoryBars = value),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
                           CategoryPie(
                             categories: categories,
                             currency: currency,
+                            bars: categoryBars,
+                            onRecords: (c) => records(
+                              r.start,
+                              r.end,
+                              category: c.id,
+                              kind: categoryKind,
+                            ),
                           ),
                         ],
                       ),
@@ -314,10 +381,24 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          AssetLine(points: data.points, currency: currency),
+                          TextButton.icon(
+                            onPressed: () => ref
+                                .read(assetAmountsHiddenProvider.notifier)
+                                .toggle(),
+                            icon: Icon(
+                              assetsHidden
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
+                            label: Text(assetsHidden ? '显示资产金额' : '隐藏资产金额'),
+                          ),
+                          if (assetsHidden)
+                            const Text('资产金额已隐藏')
+                          else
+                            AssetLine(points: data.points, currency: currency),
                           const SizedBox(height: 8),
                           const Text(
-                            '根据账户初始余额和历史收支推算；借贷和转账不改变净资产。',
+                            '按初始余额、历史收支和余额调整推算；借贷和转账不改变净资产。',
                             style: TextStyle(fontSize: 12),
                           ),
                         ],
@@ -332,8 +413,21 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
     );
   }
 
+  void records(DateTime start, DateTime end, {String? category, String? kind}) {
+    openForm(
+      context,
+      ReportRecordsPage(
+        start: dateKey(start),
+        end: dateKey(end),
+        currency: currency,
+        category: category,
+        kind: kind,
+      ),
+    );
+  }
+
   Widget _section(String title, Widget child) => Padding(
-    padding: const EdgeInsets.only(top: 24),
+    padding: const EdgeInsets.only(top: 12),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -353,7 +447,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
         ? incomeColor(context)
         : expenseColor(context);
     final growth = c.growth == null
-        ? '-'
+        ? (c.amount == 0 ? '上期为0' : '新增（上期为0）')
         : '${c.delta > 0 ? '+' : ''}${(c.growth! * 100).toStringAsFixed(1)}%';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),

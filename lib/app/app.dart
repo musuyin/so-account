@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 
 import 'providers/providers.dart';
 import 'theme/app_theme.dart';
-import 'theme/botanical_surfaces.dart';
 import '../core/appearance.dart';
 import '../features/ledger/presentation/home_page.dart';
 import '../features/ledger/presentation/accounts_page.dart';
@@ -52,12 +51,11 @@ class SoAccountApp extends ConsumerWidget {
         preferences.where((p) => p.key == key).firstOrNull?.value;
     final mode = preference('theme') ?? 'system';
     final palette = AppPalette.parse(preference('palette'));
-    final art = ref.watch(botanicalArtProvider).value;
     if (cleanup.isLoading || cleanup.hasError) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
-        theme: appTheme(Brightness.light, palette: palette, art: art),
-        darkTheme: appTheme(Brightness.dark, palette: palette, art: art),
+        theme: appTheme(Brightness.light, palette: palette),
+        darkTheme: appTheme(Brightness.dark, palette: palette),
         themeMode:
             {'light': ThemeMode.light, 'dark': ThemeMode.dark}[mode] ??
             ThemeMode.system,
@@ -102,8 +100,8 @@ class SoAccountApp extends ConsumerWidget {
     return MaterialApp.router(
       title: '素帐 · SoAccount',
       debugShowCheckedModeBanner: false,
-      theme: appTheme(Brightness.light, palette: palette, art: art),
-      darkTheme: appTheme(Brightness.dark, palette: palette, art: art),
+      theme: appTheme(Brightness.light, palette: palette),
+      darkTheme: appTheme(Brightness.dark, palette: palette),
       themeMode:
           {'light': ThemeMode.light, 'dark': ThemeMode.dark}[mode] ??
           ThemeMode.system,

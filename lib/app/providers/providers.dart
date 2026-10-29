@@ -30,6 +30,16 @@ class AppSession extends Notifier<int> {
 
 final appSessionProvider = NotifierProvider<AppSession, int>(AppSession.new);
 
+class AssetPrivacy extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void toggle() => state = !state;
+}
+
+final assetAmountsHiddenProvider = NotifierProvider<AssetPrivacy, bool>(
+  AssetPrivacy.new,
+);
+
 final fileDeliveryProvider = Provider<FileDelivery>((ref) => FileDelivery());
 
 final mediaProvider = FutureProvider((ref) async {

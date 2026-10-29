@@ -123,4 +123,64 @@ void main() {
       expect(march.previous.days, 29);
     },
   );
+  test(
+    'long custom buckets retain exact flows and clamp partial bucket details',
+    () async {
+      for (final start in [DateTime(2026, 8, 29), DateTime(2026, 1, 15)]) {
+        final range = ReportRange.at(
+          ReportPeriod.custom,
+          DateTime(2026, 10, 6),
+          customStart: start,
+          customEnd: DateTime(2026, 10, 6),
+        );
+        final report = await stats.load(range, 'CNY');
+        expect(
+          report.points.fold<int>(0, (s, p) => s + p.income),
+          report.income,
+        );
+        expect(
+          report.points.fold<int>(0, (s, p) => s + p.expense),
+          report.expense,
+        );
+        expect(report.points.length, lessThanOrEqualTo(14));
+        expect(range.intervalFor(report.points.first.label).$1, start);
+        expect(range.intervalFor(report.points.last.label).$2, range.end);
+        expect(report.points.last.netAssets, 32000);
+      }
+    },
+  );
+  test(
+    'JPY exact amounts and negative surplus exclude debt principal',
+    () async {
+      final yen = await ledger.saveAccount(
+        name: '合成日元',
+        kind: '资金账户',
+        channel: '现金',
+        currency: 'JPY',
+        openingBalance: 10000,
+      );
+      await ledger.saveEntry(
+        kind: EntryKind.expense,
+        amount: 9999,
+        accountId: yen,
+        date: '2026-10-01',
+        categoryId: 'expense-0',
+      );
+      await ledger.saveEntry(
+        kind: EntryKind.borrow,
+        amount: 100000,
+        accountId: yen,
+        date: '2026-10-01',
+      );
+      final report = await stats.load(
+        ReportRange.at(ReportPeriod.month, DateTime(2026, 10)),
+        'JPY',
+      );
+      expect(report.expense, 9999);
+      expect(report.income, 0);
+      expect(report.surplus, -9999);
+      expect(report.points.first.netAssets, 1);
+      expect(report.categories.single.growth, isNull);
+    },
+  );
 }

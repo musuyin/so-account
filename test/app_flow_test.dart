@@ -197,7 +197,7 @@ void main() {
             });
           }
           if (label == '统计') {
-            for (final periodLabel in ['周', '年', '自定义', '月']) {
+            for (final periodLabel in ['近7天', '年', '自定义', '月']) {
               await tester.tap(find.text(periodLabel).first);
               await tester.pumpAndSettle();
               expect(tester.takeException(), isNull, reason: periodLabel);

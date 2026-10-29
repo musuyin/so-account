@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/providers.dart';
 import '../../../app/widgets.dart';
+import '../../../app/theme/app_typography.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/business_date.dart';
 import '../../../data/database/app_database.dart';
@@ -10,6 +11,7 @@ import '../../inventory/presentation/item_form.dart';
 import '../domain/entry_kind.dart';
 import 'entry_form.dart';
 import 'calendar_heatmap.dart';
+import 'category_icons.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -101,28 +103,11 @@ class _HomePageState extends ConsumerState<HomePage> {
         final filtered = entries;
         final green = calendarIncomeColor(Theme.of(context).brightness);
         final red = calendarExpenseColor(Theme.of(context).brightness);
-        Widget metric(String label, int amount, {Color? color}) => Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: Theme.of(context).textTheme.labelMedium),
-              const SizedBox(height: 4),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  decimalMoney(amount, currency),
-                  style: TextStyle(fontWeight: FontWeight.w600, color: color),
-                ),
-              ),
-            ],
-          ),
-        );
         final dailyTotals = view.daily;
-        final maximumNet = dailyTotals.values.fold<int>(0, (maximum, values) {
-          final value = ((values['income'] ?? 0) - (values['expense'] ?? 0))
-              .abs();
-          return value > maximum ? value : maximum;
-        });
+        final groups = <String, List<Entry>>{};
+        for (final entry in filtered) {
+          (groups[entry.date] ??= []).add(entry);
+        }
         return ListView(
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -131,15 +116,27 @@ class _HomePageState extends ConsumerState<HomePage> {
               key: const ValueKey('monthly-summary'),
               borderOnForeground: false,
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        metric('收入', income, color: green),
-                        metric('支出', expense, color: red),
-                        metric('结余', income - expense),
+                    MoneySummary(
+                      values: [
+                        (
+                          label: '收入',
+                          amount: decimalMoney(income, currency),
+                          color: green,
+                        ),
+                        (
+                          label: '支出',
+                          amount: decimalMoney(expense, currency),
+                          color: red,
+                        ),
+                        (
+                          label: '结余',
+                          amount: decimalMoney(income - expense, currency),
+                          color: null,
+                        ),
                       ],
                     ),
                     const Divider(height: 6),
@@ -227,147 +224,17 @@ class _HomePageState extends ConsumerState<HomePage> {
               ],
             ),
             if (calendarExpanded) ...[
-              Row(
-                children: [
-                  for (final label in ['一', '二', '三', '四', '五', '六', '日'])
-                    Expanded(child: Center(child: Text(label))),
-                ],
-              ),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final offset = month.weekday - 1,
-                      count = DateTime(month.year, month.month + 1, 0).day;
-                  return Wrap(
-                    children: [
-                      for (var i = 0; i < ((offset + count + 6) ~/ 7) * 7; i++)
-                        SizedBox(
-                          width: constraints.maxWidth / 7,
-                          height:
-                              (MediaQuery.textScalerOf(context).scale(14) *
-                                          1.2 +
-                                      MediaQuery.textScalerOf(context)
-                                              .scale(12) *
-                                          2 *
-                                          1.2 +
-                                      10)
-                                  .clamp(48, double.infinity),
-                          child: i < offset || i >= offset + count
-                              ? null
-                              : Builder(
-                                  builder: (context) {
-                                    final key = dateKey(
-                                      DateTime(
-                                        month.year,
-                                        month.month,
-                                        i - offset + 1,
-                                      ),
-                                    );
-                                    int daily(String kind) =>
-                                        dailyTotals[key]?[kind] ?? 0;
-                                    final inc = daily('income'),
-                                        out = daily('expense');
-                                    Widget amount(
-                                      int value,
-                                      String sign,
-                                      Color color,
-                                    ) => Tooltip(
-                                      message:
-                                          '$key $sign${decimalMoney(value, currency)}',
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 2,
-                                        ),
-                                        child: FittedBox(
-                                          fit: BoxFit.scaleDown,
-                                          child: Text(
-                                            '$sign${decimalMoney(value, currency)}',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              height: 1.2,
-                                              color: color,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                    return Semantics(
-                                      key: ValueKey('calendar-$key'),
-                                      label:
-                                          '$key，收入 ${decimalMoney(inc, currency)}，支出 ${decimalMoney(out, currency)}，净额 ${decimalMoney(inc - out, currency)}',
-                                      selected: day == key,
-                                      button: true,
-                                      child: InkWell(
-                                        onTap: () => setState(
-                                          () => day = day == key ? null : key,
-                                        ),
-                                        borderRadius: BorderRadius.circular(12),
-                                        child: Container(
-                                          margin: const EdgeInsets.all(2),
-                                          decoration: BoxDecoration(
-                                            color: calendarHeatColor(
-                                              Theme.of(context).colorScheme,
-                                              inc,
-                                              out,
-                                              maximumNet,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          foregroundDecoration: BoxDecoration(
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                            border:
-                                                day == key ||
-                                                    key ==
-                                                        dateKey(DateTime.now())
-                                                ? Border.all(
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .primary,
-                                                    width: day == key ? 2 : 1,
-                                                  )
-                                                : null,
-                                          ),
-                                          child: Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                '${i - offset + 1}',
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  height: 1.2,
-                                                  fontWeight:
-                                                      key ==
-                                                          dateKey(
-                                                            DateTime.now(),
-                                                          )
-                                                      ? FontWeight.w700
-                                                      : FontWeight.w500,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 2),
-                                              if (inc > 0 || out > 0) ...[
-                                                amount(out, '-', red),
-                                                amount(inc, '+', green),
-                                              ],
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                        ),
-                    ],
-                  );
-                },
+              LedgerCalendar(
+                month: month,
+                currency: currency,
+                daily: dailyTotals,
+                selected: day,
+                onSelected: (value) =>
+                    setState(() => day = day == value ? null : value),
               ),
               const CalendarHeatLegend(),
             ],
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             ClearableSearch(
               value: search,
               hint: '搜索备注、往来人、分类或账户',
@@ -458,7 +325,26 @@ class _HomePageState extends ConsumerState<HomePage> {
                   child: const Text('清除筛选'),
                 ),
             ],
-            for (final entry in filtered) EntryTile(entry: entry, data: data),
+            if (day != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Text(
+                  '$day · $currency · 收入 ${decimalMoney(dailyTotals[day]?['income'] ?? 0, currency)} · 支出 ${decimalMoney(dailyTotals[day]?['expense'] ?? 0, currency)}',
+                ),
+              ),
+            for (final group in groups.entries)
+              EntryDayCard(
+                date: group.key,
+                entries: group.value,
+                data: data,
+                totals:
+                    (view.filteredDaily.isEmpty
+                        ? view.daily
+                        : view.filteredDaily)[group.key] ??
+                    {},
+                currency: currency,
+                filtered: kind != null || category != null || search.isNotEmpty,
+              ),
             if (view.count > entries.length)
               TextButton(
                 onPressed: () => setState(() => limit += 100),
@@ -482,8 +368,73 @@ class _HomePageState extends ConsumerState<HomePage> {
   );
 }
 
+class EntryDayCard extends StatelessWidget {
+  const EntryDayCard({
+    super.key,
+    required this.date,
+    required this.entries,
+    required this.data,
+    required this.totals,
+    required this.currency,
+    this.filtered = false,
+  });
+  final String date, currency;
+  final List<Entry> entries;
+  final AppSnapshot data;
+  final Map<String, int> totals;
+  final bool filtered;
+  @override
+  Widget build(BuildContext context) {
+    final day = parseDate(date);
+    final now = DateTime.now();
+    final yesterday = dateKey(DateTime(now.year, now.month, now.day - 1));
+    final relative = date == dateKey(now)
+        ? ' · 今天'
+        : date == yesterday
+        ? ' · 昨天'
+        : '';
+    return Card(
+      key: ValueKey('day-group-$date'),
+      borderOnForeground: false,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 2),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 2,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  '${day.month}月${day.day}日$relative · 周${['一', '二', '三', '四', '五', '六', '日'][day.weekday - 1]}',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                Text(
+                  '${filtered ? '筛选合计 · ' : ''}收 ${decimalMoney(totals['income'] ?? 0, currency)} · 支 ${decimalMoney(totals['expense'] ?? 0, currency)}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          for (var i = 0; i < entries.length; i++) ...[
+            if (i > 0) const Divider(height: 1, indent: 12, endIndent: 12),
+            EntryTile(entry: entries[i], data: data, grouped: true),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class EntryTile extends ConsumerWidget {
-  const EntryTile({super.key, required this.entry, required this.data});
+  const EntryTile({
+    super.key,
+    required this.entry,
+    required this.data,
+    this.grouped = false,
+  });
+  final bool grouped;
   final Entry entry;
   final AppSnapshot data;
   @override
@@ -491,97 +442,141 @@ class EntryTile extends ConsumerWidget {
     final kind = EntryKind.values.byName(entry.kind);
     final account = data.account(entry.accountId);
     final links = data.links.where((l) => l.entryId == entry.id);
-    return Card(
-      borderOnForeground: false,
-      child: Column(
-        children: [
-          ListTile(
-            leading: CircleAvatar(
-              radius: 16,
-              child: Icon(
-                kind.direction > 0 ? Icons.south_west : Icons.north_east,
-              ),
+    final content = Column(
+      children: [
+        ListTile(
+          leading: CircleAvatar(
+            radius: 16,
+            child: Icon(
+              kind.needsCategory
+                  ? categoryIcon(
+                      data.category(entry.categoryId),
+                      iconId: AppSnapshot(
+                        [],
+                        [],
+                        [],
+                        [],
+                        [],
+                        [],
+                        ref.watch(preferencesProvider).value ??
+                            data.preferences,
+                      ).categoryIconId(entry.categoryId!),
+                    )
+                  : kind == EntryKind.transfer
+                  ? Icons.swap_horiz
+                  : kind.direction > 0
+                  ? Icons.south_west
+                  : Icons.north_east,
             ),
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    kind.needsCategory
-                        ? data.category(entry.categoryId)
-                        : kind.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      '${kind.direction > 0 ? '+' : '-'}${decimalMoney(entry.amount, account.currency)}',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            subtitle: Text(
-              '${entry.date} · ${account.name}${entry.targetAccountId == null ? '' : ' → ${data.account(entry.targetAccountId!).name}'}${entry.counterparty.isEmpty ? '' : ' · ${entry.counterparty}'}${entry.note.isEmpty ? '' : '\n${entry.note}'}',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: PopupMenuButton<String>(
-              tooltip: '账目操作',
-              onSelected: (action) async {
-                if (action == 'item') {
-                  await openForm(
-                    context,
-                    EntryForm(entry: entry, initialRecordItem: true),
-                  );
-                } else if (await confirm(context, '删除这笔账目？', '关联会解除，物品仍保留。') &&
-                    context.mounted) {
-                  await perform(
-                    context,
-                    () => ref.read(ledgerProvider).deleteEntry(entry.id),
-                  );
-                }
-              },
-              itemBuilder: (_) => [
-                if (kind == EntryKind.expense)
-                  const PopupMenuItem(value: 'item', child: Text('记物')),
-                const PopupMenuItem(value: 'delete', child: Text('删除账目')),
-              ],
-            ),
-            onTap: () => openForm(context, EntryForm(entry: entry)),
           ),
-          if (links.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Wrap(
-                spacing: 8,
-                children: [
-                  for (final link in links)
-                    ActionChip(
-                      label: Text(
-                        data.items.firstWhere((i) => i.id == link.itemId).name,
-                      ),
-                      avatar: const Icon(Icons.inventory_2_outlined, size: 16),
-                      onPressed: () => openForm(
-                        context,
-                        ItemForm(
-                          item: data.items.firstWhere(
-                            (i) => i.id == link.itemId,
-                          ),
-                        ),
+          title: LayoutBuilder(
+            builder: (context, constraints) {
+              final name = Text(
+                kind.needsCategory
+                    ? data.category(entry.categoryId)
+                    : kind.label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              );
+              final amount = Text(
+                '${kind == EntryKind.transfer
+                    ? '转出 '
+                    : kind.direction > 0
+                    ? '+'
+                    : '-'}${decimalMoney(entry.amount, account.currency)}',
+                style: AppTypography.amount.copyWith(
+                  color: kind == EntryKind.income
+                      ? calendarIncomeColor(Theme.of(context).brightness)
+                      : kind == EntryKind.expense
+                      ? calendarExpenseColor(Theme.of(context).brightness)
+                      : null,
+                ),
+              );
+              final measure = TextPainter(
+                text: TextSpan(
+                  text: amount.data,
+                  style: DefaultTextStyle.of(context).style.merge(amount.style),
+                ),
+                textDirection: TextDirection.ltr,
+                textScaler: MediaQuery.textScalerOf(context),
+              )..layout();
+              final stack =
+                  constraints.maxWidth <
+                  measure.width +
+                      MediaQuery.textScalerOf(context).scale(13) * 3 +
+                      8;
+              measure.dispose();
+              return stack
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        name,
+                        Align(alignment: Alignment.centerRight, child: amount),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(child: name),
+                        const SizedBox(width: 8),
+                        amount,
+                      ],
+                    );
+            },
+          ),
+          subtitle: Text(
+            '${grouped ? '' : '${entry.date} · '}${account.name}${entry.targetAccountId == null ? '' : ' → ${data.account(entry.targetAccountId!).name}'}${entry.counterparty.isEmpty ? '' : ' · ${entry.counterparty}'}${entry.note.isEmpty ? '' : '\n${entry.note}'}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: PopupMenuButton<String>(
+            tooltip: '账目操作',
+            onSelected: (action) async {
+              if (action == 'item') {
+                await openForm(
+                  context,
+                  EntryForm(entry: entry, initialRecordItem: true),
+                );
+              } else if (await confirm(context, '删除这笔账目？', '关联会解除，物品仍保留。') &&
+                  context.mounted) {
+                await perform(
+                  context,
+                  () => ref.read(ledgerProvider).deleteEntry(entry.id),
+                );
+              }
+            },
+            itemBuilder: (_) => [
+              if (kind == EntryKind.expense)
+                const PopupMenuItem(value: 'item', child: Text('记物')),
+              const PopupMenuItem(value: 'delete', child: Text('删除账目')),
+            ],
+          ),
+          onTap: () => openForm(context, EntryForm(entry: entry)),
+        ),
+        if (links.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Wrap(
+              spacing: 8,
+              children: [
+                for (final link in links)
+                  ActionChip(
+                    label: Text(
+                      data.items.firstWhere((i) => i.id == link.itemId).name,
+                    ),
+                    avatar: const Icon(Icons.inventory_2_outlined, size: 16),
+                    onPressed: () => openForm(
+                      context,
+                      ItemForm(
+                        item: data.items.firstWhere((i) => i.id == link.itemId),
                       ),
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
-        ],
-      ),
+          ),
+      ],
     );
+    return grouped ? content : Card(borderOnForeground: false, child: content);
   }
 }
 

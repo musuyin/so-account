@@ -264,6 +264,11 @@ void main() {
       );
       await flow.settle(t);
       final filter = find.widgetWithText(Chip, '全部分类');
+      await t.scrollUntilVisible(
+        filter,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       await flow.showField(t, filter);
       await t.tap(filter);
       await t.pumpAndSettle();

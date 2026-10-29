@@ -43,6 +43,8 @@ Future<void> enterManagement(WidgetTester t) async {
     280,
     scrollable: find.byType(Scrollable).first,
   );
+  await t.ensureVisible(find.text('本地数据管理'));
+  await t.pumpAndSettle();
   await t.tap(find.text('本地数据管理'));
   await t.pumpAndSettle();
   expect(find.byType(NavigationBar), findsNothing);

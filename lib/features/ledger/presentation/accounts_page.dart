@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/providers.dart';
 import '../../../app/widgets.dart';
+import '../../../app/theme/app_typography.dart';
 import '../../../core/money/money.dart';
 import '../../../data/database/app_database.dart';
 import '../domain/entry_kind.dart';
@@ -26,7 +27,7 @@ class AccountsPage extends ConsumerStatefulWidget {
 
 class _AccountsPageState extends ConsumerState<AccountsPage> {
   String currency = 'CNY';
-  bool hidden = false;
+  bool get hidden => ref.watch(assetAmountsHiddenProvider);
   final collapsed = <String>{};
   List<String>? pendingOrder;
   bool ordering = false;
@@ -34,10 +35,10 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
   Widget amount(BuildContext context, int value, {TextStyle? style}) => Tooltip(
     message: hidden ? '金额已隐藏' : decimalMoney(value, currency),
     triggerMode: TooltipTriggerMode.manual,
-    child: FittedBox(
-      fit: BoxFit.scaleDown,
-      alignment: Alignment.centerRight,
-      child: Text(number(value), style: style),
+    child: Text(
+      number(value),
+      style: AppTypography.amount.merge(style),
+      textAlign: TextAlign.right,
     ),
   );
 
@@ -232,7 +233,9 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                           tooltip: hidden ? '显示金额' : '隐藏金额',
                           onPressed: () {
                             Tooltip.dismissAllToolTips();
-                            setState(() => hidden = !hidden);
+                            ref
+                                .read(assetAmountsHiddenProvider.notifier)
+                                .toggle();
                           },
                           icon: Icon(
                             hidden
@@ -246,6 +249,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                     LayoutBuilder(
                       builder: (context, constraints) {
                         final large =
+                            constraints.maxWidth < 520 ||
                             MediaQuery.textScalerOf(context).scale(14) > 18;
                         final net = Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -264,6 +268,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                                     .textTheme
                                     .headlineMedium
                                     ?.copyWith(
+                                      fontSize: 21,
                                       fontWeight: FontWeight.w700,
                                       color: totals.net < 0
                                           ? colors.error
