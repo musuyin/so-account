@@ -1,0 +1,79 @@
+{
+  "release": "https://github.com/musuyin/so-account/releases/tag/v1.6.0",
+  "version": "1.6.0",
+  "build": 21,
+  "assets": 20,
+  "arm64_sha256": "f8e6c8e421d51ca6dbe1689be9e2f3a3b0639001476916f89cef124e5c81a945",
+  "arm64_size": 35566821,
+  "same_release_signer": true,
+  "archive_schema_present": true,
+  "local_data_cleanup_present": true,
+  "plain_theme_assets_verified": true,
+  "delta_reconstructed": true,
+  "signer_sha256": "f0db22ad213879a06fcc7e55a40dd80fa230725ab52f230e77c5d55fd1469634",
+  "verified_date": "2026-10-29",
+  "source_commit": "8cd3019eb818556a716abedb8499dbed6911642d",
+  "source_tag": "v1.6.0",
+  "schema": 9,
+  "ci": {
+    "release": {
+      "run_id": 40833646061,
+      "conclusion": "success",
+      "flutter_tests_passed": 314,
+      "python_tests_passed": 17,
+      "jobs": {
+        "release": "success"
+      },
+      "artifacts": {
+        "release-build-logs": 12879767357,
+        "release-ui-evidence": 12879223673
+      }
+    },
+    "mobile": {
+      "run_id": 40833645908,
+      "conclusion": "success",
+      "flutter_tests_passed": 314,
+      "python_tests_passed": 17,
+      "jobs": {
+        "android": "success",
+        "ios": "success",
+        "device-recovery": "skipped"
+      },
+      "artifacts": {
+        "android-build-logs": 12880610233,
+        "android-ui-evidence": 12880305321,
+        "android-debug-apk": 12879649729
+      }
+    }
+  },
+  "local_windows": {
+    "flutter_tests_passed": 313,
+    "flutter_tests_skipped": 1,
+    "python_tests_passed": 17,
+    "signed_apk_variants_verified": [
+      "universal",
+      "arm64-v8a",
+      "armeabi-v7a",
+      "x86_64"
+    ]
+  },
+  "update_client": {
+    "build_20_discovers_build_21": true,
+    "universal_and_three_abis_verified": true,
+    "delta_used_without_full_download_fallback": true,
+    "downloaded_apk_sha256_verified": true,
+    "build_21_up_to_date": true,
+    "execution_environment": "host client, not a physical Android install"
+  },
+  "physical_device_install_upgrade_system_theme_and_font_settings_verified": false,
+  "scope": {
+    "delivered": "P0 + P1",
+    "deferred": [
+      "annual heatmap",
+      "assets distribution",
+      "aligned period-to-date comparison",
+      "net-assets point selection",
+      "sankey"
+    ]
+  }
+}

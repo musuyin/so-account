@@ -18,7 +18,17 @@
 
 ## CI 和公开发布
 
-尚未推送版本标签；CI、公开 APK、更新清单和真实增量重建均待验收。
+发布源码：`8cd3019eb818556a716abedb8499dbed6911642d`，标签 `v1.6.0`。
+
+- [正式发布流水线 40833646061](https://github.com/musuyin/so-account/actions/runs/40833646061) 成功：314 项 Flutter 测试、17 项 Python 工具测试、格式、静态分析及固定签名通用／三架构正式 APK 构建通过。
+- [Mobile checks 40833645908](https://github.com/musuyin/so-account/actions/runs/40833645908) 成功：Android 314 项 Flutter 测试（含 Windows 跳过的符号链接用例）、17 项 Python 工具测试、数据库生成一致性、调试 APK 和 iOS 模拟器构建通过。device-recovery 按工作流配置跳过，不计为设备验收。
+- CI 留存 release-ui-evidence（12879223673）、release-build-logs（12879767357）、android-ui-evidence（12880305321）、android-build-logs（12880610233）及 android-debug-apk（12879649729），成功测试输出已实际下载核对。
+- [公开 Release](https://github.com/musuyin/so-account/releases/tag/v1.6.0) 为正式最新版，共 20 个资产，包含通用及三架构 APK 和增量包。APK 与增量包的清单、大小、SHA-256 与 GitHub 资产摘要一致，更新清单文件的摘要亦已核对。
+- 实际下载公开 ARM64 包，包名 `dev.soaccount.so_account`，版本 1.6.0/build 21，SHA-256：`f8e6c8e421d51ca6dbe1689be9e2f3a3b0639001476916f89cef124e5c81a945`。证书 SHA-256：`f0db22ad213879a06fcc7e55a40dd80fa230725ab52f230e77c5d55fd1469634`，与 v1.5.0 一致；包内已移除植物图片，保留旧版归档和本地清理逻辑。
+- 实际下载 v1.5.0 ARM64 增量包并从旧公开 APK 重建，结果与新公开签名 APK 的摘要完全一致。
+- 使用真实 AppUpdateService 主机客户端联网验证：build 20 能发现 build 21，通用与三架构选择正确；使用旧 ARM64 APK 下载差分并完成合成和 SHA-256 校验，未回退完整下载；build 21 返回已是最新版。
+
+结构化证据见 [public-release.json](evidence/v1.6.0/public-release.json)。
 
 ## 设备边界与后续范围
 
