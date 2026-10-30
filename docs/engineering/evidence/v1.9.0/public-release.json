@@ -1,0 +1,42 @@
+{
+  "release": "https://github.com/musuyin/so-account/releases/tag/v1.9.0",
+  "version": "1.9.0",
+  "build": 24,
+  "assets": 20,
+  "arm64_sha256": "cdbb9b14fa42775724ab8c1fbfd0415755a8daa96e73335fbf8bc986803878e4",
+  "arm64_size": 35736954,
+  "same_release_signer": true,
+  "schema": 10,
+  "template_packaged": true,
+  "launcher_icon_verified": true,
+  "category_account_memory_present": true,
+  "finance_schema_present": true,
+  "archive_schema_present": true,
+  "local_data_cleanup_present": true,
+  "plain_theme_assets_verified": true,
+  "delta_reconstructed": true,
+  "signer_sha256": "f0db22ad213879a06fcc7e55a40dd80fa230725ab52f230e77c5d55fd1469634",
+  "checked_date": "2026-10-30",
+  "source_commit": "4bb673d82ab01394b132d4d812579a7715cc8c1c",
+  "latest_verified": true,
+  "ci_release": {
+    "run_id": 40987067804,
+    "conclusion": "success",
+    "flutter_tests": 338,
+    "python_tests": 17,
+    "ui_artifact": 12947448122,
+    "build_logs_artifact": 12946899545
+  },
+  "ci_mobile": {
+    "run_id": 40987067916,
+    "android": "success",
+    "ios_simulator": "success",
+    "flutter_tests": 338,
+    "device_recovery": "skipped"
+  },
+  "live_update_verified": true,
+  "live_update_from_build": 23,
+  "live_update_delta_bytes": 4220688,
+  "live_update_full_fallback": false,
+  "current_build_up_to_date": true
+}

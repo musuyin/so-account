@@ -24,7 +24,17 @@
 
 ## CI 与公开发布
 
-本地检查完成，等待标签发布后补充 GitHub Actions、公开资产及更新通道的实际核验结果。
+发布源码 `4bb673d82ab01394b132d4d812579a7715cc8c1c`，标签 `v1.9.0`。已核对两条工作流的 head SHA 与成功状态。
+
+- [发布流水线 40987067804](https://github.com/musuyin/so-account/actions/runs/40987067804) 成功：338 项 Flutter 测试、17 项 Python 测试、格式、静态分析、通用／三架构签名包、增量生成与正式发布全部通过。
+- [Mobile checks 40987067916](https://github.com/musuyin/so-account/actions/runs/40987067916) 成功：Android 338 项测试含 Windows 跳过的符号链接用例、数据库生成检查与调试构建通过，iOS 模拟器构建通过；device-recovery 按配置跳过。
+- 已通过 GitHub 连接读取发布与 Android 作业日志，确认 `+338: All tests passed!` 与 17 项 Python 测试。发布截图 artifact 为 `12947448122`，构建日志 artifact 为 `12946899545`。
+- [公开 v1.9.0](https://github.com/musuyin/so-account/releases/tag/v1.9.0) 为正式最新版，共 20 个资产。更新清单、四个 APK 和全部增量文件的大小、SHA-256、校验和文件与 GitHub 资产摘要一致。
+- 实际下载公开 ARM64 包：1.9.0/build 24，包名 `dev.soaccount.so_account`，35,736,954 字节，SHA-256 `cdbb9b14fa42775724ab8c1fbfd0415755a8daa96e73335fbf8bc986803878e4`。正式签名与 v1.8.0 相同；新图标解码像素与源图标一致，Excel 模板字节与源码资产一致。
+- 实际下载 v1.8.0 ARM64 增量文件并重建，结果与公开新签名 APK 的摘要完全一致。
+- 真实 AppUpdateService 联网验证通用／三架构选择：build 23 发现 build 24；ARM64 下载 4,220,688 字节的差分、合成和校验成功，没有整包回退；build 24 显示已是最新版。
+
+结构化证据见 [public-release.json](evidence/v1.9.0/public-release.json)。
 
 ## 设备边界
 
