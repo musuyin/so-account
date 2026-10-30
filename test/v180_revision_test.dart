@@ -63,7 +63,7 @@ void main() {
       );
       await t.tap(h.key('entry-account-shortcut'));
       await h.settle(t);
-      expect(find.text('余额 73.00'), findsOneWidget);
+      expect(find.text('73.00'), findsOneWidget);
       await h.capture(t, boundary, 'v180-account-balances');
       await t.tap(find.text(cash.name).last);
       await h.settle(t);
@@ -150,8 +150,14 @@ void main() {
         container.read(assetAmountsHiddenProvider.notifier).toggle();
         await t.tap(h.key('entry-account-shortcut'));
         await h.settle(t);
-        expect(find.text('余额 ••••'), findsWidgets);
-        expect(find.textContaining('余额 19'), findsNothing);
+        expect(find.text('••••'), findsWidgets);
+        expect(
+          find.descendant(
+            of: find.byType(BottomSheet),
+            matching: find.textContaining('19'),
+          ),
+          findsNothing,
+        );
         await h.capture(t, boundary, 'v180-account-private-${brightness.name}');
         await h.mount(
           t,

@@ -52,11 +52,6 @@ class FinancePage extends ConsumerWidget {
         body: ListView(
           padding: const EdgeInsets.all(12),
           children: [
-            Text(
-              investment
-                  ? '记录投入成本与手填单价，不估算当前价值。收回按成本记录；收益请另记收支。'
-                  : '垫付与回款均不计收支。回款关联原始垫付，支持分次收取。',
-            ),
             if (accountId == null)
               Align(
                 alignment: Alignment.centerLeft,

@@ -14,16 +14,32 @@ import 'package:so_account/features/ledger/data/ledger_repository.dart';
 import 'package:so_account/features/ledger/domain/entry_kind.dart';
 
 Uint8List bytes(String text) => Uint8List.fromList(utf8.encode(text));
-Uint8List workbook({bool formula = false}) {
+Uint8List workbook({
+  bool formula = false,
+  bool prefixed = false,
+  bool date1904 = false,
+}) {
   final zip = Archive();
   for (final entry in {
-    'xl/workbook.xml': '<workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="明细" r:id="rId1"/></sheets></workbook>',
+    'xl/workbook.xml':
+        '<workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">${date1904 ? '<workbookPr date1904="1"/>' : ''}<sheets><sheet name="明细" r:id="rId1"/></sheets></workbook>',
     'xl/_rels/workbook.xml.rels': '<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>',
     'xl/sharedStrings.xml': '<sst><si><t>日期</t></si><si><t>金额</t></si></sst>',
     'xl/worksheets/sheet1.xml':
         '<worksheet><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row><row r="2"><c r="A2"><v>46023</v></c><c r="B2">${formula ? '<f>1+2</f>' : ''}<v>12.50</v></c></row></sheetData></worksheet>',
   }.entries) {
-    zip.addFile(ArchiveFile.string(entry.key, entry.value));
+    var text = entry.value;
+    if (prefixed) {
+      final namespace = entry.key.endsWith('.rels')
+          ? 'http://schemas.openxmlformats.org/package/2006/relationships'
+          : 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+      text = text.replaceAllMapped(
+        RegExp(r'<(/?)([A-Za-z][A-Za-z0-9]*)'),
+        (match) => '<${match[1]}x:${match[2]}',
+      );
+      text = text.replaceFirst('>', ' xmlns:x="$namespace">');
+    }
+    zip.addFile(ArchiveFile.string(entry.key, text));
   }
   return Uint8List.fromList(ZipEncoder().encode(zip));
 }
@@ -48,7 +64,7 @@ void main() {
     expect(mapping.expenseCategory, isNull);
   });
   test(
-    'downloadable CSV templates round-trip into valid import previews',
+    'reference ledger CSV and Excel templates round-trip into valid imports',
     () async {
       for (final name in ['我的现金账户', '我的银行卡']) {
         await LedgerRepository(db).saveAccount(
@@ -59,12 +75,37 @@ void main() {
           openingBalance: 10000,
         );
       }
-      for (final rows in [importTemplateRows(), transferTemplateRows()]) {
-        final table = readImportTables(
-          'template.csv',
-          bytes(csvDocument(rows)),
-        ).single;
-        final mapping = ImportMapping()..detect(table);
+      expect(importTemplateHeaders, [
+        '日期',
+        '收支类型',
+        '金额',
+        '类别',
+        '账户',
+        '账本',
+        '退款',
+        '退款明细',
+        '优惠',
+        '备注',
+        '标签',
+        '报销账户',
+        '报销金额',
+        '报销明细',
+        '多币种',
+        '地址',
+        '创建用户',
+        '其他',
+        '附件1',
+        '附件2',
+        '附件3',
+        '附件4',
+        '附件5',
+      ]);
+      for (final source in [
+        ('template.csv', bytes(csvDocument(importTemplateRows()))),
+        ('template.xlsx', File(importTemplateAsset).readAsBytesSync()),
+      ]) {
+        final table = readImportTables(source.$1, source.$2).single;
+        final mapping = IncomeExpenseImportMapping()..detect(table);
         final plan = previewImport(
           table,
           mapping,
@@ -74,6 +115,23 @@ void main() {
         );
         expect(plan.map((r) => r.error), everyElement(isNull));
         expect(plan.every((r) => r.entry!.amount > 0), isTrue);
+        expect(plan.map((r) => r.entry!.date), ['2026-01-01', '2026-01-02']);
+        expect(plan.map((r) => r.entry!.amount), [1250, 2000]);
+        expect(
+          plan.every((r) => r.entry!.fee == null && r.entry!.targetId == null),
+          isTrue,
+        );
+        expect(plan.map((r) => r.entry!.kind), [
+          EntryKind.expense,
+          EntryKind.income,
+        ]);
+        expect(
+          await commitIncomeExpenseImport(
+            db,
+            plan.map((r) => r.entry!).toList(),
+          ),
+          2,
+        );
       }
     },
   );
@@ -120,6 +178,32 @@ void main() {
       );
       expect(
         () => readImportTables('a.csv', Uint8List(maxImportBytes + 1)),
+        throwsFormatException,
+      );
+    },
+  );
+  test(
+    'prefixed XLSX reads shared strings and enforces formula and date guards',
+    () {
+      final table = readImportTables(
+        'prefixed.xlsx',
+        workbook(prefixed: true),
+      ).single;
+      expect(table.name, '明细');
+      expect(table.headers, ['日期', '金额']);
+      expect(table.rows.single, ['46023', '12.50']);
+      expect(
+        () => readImportTables(
+          'formula.xlsx',
+          workbook(prefixed: true, formula: true),
+        ),
+        throwsFormatException,
+      );
+      expect(
+        () => readImportTables(
+          'date1904.xlsx',
+          workbook(prefixed: true, date1904: true),
+        ),
         throwsFormatException,
       );
     },

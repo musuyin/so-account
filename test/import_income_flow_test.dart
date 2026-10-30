@@ -57,8 +57,8 @@ void main() {
       );
       final table = ImportTable.fromRows('账单', [
         ['日期', '收支类型', '金额', '类别', '账户', '二级分类'],
-        ['2026-10-21', '收入', '120', '收入', '现金', '稿费测试'],
-        ['2026-10-21', '收入', '120', '收入', '现金', '稿费测试'],
+        ['2026-10-21', '收入', '120', '稿费测试', '现金', '不使用的收入子项'],
+        ['2026-10-21', '收入', '120', '稿费测试', '现金', '不使用的收入子项'],
         ['2026-10-21', '支出', '8', '居住', '现金', '不使用'],
       ]);
       tester.view.physicalSize = const Size(320, 844);
@@ -89,6 +89,7 @@ void main() {
       }
 
       await settle();
+      expect(find.text('收入细分类'), findsNothing);
       await tester.tap(find.text('下一步：账户与分类'));
       await settle();
       final create = find.text('按原名称创建缺失的收入分类');
@@ -107,6 +108,7 @@ void main() {
         () => db.select(db.categories).get(),
       );
       expect(categories!.singleWhere((c) => c.name == '稿费测试').kind, 'income');
+      expect(categories.any((c) => c.name == '不使用的收入子项'), isFalse);
       expect(find.text('收入分类内容：居住'), findsNothing);
       await tester.tap(find.text('预览明细'));
       await settle();

@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/providers.dart';
@@ -307,21 +307,29 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     }
   }
 
-  Widget templateButton() => TextButton.icon(
+  Widget templateButton({bool excel = true}) => TextButton.icon(
     onPressed: busy
         ? null
         : () => perform(context, () async {
+            final data = excel
+                ? await rootBundle.load(importTemplateAsset)
+                : null;
             await ref
                 .read(fileDeliveryProvider)
                 .save(
-                  'SoAccount-收支导入模板.csv',
-                  Uint8List.fromList(
-                    utf8.encode(csvDocument(importTemplateRows())),
-                  ),
+                  'SoAccount-单级收支导入模板.${excel ? 'xlsx' : 'csv'}',
+                  data == null
+                      ? Uint8List.fromList(
+                          utf8.encode(csvDocument(importTemplateRows())),
+                        )
+                      : data.buffer.asUint8List(
+                          data.offsetInBytes,
+                          data.lengthInBytes,
+                        ),
                 );
           }),
     icon: const Icon(Icons.download_outlined),
-    label: const Text('保存收支 CSV 模板'),
+    label: Text(excel ? '保存收支 Excel 模板' : '保存收支 CSV 模板'),
   );
 
   @override
@@ -383,14 +391,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                       const SizedBox(height: 12),
                       const Icon(Icons.check_circle_outline, size: 48),
                       const SizedBox(height: 20),
-                      const Text(
-                        '导入后如何调整账户余额？',
-                        style: TextStyle(fontSize: 20),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        '导入的收支已经计入余额。可填写账户的实际余额直接校正；调整单独保留记录，不新增收入、支出或转账流水。',
-                      ),
+                      const Text('核对账户余额', style: TextStyle(fontSize: 20)),
                       const SizedBox(height: 16),
                       FilledButton.icon(
                         onPressed: () => openForm(
@@ -413,11 +414,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                     padding: const EdgeInsets.all(20),
                     child: ListView(
                       children: [
-                        const Text('逐条追加交易记录，已有数据会保留。'),
+                        const Text('按单级收支模板导入，收入和支出共用“类别”列。'),
                         const SizedBox(height: 12),
-                        const Text(
-                          '支持 UTF-8 CSV、Excel .xls / .xlsx。首行为列名，每行一条明细；最多 10 MB、10000 条。目前仅导入收入和支出。零金额、空账户和其他交易类型自动忽略。',
-                        ),
+                        const Text('支持 CSV / XLS / XLSX，最多 10 MB、10000 条。'),
                         const SizedBox(height: 20),
                         FilledButton.icon(
                           onPressed: busy ? null : pick,
@@ -425,6 +424,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                           label: Text(busy ? '读取中…' : '选择文件'),
                         ),
                         templateButton(),
+                        templateButton(excel: false),
                       ],
                     ),
                   );

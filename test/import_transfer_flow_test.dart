@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:so_account/app/providers/providers.dart';
 import 'package:so_account/data/database/app_database.dart';
 import 'package:so_account/features/importing/domain/import_table.dart';
+import 'package:so_account/features/importing/domain/import_template.dart';
 import 'package:so_account/features/importing/presentation/import_page.dart';
 import 'package:so_account/platform/files/file_delivery.dart';
 
@@ -87,10 +88,16 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('保存转账 CSV 模板'), findsNothing);
-    await tester.tap(find.text('保存收支 CSV 模板'));
-    await tester.pumpAndSettle();
-    final table = readImportTables('模板.csv', delivery.bytes!).single;
-    expect(table.headers.length, 23);
-    expect(table.rows.map((r) => r[1]), ['支出', '收入']);
+    for (final format in ['Excel', 'CSV']) {
+      await tester.tap(find.text('保存收支 $format 模板'));
+      await tester.pumpAndSettle();
+      final table = readImportTables(
+        format == 'Excel' ? '模板.xlsx' : '模板.csv',
+        delivery.bytes!,
+      ).single;
+      expect(table.headers, importTemplateHeaders);
+      expect(table.headers.length, 23);
+      expect(table.rows.map((r) => r[1]), ['支出', '收入']);
+    }
   });
 }

@@ -1,7 +1,7 @@
 name: so_account
 description: Local-first personal finance and belongings for Android and iOS.
 publish_to: none
-version: 1.8.0+23
+version: 1.9.0+24
 environment:
   sdk: ^3.13.0
 dependencies:
@@ -36,6 +36,8 @@ dev_dependencies:
   build_runner: ^2.7.0
 flutter:
   uses-material-design: true
+  assets:
+    - assets/templates/income_expense_template.xlsx
   fonts:
     - family: NotoSansSC
       fonts:

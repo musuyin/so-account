@@ -58,7 +58,7 @@ class _AccountDetailState extends ConsumerState<AccountDetailPage> {
         final balance = account.openingBalance + transactionTotal + corrections;
         String description(AccountActivity row) {
           final entry = row.entry;
-          if (entry == null) return row.note.isEmpty ? '独立调整，不计入收支' : row.note;
+          if (entry == null) return row.note;
           final others = {
             entry.accountId,
             entry.targetAccountId,
@@ -198,8 +198,6 @@ class _AccountDetailState extends ConsumerState<AccountDetailPage> {
                         '交易净变动  ${display(transactionTotal, account.currency)}',
                       ),
                       Text('余额调整  ${display(corrections, account.currency)}'),
-                      if (account.kind == '债务' && account.channel == '应付款')
-                        const Text('应付款正数表示待偿还金额，计入负债。'),
                     ],
                   ),
                 ),
@@ -316,8 +314,13 @@ class _AccountDetailState extends ConsumerState<AccountDetailPage> {
                       row.label,
                       '${row.delta > 0 ? '+' : ''}${display(row.delta, account.currency)}',
                     ]),
-                    subtitle: Text('${row.date}\n${description(row)}'),
-                    isThreeLine: true,
+                    subtitle: Text(
+                      [
+                        row.date,
+                        description(row),
+                      ].where((part) => part.isNotEmpty).join('\n'),
+                    ),
+                    isThreeLine: description(row).isNotEmpty,
                     trailing: row.entry == null
                         ? const Icon(Icons.tune)
                         : const Icon(Icons.chevron_right),

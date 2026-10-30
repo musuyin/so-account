@@ -5,13 +5,27 @@ import 'package:so_account/data/database/app_database.dart';
 import 'package:so_account/features/importing/domain/import_plan.dart';
 import 'package:so_account/features/importing/domain/import_table.dart';
 import 'package:so_account/features/importing/domain/missing_accounts.dart';
-import 'package:so_account/features/importing/domain/import_template.dart';
 import 'package:so_account/features/ledger/data/ledger_repository.dart';
 import 'package:so_account/features/ledger/domain/entry_kind.dart';
 import 'package:so_account/features/statistics/data/statistics_repository.dart';
 import 'package:so_account/features/statistics/domain/report_range.dart';
 
 // Header structure only. All transaction values below are synthetic.
+const transferTemplateHeaders = [
+  '日期',
+  '类型',
+  '转出账户',
+  '转入账户',
+  '金额',
+  '手续费',
+  '备注',
+  '附件1',
+  '附件2',
+  '附件3',
+  '附件4',
+  '附件5',
+];
+
 const statementHeaders = [
   '日期',
   '收支类型',

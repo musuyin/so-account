@@ -30,7 +30,6 @@ enum ImportField {
   counterparty('往来人', ['往来人', '人员', '借贷对象', '对方姓名', 'counterparty']),
   debt('原始借贷ID', ['原始借贷id', '关联借贷id', 'debt_id']),
   category('分类', ['分类', '类别', '交易分类', 'category']),
-  incomeSubcategory('收入细分类', ['二级分类', '收入细分类']),
   currency('币种', ['币种', 'currency']),
   note('备注', ['备注', '说明', '商品', 'note']);
 
@@ -152,22 +151,12 @@ class IncomeExpenseImportMapping extends ImportMapping {
   @override
   bool get detectDuplicates => false;
 
-  @override
-  String value(List<String> row, ImportField field) {
-    if (field == ImportField.category && kindFor(row) == EntryKind.income) {
-      final detail = super.value(row, ImportField.incomeSubcategory);
-      if (detail.isNotEmpty) return detail;
-    }
-    return super.value(row, field);
-  }
-
   static const fields = {
     ImportField.date,
     ImportField.kind,
     ImportField.amount,
     ImportField.account,
     ImportField.category,
-    ImportField.incomeSubcategory,
     ImportField.currency,
     ImportField.note,
   };

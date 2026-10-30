@@ -242,7 +242,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('借贷本金（独立统计，不计入收支）'),
+                            const Text('借贷本金'),
                             const SizedBox(height: 8),
                             Wrap(
                               spacing: 16,
@@ -321,6 +321,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                     _section(
                       '上期收支对比',
                       FlowBars(
+                        groupByMetric: true,
                         points: [
                           ReportPoint(
                             '上期',
@@ -334,25 +335,46 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                       ),
                     ),
                     _section(
-                      '分类构成与排名',
+                      '',
                       Column(
                         children: [
-                          Wrap(
-                            spacing: 8,
-                            children: [
-                              ChoiceChip(
-                                label: const Text('支出'),
-                                selected: categoryKind == 'expense',
-                                onSelected: (_) =>
-                                    setState(() => categoryKind = 'expense'),
-                              ),
-                              ChoiceChip(
-                                label: const Text('收入'),
-                                selected: categoryKind == 'income',
-                                onSelected: (_) =>
-                                    setState(() => categoryKind = 'income'),
-                              ),
-                            ],
+                          SizedBox(
+                            width: double.infinity,
+                            child: Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 12,
+                              runSpacing: 8,
+                              children: [
+                                Text(
+                                  categoryBars
+                                      ? '分类排名'
+                                      : categoryKind == 'expense'
+                                      ? '支出占比'
+                                      : '收入占比',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium,
+                                ),
+                                SegmentedButton<String>(
+                                  showSelectedIcon: false,
+                                  segments: const [
+                                    ButtonSegment(
+                                      value: 'expense',
+                                      label: Text('支出'),
+                                    ),
+                                    ButtonSegment(
+                                      value: 'income',
+                                      label: Text('收入'),
+                                    ),
+                                  ],
+                                  selected: {categoryKind},
+                                  onSelectionChanged: (selection) => setState(
+                                    () => categoryKind = selection.first,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                           Wrap(
                             spacing: 6,
@@ -468,8 +490,10 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(title, style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 12),
+        if (title.isNotEmpty) ...[
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 12),
+        ],
         Card(
           borderOnForeground: false,
           child: Padding(padding: const EdgeInsets.all(12), child: child),

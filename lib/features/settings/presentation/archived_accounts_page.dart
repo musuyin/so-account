@@ -26,8 +26,6 @@ class _ArchivedAccountsState extends ConsumerState<ArchivedAccountsPage> {
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text('归档账户保留全部历史记录，仍计入历史收支与报表；不显示在资产汇总和新记账选择中。恢复后可继续使用。'),
-            const SizedBox(height: 12),
             if (accounts.isEmpty)
               const EmptyState('暂无归档账户', '在账户操作中选择归档，即可在这里查看和恢复。'),
             for (final account in accounts)

@@ -285,7 +285,7 @@ class LedgerReadRepository {
       WHERE e.account_id=a.id OR e.target_account_id=a.id OR e.debt_account_id=a.id
       UNION ALL
       SELECT id,date,created_at,'adjustment','余额调整',reason,delta,0,
-        '余额调整 ' || CASE WHEN reason='' THEN '独立调整，不计入收支' ELSE reason END
+        '余额调整 ' || reason
       FROM balance_adjustments WHERE account_id=?
     ''';
     final base = <Variable>[Variable(q.id), Variable(q.id)];

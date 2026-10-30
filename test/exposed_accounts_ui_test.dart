@@ -338,7 +338,13 @@ void main() {
         final selected = find.widgetWithText(FilterChip, day);
         await show(t, selected);
         expect(t.widget<FilterChip>(selected).selected, isTrue);
-        expect(find.text('1 笔'), findsOneWidget);
+        final dayCard = key('day-group-$day');
+        await show(t, dayCard);
+        expect(
+          find.descendant(of: dayCard, matching: find.byType(EntryTile)),
+          findsOneWidget,
+        );
+        await show(t, selected);
         await t.tap(selected);
         await t.pumpAndSettle();
         expect(t.takeException(), isNull);

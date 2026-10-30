@@ -153,26 +153,25 @@ List<ImportTable> readImportTables(String filename, Uint8List bytes) {
 
     final strings = zip.findFile('xl/sharedStrings.xml') == null
         ? <String>[]
-        : document('xl/sharedStrings.xml')
-              .findAllElements('si')
-              .map(
-                (si) => si.findAllElements('t').map((e) => e.innerText).join(),
-              )
+        : _elements(document('xl/sharedStrings.xml'), 'si')
+              .map((si) => _elements(si, 't').map((e) => e.innerText).join())
               .toList();
     final relationships = {
-      for (final r in document(
-        'xl/_rels/workbook.xml.rels',
-      ).findAllElements('Relationship'))
+      for (final r in _elements(
+        document('xl/_rels/workbook.xml.rels'),
+        'Relationship',
+      ))
         r.getAttribute('Id'): r.getAttribute('Target')!,
     };
     final workbook = document('xl/workbook.xml');
-    if (workbook
-        .findAllElements('workbookPr')
-        .any((p) => ['1', 'true'].contains(p.getAttribute('date1904')))) {
+    if (_elements(
+      workbook,
+      'workbookPr',
+    ).any((p) => ['1', 'true'].contains(p.getAttribute('date1904')))) {
       throw const FormatException('暂不支持 1904 日期系统，请将日期列转为 YYYY-MM-DD 文本');
     }
     final tables = <ImportTable>[];
-    for (final sheet in workbook.findAllElements('sheet')) {
+    for (final sheet in _elements(workbook, 'sheet')) {
       final id = sheet.attributes
           .where((a) => a.name.local == 'id')
           .firstOrNull
@@ -183,12 +182,12 @@ List<ImportTable> readImportTables(String filename, Uint8List bytes) {
       }
       final path = target.startsWith('/') ? target.substring(1) : 'xl/$target';
       final rows = <List<String>>[];
-      for (final element in document(path).findAllElements('row')) {
+      for (final element in _elements(document(path), 'row')) {
         if (rows.length > maxImportRows) {
           throw const FormatException('最多导入 10000 条明细');
         }
         final row = <String>[];
-        for (final cell in element.findElements('c')) {
+        for (final cell in _children(element, 'c')) {
           final ref = cell.getAttribute('r') ?? '';
           final letters = RegExp(r'^[A-Z]+').stringMatch(ref);
           if (letters == null) throw const FormatException('Excel 单元格位置无效');
@@ -200,15 +199,23 @@ List<ImportTable> readImportTables(String filename, Uint8List bytes) {
           while (row.length < index) {
             row.add('');
           }
-          if (cell.findElements('f').isNotEmpty) {
+          if (_children(cell, 'f').isNotEmpty) {
             throw const FormatException('Excel 含公式，请先粘贴为值再导入');
           }
-          var value = cell.findElements('v').firstOrNull?.innerText ?? '';
+          var value = _children(cell, 'v').firstOrNull?.innerText ?? '';
           if (cell.getAttribute('t') == 's') {
             value = strings[int.parse(value)];
           }
           if (cell.getAttribute('t') == 'inlineStr') {
-            value = cell.findAllElements('t').map((e) => e.innerText).join();
+            value = _elements(cell, 't').map((e) => e.innerText).join();
+          }
+          if (cell.getAttribute('t') == 'd') {
+            // ISO date cells store an optional zone suffix. Keep the sheet's
+            // calendar date rather than shifting it through the host timezone.
+            value = value.replaceFirst(
+              RegExp(r'(?:Z|[+-]\d{2}:?\d{2})$', caseSensitive: false),
+              '',
+            );
           }
           if (cell.getAttribute('t') == 'e') {
             throw const FormatException('Excel 包含错误单元格');
@@ -233,3 +240,13 @@ List<ImportTable> readImportTables(String filename, Uint8List bytes) {
     );
   }
 }
+
+// XLSX writers may use either a default namespace or an explicit XML prefix.
+// Match local names consistently, including formula and date-system guards.
+Iterable<XmlElement> _elements(XmlNode node, String name) => node.descendants
+    .whereType<XmlElement>()
+    .where((element) => element.name.local == name);
+
+Iterable<XmlElement> _children(XmlNode node, String name) => node.children
+    .whereType<XmlElement>()
+    .where((element) => element.name.local == name);

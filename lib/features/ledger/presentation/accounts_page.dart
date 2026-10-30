@@ -814,10 +814,7 @@ class _AccountFormState extends ConsumerState<AccountForm> {
         TextField(
           controller: creditLimit,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: '信贷额度（选填）',
-            helperText: '空白表示未设置，额度不计入资产',
-          ),
+          decoration: const InputDecoration(labelText: '信贷额度（选填）'),
         ),
       if (kind == '投资理财')
         TextField(
@@ -825,7 +822,7 @@ class _AccountFormState extends ConsumerState<AccountForm> {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
             labelText: '买入单价（选填）',
-            helperText: '最多 8 位小数；仅记录买入成本，不获取实时价格。',
+            helperText: '最多 8 位小数',
           ),
         ),
     ],

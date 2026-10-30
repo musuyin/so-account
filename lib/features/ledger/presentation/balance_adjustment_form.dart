@@ -91,13 +91,9 @@ class _BalanceAdjustmentState extends ConsumerState<BalanceAdjustmentForm> {
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('生成收支条目'),
-            subtitle: Text(
-              widget.account.kind == '债务'
-                  ? '债务账户仅对齐余额，收支记入资金账户'
-                  : createEntry
-                  ? '差额计入收入或支出及统计'
-                  : '仅对齐余额，不影响收支统计',
-            ),
+            subtitle: widget.account.kind == '债务'
+                ? const Text('债务账户仅支持调整余额')
+                : null,
             value: createEntry,
             onChanged: saving || widget.account.kind == '债务'
                 ? null

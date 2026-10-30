@@ -152,8 +152,6 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     Text('已记录进度 / 目标 ${decimalMoney(target, currency)}'),
-                    const SizedBox(height: 8),
-                    const Text('进度手动记录，不锁定账户资金，不重复计入资产或收支。'),
                   ],
                 ),
               ),
@@ -559,8 +557,6 @@ class _GoalDetailState extends ConsumerState<GoalDetailPage> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Text(goal.note),
               ),
-            const SizedBox(height: 12),
-            const Text('进度独立记录，不影响账户、交易或预算。实际购买请另行记账。'),
             const SizedBox(height: 10),
             if (goal.status == 'active') ...[
               Wrap(

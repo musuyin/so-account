@@ -2,10 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/app_typography.dart';
 import '../../../app/widgets.dart';
 import '../../../core/money/money.dart';
 import '../data/statistics_repository.dart';
+import 'category_ring_chart.dart';
 
 Color incomeColor(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
@@ -28,12 +28,14 @@ class FlowBars extends StatefulWidget {
     required this.currency,
     this.line = false,
     this.metric = FlowMetric.compare,
+    this.groupByMetric = false,
     this.onRecords,
   });
   final List<ReportPoint> points;
   final String currency;
   final bool line;
   final FlowMetric metric;
+  final bool groupByMetric;
   final ValueChanged<ReportPoint>? onRecords;
   @override
   State<FlowBars> createState() => _FlowBarsState();
@@ -81,13 +83,14 @@ class _FlowBarsState extends State<FlowBars> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Wrap(
-          spacing: 12,
-          children: [
-            for (var i = 0; i < labels.length; i++)
-              Text('● ${labels[i]}', style: TextStyle(color: colors[i])),
-          ],
-        ),
+        if (!widget.groupByMetric)
+          Wrap(
+            spacing: 12,
+            children: [
+              for (var i = 0; i < labels.length; i++)
+                Text('● ${labels[i]}', style: TextStyle(color: colors[i])),
+            ],
+          ),
         ParameterText(
           '${widget.currency} · ${decimalMoney(minValue, widget.currency)} ～ ${decimalMoney(maxValue, widget.currency)}',
           style: Theme.of(context).textTheme.bodySmall,
@@ -106,15 +109,27 @@ class _FlowBarsState extends State<FlowBars> {
                 child: Column(
                   children: [
                     Semantics(
-                      label: '收支${widget.line ? '折线图' : '柱状图'}，可展开数据列表逐项查看',
+                      label: widget.groupByMetric
+                          ? '上期与本期收入、支出对比，可展开数据列表逐项查看'
+                          : '收支${widget.line ? '折线图' : '柱状图'}，可展开数据列表逐项查看',
                       child: GestureDetector(
                         key: const ValueKey('flow-chart'),
-                        onTapUp: (event) => setState(
-                          () => selected =
-                              (event.localPosition.dx / width * points.length)
-                                  .floor()
-                                  .clamp(0, points.length - 1),
-                        ),
+                        onTapUp: (event) => setState(() {
+                          if (widget.groupByMetric) {
+                            final unit = width / series.length;
+                            selected =
+                                ((event.localPosition.dx % unit) /
+                                        unit *
+                                        points.length)
+                                    .floor()
+                                    .clamp(0, points.length - 1);
+                          } else {
+                            selected =
+                                (event.localPosition.dx / width * points.length)
+                                    .floor()
+                                    .clamp(0, points.length - 1);
+                          }
+                        }),
                         child: CustomPaint(
                           size: Size(width, 160),
                           painter: _FlowPainter(
@@ -125,25 +140,61 @@ class _FlowBarsState extends State<FlowBars> {
                             widget.line,
                             Theme.of(context).colorScheme.outlineVariant,
                             selected,
+                            groupByMetric: widget.groupByMetric,
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _axisLabel(points.first.label),
-                          style: Theme.of(context).textTheme.labelSmall,
-                        ),
-                        if (points.length > 1)
+                    if (widget.groupByMetric)
+                      Row(
+                        children: [
+                          for (var s = 0; s < labels.length; s++)
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      for (
+                                        var i = 0;
+                                        i < points.length;
+                                        i++
+                                      ) ...[
+                                        if (i > 0) const SizedBox(width: 8),
+                                        Text(
+                                          points[i].label,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelSmall,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  Text(
+                                    labels[s],
+                                    style: TextStyle(color: colors[s]),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      )
+                    else
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
                           Text(
-                            _axisLabel(points.last.label),
+                            _axisLabel(points.first.label),
                             style: Theme.of(context).textTheme.labelSmall,
                           ),
-                      ],
-                    ),
+                          if (points.length > 1)
+                            Text(
+                              _axisLabel(points.last.label),
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
+                        ],
+                      ),
                   ],
                 ),
               ),
@@ -189,14 +240,16 @@ class _FlowPainter extends CustomPainter {
     this.maximum,
     this.line,
     this.axis,
-    this.selected,
-  );
+    this.selected, {
+    this.groupByMetric = false,
+  });
   final List<List<int>> series;
   final List<Color> colors;
   final int minimum, maximum;
   final bool line;
   final Color axis;
   final int? selected;
+  final bool groupByMetric;
   @override
   void paint(Canvas canvas, Size size) {
     final n = series.first.length, unit = size.width / series.first.length;
@@ -230,6 +283,32 @@ class _FlowPainter extends CustomPainter {
             Paint()..color = colors[s],
           );
         } else if (series[s][i] != 0) {
+          if (groupByMetric) {
+            final groupWidth = size.width / series.length;
+            final barWidth = math.min(40.0, groupWidth / (n + 1));
+            final center = groupWidth * (s + .5);
+            final left = center + (i - n / 2) * (barWidth + 2) + 1;
+            final rect = Rect.fromLTRB(
+              left,
+              math.min(zero, valueY),
+              left + barWidth,
+              math.max(zero, valueY),
+            );
+            canvas.drawRect(
+              rect,
+              Paint()..color = colors[s].withValues(alpha: i == 0 ? .5 : 1),
+            );
+            if (selected == i) {
+              canvas.drawRect(
+                rect.inflate(2),
+                Paint()
+                  ..color = colors[s]
+                  ..style = PaintingStyle.stroke
+                  ..strokeWidth = 1,
+              );
+            }
+            continue;
+          }
           final w = math.min(18.0, unit / (series.length + 2));
           final left = x + (s - series.length / 2) * w;
           canvas.drawRect(
@@ -245,7 +324,7 @@ class _FlowPainter extends CustomPainter {
       }
       if (line) canvas.drawPath(path, paint);
     }
-    if (selected != null) {
+    if (selected != null && !groupByMetric) {
       final x = unit * (selected! + .5);
       canvas.drawLine(
         Offset(x, 0),
@@ -269,8 +348,8 @@ Color categoryColor(String id, Brightness brightness) {
   return HSLColor.fromAHSL(
     1,
     (hash * 137.508) % 360,
-    .55,
-    brightness == Brightness.dark ? .68 : .40,
+    .64,
+    brightness == Brightness.dark ? .70 : .60,
   ).toColor();
 }
 
@@ -318,41 +397,18 @@ class _CategoryPieState extends State<CategoryPie> {
     return Column(
       children: [
         if (!widget.bars)
-          SizedBox(
-            width: double.infinity,
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: _RingPainter(
-                        rows.map((r) => r.amount / total).toList(),
-                        colors,
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 180,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          widget.currency,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        Text(
-                          decimalMoney(total, widget.currency),
-                          style: AppTypography.amount.copyWith(fontSize: 24),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          CategoryRingChart(
+            categories: rows,
+            colors: colors,
+            currency: widget.currency,
+            total: total,
+            onSelected: (i) {
+              if (rows[i].id == '__other__') {
+                setState(() => expanded = true);
+              } else {
+                widget.onRecords?.call(rows[i]);
+              }
+            },
           ),
         for (var i = 0; i < rows.length; i++)
           InkWell(
@@ -425,34 +481,6 @@ class _CategoryPieState extends State<CategoryPie> {
       ],
     );
   }
-}
-
-class _RingPainter extends CustomPainter {
-  _RingPainter(this.values, this.colors);
-  final List<double> values;
-  final List<Color> colors;
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = (Offset.zero & size).deflate(15);
-    var start = -math.pi / 2;
-    for (var i = 0; i < values.length; i++) {
-      final sweep = values[i] * math.pi * 2;
-      canvas.drawArc(
-        rect,
-        start,
-        sweep,
-        false,
-        Paint()
-          ..color = colors[i]
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 24,
-      );
-      start += sweep;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _RingPainter old) => true;
 }
 
 class AssetLine extends StatelessWidget {

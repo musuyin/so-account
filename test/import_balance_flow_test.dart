@@ -71,10 +71,10 @@ void main() {
         await tester.tap(find.text('预览明细'));
         await settle(tester);
         expect(find.text('忽略 3 条'), findsOneWidget);
-        expect(find.text('导入后如何调整账户余额？'), findsNothing);
+        expect(find.text('核对账户余额'), findsNothing);
         await tester.tap(find.text('确认导入 2 条'));
         await settle(tester);
-        expect(find.text('导入后如何调整账户余额？'), findsOneWidget);
+        expect(find.text('核对账户余额'), findsOneWidget);
         expect((await tester.runAsync(repo.balances))![id], 11000);
         if (adjust) {
           await tester.tap(find.text('核对并调整余额'));

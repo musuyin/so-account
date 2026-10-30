@@ -3,31 +3,62 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:so_account/data/database/app_database.dart';
 import 'package:so_account/features/importing/domain/import_plan.dart';
 import 'package:so_account/features/importing/domain/import_table.dart';
+import 'package:so_account/features/importing/domain/import_template.dart';
 import 'package:so_account/features/importing/domain/missing_accounts.dart';
 import 'package:so_account/features/ledger/data/ledger_repository.dart';
 import 'package:so_account/features/ledger/domain/entry_kind.dart';
 
 void main() {
+  test('reference workbook maps only flat income expense fields', () {
+    final source = {
+      '日期': '2026-01-01 12:30',
+      '收支类型': '支出',
+      '金额': '12.50',
+      '类别': '餐饮',
+      '账户': '测试账户',
+      '备注': '测试备注',
+      '退款': '2.00',
+      '退款明细': '示例退款',
+      '报销金额': '3.00',
+      '多币种': r'$ 1.00',
+      '附件1': 'example.png',
+    };
+    final table = ImportTable.fromRows('账单', [
+      importTemplateHeaders,
+      [for (final header in importTemplateHeaders) source[header] ?? ''],
+    ]);
+    final mapping = IncomeExpenseImportMapping()..detect(table);
+    expect(mapping.columns, {
+      ImportField.date: 0,
+      ImportField.kind: 1,
+      ImportField.amount: 2,
+      ImportField.category: 3,
+      ImportField.account: 4,
+      ImportField.note: 9,
+    });
+    expect(mapping.categoryValuesFor(table, EntryKind.expense), {'餐饮'});
+    expect(mapping.value(table.rows.single, ImportField.currency), isEmpty);
+    expect(mapping.value(table.rows.single, ImportField.fee), isEmpty);
+    expect(mapping.value(table.rows.single, ImportField.note), '测试备注');
+    expect(mapping.ignoredReason(table.rows.single), isNull);
+  });
   test(
-    'income detail falls back when empty and supports explicit remapping',
+    'income and expense use one flat category column and ignore detail columns',
     () {
       final table = ImportTable.fromRows('synthetic', [
-        ['日期', '类型', '金额', '账户', '分类', '二级分类'],
-        ['2026-10-23', '收入', '2', '钱包', '收入', '稿酬样例'],
-        ['2026-10-23', '收入', '3', '钱包', '奖励样例', ''],
-        ['2026-10-23', '支出', '4', '钱包', '交通样例', '子项样例'],
+        ['日期', '类型', '金额', '账户', '分类', '二级分类', '收入细分类'],
+        ['2026-10-23', '收入', '2', '钱包', '工资样例', '稿酬样例', '收入子项'],
+        ['2026-10-23', '收入', '3', '钱包', '奖励样例', '', '收入子项'],
+        ['2026-10-23', '支出', '4', '钱包', '交通样例', '子项样例', ''],
       ]);
       final mapping = IncomeExpenseImportMapping()..detect(table);
       expect(mapping.categoryValuesFor(table, EntryKind.income), {
-        '稿酬样例',
+        '工资样例',
         '奖励样例',
       });
       expect(mapping.categoryValuesFor(table, EntryKind.expense), {'交通样例'});
-      mapping.columns.remove(ImportField.incomeSubcategory);
-      expect(mapping.categoryValuesFor(table, EntryKind.income), {
-        '收入',
-        '奖励样例',
-      });
+      expect(mapping.columns.values, isNot(contains(5)));
+      expect(mapping.columns.values, isNot(contains(6)));
     },
   );
 

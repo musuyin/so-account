@@ -13,6 +13,7 @@ import '../domain/debt_relationship.dart';
 import '../domain/entry_draft.dart';
 import '../domain/entry_kind.dart';
 import 'accounts_page.dart';
+import 'account_picker_tile.dart';
 import 'finance_page.dart';
 import 'amount_pad.dart';
 import 'category_icons.dart';
@@ -623,10 +624,10 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                           ),
                           decoration: const InputDecoration(
                             labelText: '当次单价 / 股价（选填）',
-                            helperText: '仅记录手填值，不计算份额或当前价值',
                           ),
                         ),
-                        const Text('金额按投入成本记录，收回不得超过产品剩余投入；收益请另记收支。'),
+                        if (kind == EntryKind.redeem)
+                          const Text('收回金额不能超过产品剩余投入。'),
                       ],
                       if (isDebt) ...[
                         Wrap(
@@ -733,17 +734,13 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                                     }
                                   },
                           ),
-                        const SizedBox(height: 12),
-                        Text(
-                          kind == EntryKind.transfer
-                              ? '转账只在两个同币种账户之间移动资金，不计入收支。'
-                              : kind.isSettlement
-                              ? '选择原始记录后结算，金额不能超过待收款或剩余本金。'
-                              : kind.isReimbursement
-                              ? '垫付扣除付款账户余额，增加待报销款，不计支出；回款不计收入。'
-                              : '借贷本金不计入收入或支出，后续在“偿还 / 收回”中结算。',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
+                        if (kind.isSettlement) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            '选择原始记录后结算，金额不能超过待收款或剩余本金。',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
                       ],
                     ],
                   ),
@@ -971,27 +968,14 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                             for (final account in accounts.where(
                               (a) => a.kind == group,
                             ))
-                              ListTile(
-                                title: Text(account.name),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      '${account.channel} · ${account.currency}',
-                                    ),
-                                    Text(
-                                      hidden
-                                          ? '余额 ••••'
-                                          : balances == null
-                                          ? '余额读取中'
-                                          : '余额 ${decimalMoney(balances[account.id] ?? account.openingBalance, account.currency)}',
-                                    ),
-                                  ],
-                                ),
+                              AccountPickerTile(
+                                account: account,
+                                balance: balances == null
+                                    ? null
+                                    : balances[account.id] ??
+                                          account.openingBalance,
+                                hidden: hidden,
                                 selected: account.id == selected,
-                                trailing: account.id == selected
-                                    ? const Icon(Icons.check)
-                                    : null,
                                 onTap: () => Navigator.pop(context, account.id),
                               ),
                           ],

@@ -12,7 +12,7 @@ import 'package:so_account/features/importing/domain/import_plan.dart';
 import 'package:so_account/features/importing/domain/missing_accounts.dart';
 
 void main() {
-  test('private XLS references preserve income detail and all repeated imports', () async {
+  test('private XLS references use flat categories and preserve repeated imports', () async {
     final files = Directory('docs/reference')
         .listSync()
         .whereType<File>()
@@ -69,14 +69,8 @@ void main() {
               (c) => c.id == entry.categoryId,
             );
             expect(category.kind, entry.kind.name);
-            final detail = table.headers.indexOf('二级分类');
             final parent = table.headers.indexOf('类别');
-            final expected =
-                entry.kind == EntryKind.income &&
-                    detail >= 0 &&
-                    row[detail].trim().isNotEmpty
-                ? row[detail].trim()
-                : row[parent].trim();
+            final expected = row[parent].trim();
             expect(category.name, expected);
           }
         }

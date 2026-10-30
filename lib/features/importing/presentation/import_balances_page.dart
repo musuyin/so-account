@@ -22,12 +22,6 @@ class ImportBalancesPage extends ConsumerWidget {
         return ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            const Text('按实际余额校正'),
-            const SizedBox(height: 8),
-            const Text(
-              '逐个填写导入后的真实余额；差额单独保留为余额调整，不生成交易流水，不计入收入、支出或预算。无需调整的账户可以保持原样。',
-            ),
-            const SizedBox(height: 16),
             if (balances.isLoading) const LinearProgressIndicator(),
             if (balances.hasError) const Text('余额读取失败，请返回后重试。'),
             if (accounts.isEmpty)

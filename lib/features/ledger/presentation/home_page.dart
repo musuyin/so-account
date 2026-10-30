@@ -298,14 +298,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ),
               ],
             ),
-            Padding(
-              key: const ValueKey('ledger-list-heading'),
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: ParameterText(
-                '${day ?? monthKey(month)} · ${view.count} 笔',
-                style: Theme.of(context).textTheme.labelMedium,
-              ),
-            ),
             if (filtered.isEmpty) ...[
               EmptyState(
                 view.monthCount == 0 ? '暂无账目' : '没有匹配的账目',
@@ -325,13 +317,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                   child: const Text('清除筛选'),
                 ),
             ],
-            if (day != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: ParameterText(
-                  '$day · $currency · 收入 ${decimalMoney(dailyTotals[day]?['income'] ?? 0, currency)} · 支出 ${decimalMoney(dailyTotals[day]?['expense'] ?? 0, currency)}',
-                ),
-              ),
             for (final group in groups.entries)
               EntryDayCard(
                 date: group.key,
@@ -481,6 +466,8 @@ class EntryTile extends ConsumerWidget {
               final amount = Text(
                 '${kind == EntryKind.transfer
                     ? '转出 '
+                    : kind.isInvestment
+                    ? ''
                     : kind.direction > 0
                     ? '+'
                     : '-'}${decimalMoney(entry.amount, account.currency)}',
