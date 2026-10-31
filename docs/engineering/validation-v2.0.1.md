@@ -19,7 +19,18 @@
 
 ## 发布验证
 
-CI、公开安装包与更新客户端结果完成后追加。
+发布源码 `7e23a61e98095f1934fefc60cf5e4c8266ee82cb`，标签 `v2.0.1`。
+
+- [正式发布流水线 41207684402](https://github.com/musuyin/so-account/actions/runs/41207684402) 成功：359 项 Flutter 测试、17 项 Python 测试、格式、静态分析、通用／三架构签名正式包、增量生成及发布通过。
+- [Mobile checks 41207681490](https://github.com/musuyin/so-account/actions/runs/41207681490) 成功：Android 359 项测试、数据库生成一致性及调试构建通过，iOS 模拟器构建通过；device-recovery 按配置跳过。
+- 已核对两条工作流 head SHA 与发布源码一致，并读取两个 Android 作业日志，确认 `+359: All tests passed!` 与 17 项 Python 测试。截图 artifact `13045236154`，构建日志 artifact `13045023132`。
+- [公开 v2.0.1](https://github.com/musuyin/so-account/releases/tag/v2.0.1) 为正式最新版，包含 20 个发布资产。更新清单、四个 APK 与全部增量文件的大小、SHA-256、校验和文件及 GitHub 资产摘要一致。
+- 实际下载 ARM64 APK：2.0.1/build 26，35,802,642 字节，SHA-256 `8c5dfe732f71da781903d2c5f458a66f6d1fb73ddd568616c02b315f778f85c4`。包名、正式签名、图标及包内模板核验通过，签名与 v2.0.0 相同。
+- 实际下载 v2.0.0 ARM64 差分并重建，与公开新 APK 摘要完全一致。
+- 公开 ARM64 AOT 包内核验到新增「核对当前账户余额」界面字符串，v2.0.0 包中不存在该入口。
+- 真实 AppUpdateService 联网验证：build 25 发现 build 26，通用／三架构选择正确；ARM64 下载 4,213,201 字节差分、合成并校验成功，没有整包回退；build 26 显示已是最新版。
+
+结构化证据见 [public-release.json](evidence/v2.0.1/public-release.json)。
 
 ## 设备边界
 
