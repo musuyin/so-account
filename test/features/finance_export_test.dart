@@ -19,7 +19,7 @@ void main() {
   setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
     ledger = LedgerRepository(db);
-    exports = FinanceExportRepository(db);
+    exports = FinanceExportRepository(db, now: () => DateTime(2026, 10, 31));
     cash = await ledger.saveAccount(
       name: '合成现金',
       kind: '资金账户',
@@ -166,7 +166,8 @@ void main() {
     expect(month.totalExpense, 10000);
     expect(month.totalAssets, 182300);
     expect(month.totalDebt, 20000);
-    expect(month.netAssets - data.months.first.netAssets, 40300 + 1000);
+    // A direct correction stays in both baselines; it is not a monthly flow.
+    expect(month.netAssets - data.months.first.netAssets, 40300);
     final all = await exports.load(
       'CNY',
       DateTime(2026, 9),
@@ -261,7 +262,7 @@ void main() {
       expect(all.months.length, 6);
       expect(all.months[3].totalIncome, 0);
       expect(all.expenseColumns.last.name, '新增类别');
-      expect(all.months.last.totalAssets - all.months[4].totalAssets, 5);
+      expect(all.months.last.totalAssets - all.months[4].totalAssets, 0);
       final empty = await exports.loadAll('EUR', DateTime(2026, 10));
       expect(empty.months.length, 1);
       expect(empty.months.single.netAssets, 0);
@@ -379,4 +380,145 @@ void main() {
       expect(xml.findAllElements('v').last.innerText, '0.00');
     }
   });
+
+  test('calibrated balances roll back real transactions without undoing corrections', () async {
+    final live = await ledger.balances();
+    await ledger.adjustBalance(
+      accountId: cash,
+      desiredBalance: 80000,
+      expectedBalance: live[cash]!,
+      at: DateTime(2026, 10, 31),
+    );
+    await ledger.adjustBalance(
+      accountId: credit,
+      desiredBalance: -4000,
+      expectedBalance: live[credit]!,
+      at: DateTime(2026, 10, 31),
+    );
+    final data = await comparison();
+    // Future entries are assigned to their own month during rollback.
+    expect(data.months.last.assets[cash], 80700);
+    expect(data.months.last.debt[credit], 4000);
+    expect(data.months.first.assets[cash], 40700);
+    expect(data.months.first.debt[credit], 4000);
+    expect(data.months.last.totalIncome, 50300);
+    expect(data.months.last.totalExpense, 10000);
+    expect(monthlyMarkdown(data), contains('回滚估算'));
+    expect(data.balanceDate, DateTime(2026, 10, 31));
+  });
+
+  test(
+    'rollback retains the current correction for ranges ending before today',
+    () async {
+      final live = await ledger.balances();
+      await ledger.adjustBalance(
+        accountId: cash,
+        desiredBalance: 80000,
+        expectedBalance: live[cash]!,
+        at: DateTime(2026, 10, 31),
+      );
+      final old = await exports.load(
+        'CNY',
+        DateTime(2026, 8),
+        DateTime(2026, 10),
+      );
+      expect(old.months.last.assets[cash], 40700);
+      expect(old.months.first.assets[cash], 39700);
+      expect(
+        (await comparison()).months.first.assets[cash],
+        old.months.last.assets[cash],
+      );
+    },
+  );
+
+  test('rollback reverses both transfer sides and debt principal without changing flows', () async {
+    final before = await comparison();
+    await ledger.saveEntry(
+      kind: EntryKind.transfer,
+      amount: 5000,
+      accountId: cash,
+      targetAccountId: credit,
+      date: '2026-10-20',
+    );
+    await ledger.saveEntry(
+      kind: EntryKind.borrow,
+      amount: 7000,
+      accountId: cash,
+      date: '2026-10-20',
+      counterparty: '合成回滚对象',
+    );
+    final after = await comparison();
+    expect(after.months.first.assets[cash], before.months.first.assets[cash]);
+    expect(after.months.first.debt[credit], before.months.first.debt[credit]);
+    expect(
+      after.months.last.assets[cash]! - before.months.last.assets[cash]!,
+      2000,
+    );
+    expect(after.months.last.totalDebt, before.months.last.totalDebt + 2000);
+    expect(after.months.last.totalIncome, before.months.last.totalIncome);
+    expect(after.months.last.totalExpense, before.months.last.totalExpense);
+  });
+
+  test(
+    'generated transactions follow their posting month when rolling back',
+    () async {
+      final mid = FinanceExportRepository(
+        db,
+        now: () => DateTime(2026, 10, 10),
+      );
+      final data = await mid.load('CNY', DateTime(2026, 9), DateTime(2026, 12));
+      expect(data.months[1].assets[cash], 141000);
+      expect(data.months[0].assets[cash], 101000);
+      expect(data.months[2].assets[cash], 140300);
+      expect(data.balanceDate, DateTime(2026, 10, 10));
+    },
+  );
+
+  test(
+    'only corrections that generate an entry affect flows and monthly rollback',
+    () async {
+      final before = await comparison();
+      var current = (await ledger.balances())[cash]!;
+      await ledger.adjustBalance(
+        accountId: cash,
+        desiredBalance: current + 10000,
+        expectedBalance: current,
+        createEntry: false,
+        at: DateTime(2026, 10, 31),
+      );
+      final direct = await comparison();
+      expect(
+        direct.months.first.assets[cash]! - before.months.first.assets[cash]!,
+        10000,
+      );
+      expect(
+        direct.months.last.assets[cash]! - before.months.last.assets[cash]!,
+        10000,
+      );
+      expect(direct.months.last.totalIncome, before.months.last.totalIncome);
+      expect(direct.months.last.totalExpense, before.months.last.totalExpense);
+      current = (await ledger.balances())[cash]!;
+      await ledger.adjustBalance(
+        accountId: cash,
+        desiredBalance: current + 5000,
+        expectedBalance: current,
+        createEntry: true,
+        at: DateTime(2026, 10, 31),
+      );
+      final generated = await comparison();
+      expect(
+        generated.months.first.assets[cash],
+        direct.months.first.assets[cash],
+      );
+      expect(
+        generated.months.last.assets[cash]! - direct.months.last.assets[cash]!,
+        5000,
+      );
+      expect(
+        generated.months.last.totalIncome - direct.months.last.totalIncome,
+        5000,
+      );
+      expect((await db.select(db.balanceAdjustments).get()).length, 1);
+    },
+  );
 }

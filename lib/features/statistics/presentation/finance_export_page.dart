@@ -8,6 +8,7 @@ import '../../../app/widgets.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/business_date.dart';
 import '../../settings/presentation/csv_export_page.dart';
+import '../../importing/presentation/import_balances_page.dart';
 import '../data/finance_export.dart';
 import '../data/finance_xlsx.dart';
 
@@ -259,6 +260,25 @@ class _ExportPageState extends ConsumerState<ExportPage> {
               ],
             ),
           const SizedBox(height: 12),
+          const Text('资产与负债按当前余额回滚估算。请先核对当前余额；历史缺失的转账和还款无法自动补出。'),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: busy
+                  ? null
+                  : () => openForm(
+                      context,
+                      ImportBalancesPage(
+                        currency: currency,
+                        title: '核对当前余额',
+                        includeArchived: true,
+                      ),
+                    ),
+              icon: const Icon(Icons.account_balance_wallet_outlined),
+              label: const Text('核对当前账户余额'),
+            ),
+          ),
+          const SizedBox(height: 8),
           if (format == _Format.markdown) ...[
             Text(
               '对比 ${monthKey(current)} 与 ${monthKey(DateTime(date.year, date.month - 1))}，包含总体概况与收支、资产、负债明细。',

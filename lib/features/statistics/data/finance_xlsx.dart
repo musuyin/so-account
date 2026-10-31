@@ -4,6 +4,7 @@ import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
 
 import '../../../core/money/money.dart';
+import '../../../core/time/business_date.dart';
 import 'finance_export.dart';
 
 const _ns = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
@@ -32,8 +33,8 @@ Uint8List financeXlsx(FinanceExportData data) {
   final definitions = [
     ('Income', '总收入', data.incomeColumns, (FinanceMonth m) => m.income),
     ('Expense', '总支出', data.expenseColumns, (FinanceMonth m) => m.expense),
-    ('Asset', '总资产', data.assetColumns, (FinanceMonth m) => m.assets),
-    ('Debt', '总负债', data.debtColumns, (FinanceMonth m) => m.debt),
+    ('Asset', '总资产（估算）', data.assetColumns, (FinanceMonth m) => m.assets),
+    ('Debt', '总负债（估算）', data.debtColumns, (FinanceMonth m) => m.debt),
   ];
   file('[Content_Types].xml', '''
     <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -123,7 +124,8 @@ Uint8List financeXlsx(FinanceExportData data) {
     final noteRow = data.months.length + 4;
     final noteColumns = columns.length.clamp(0, 5);
     final noteLast = excelColumn(noteColumns + 3);
-    final note = '币种：${data.currency}。$financeExportBasis';
+    final note =
+        '币种：${data.currency}。余额基准日期：${dateKey(data.balanceDate)}。$financeExportBasis';
     final charsPerLine = ((42 + noteColumns * 26) ~/ 2).clamp(20, 160);
     final noteHeight =
         (((note.runes.length + charsPerLine - 1) ~/ charsPerLine) * 18).clamp(

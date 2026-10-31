@@ -32,6 +32,8 @@ Flutter + Dart 的个人记账与物品管理应用，Android / iOS 共享代码
 
 ## 验证状态
 
+v2.0.1（2026-10-31）修正资产／负债导出为「当前余额基准 − 后续已生成流水」，独立余额校准不参与回滚；新增余额核对入口。本地 358 项 Flutter 测试通过（Windows 跳过 1 项）、静态分析和 17 项 Python 测试通过。见 [验证记录](docs/engineering/validation-v2.0.1.md)及[更新说明](docs/releases/v2.0.1.md)。
+
 v2.0.0（2026-10-31）已发布：新增月度 Markdown 总结与动态四表 Excel 汇总。本地 352 项 Flutter 测试通过（Windows 跳过 1 项），Linux CI 353 项测试、17 项 Python 测试、静态分析、数据库生成一致性及 Android/iOS 构建通过；20 个公开资产、正式签名和 v1.9.0 ARM64 增量重建已核验。见 [验证记录](docs/engineering/validation-v2.0.0.md)及[更新说明](docs/releases/v2.0.0.md)。
 
 v1.9.0（2026-10-30）已发布：本地 337 项 Flutter 测试通过（Windows 跳过 1 项），Linux CI 338 项测试、17 项 Python 测试、静态分析、数据库生成一致性及 Android/iOS 构建通过。20 个公开资产、正式签名、新图标／Excel 模板、v1.8.0 ARM64 增量重建与真实更新客户端已核验。见 [验证记录](docs/engineering/validation-v1.9.0.md)及[更新说明](docs/releases/v1.9.0.md)。

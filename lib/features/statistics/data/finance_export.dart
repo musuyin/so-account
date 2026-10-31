@@ -10,8 +10,10 @@ import '../../ledger/domain/entry_kind.dart';
 
 const financeExportBasis =
     '收支仅统计收入和支出，不含转账、借贷本金、报销垫付/回款及投资投入/收回。'
-    '资产和负债为各月末账面余额（含归档账户），由现有期初余额、历史流水和余额调整回算；'
-    '账户没有期初日期，现有期初余额适用于全部历史月份。理财按买入成本，不代表实时净值。';
+    '资产、负债及净资产以导出日的账户余额（含归档账户）为基准，'
+    '仅逆向撤销已记录的收支、转账、借贷、报销和投资流水，余额校准保留在基准中。'
+    '请先核对当前余额；缺失转账或还款仍会影响历史结果，历史余额为回滚估算。'
+    '各月按全部已生成流水的记账日期归属，未来月份仅反映已录条目。理财按买入成本，不代表实时净值。';
 
 class ExportColumn {
   const ExportColumn(this.id, this.name);
@@ -40,6 +42,7 @@ class FinanceMonth {
 class FinanceExportData {
   const FinanceExportData({
     required this.currency,
+    required this.balanceDate,
     required this.months,
     required this.incomeColumns,
     required this.expenseColumns,
@@ -47,6 +50,7 @@ class FinanceExportData {
     required this.debtColumns,
   });
   final String currency;
+  final DateTime balanceDate;
   final List<FinanceMonth> months;
   final List<ExportColumn> incomeColumns,
       expenseColumns,
@@ -55,8 +59,10 @@ class FinanceExportData {
 }
 
 class FinanceExportRepository {
-  FinanceExportRepository(this.db);
+  FinanceExportRepository(this.db, {DateTime Function()? now})
+    : now = now ?? DateTime.now;
   final AppDatabase db;
+  final DateTime Function() now;
 
   Future<FinanceExportData> loadAll(String currency, DateTime through) =>
       db.transaction(() async {
@@ -130,28 +136,23 @@ class FinanceExportRepository {
       );
       return rank != 0 ? rank : a.id.compareTo(b.id);
     });
-    // Aggregate in SQLite, with no transaction display limit or list of bound IDs.
+    final at = now();
+    final balanceDate = DateTime(at.year, at.month, at.day);
+    // Direct adjustments only change this exported baseline. Never read their
+    // deltas as transactions: an adjustment with createEntry=true already has
+    // its own income/expense entry, which follows the same rollback rule.
+    final liveBalances = await LedgerRepository(db).balances();
+    final balances = {for (final a in accounts) a.id: liveBalances[a.id]!};
     final changes = await db
         .customSelect(
-          '''
-      SELECT id,month,SUM(delta) AS delta FROM (
-        SELECT a.id,substr(e.date,1,7) AS month,
-          ${LedgerRepository.balanceEntryDeltaSql} AS delta
-        FROM accounts a JOIN entries e
-          ON e.account_id=a.id OR e.target_account_id=a.id OR e.debt_account_id=a.id
-        WHERE a.currency=? AND e.date<?
-        UNION ALL
-        SELECT a.id,substr(b.date,1,7),b.delta
-        FROM accounts a JOIN balance_adjustments b ON b.account_id=a.id
-        WHERE a.currency=? AND b.date<?
-      ) GROUP BY id,month ORDER BY month,id
-    ''',
-          variables: [
-            Variable(currency),
-            Variable(dateKey(end)),
-            Variable(currency),
-            Variable(dateKey(end)),
-          ],
+          """
+      SELECT a.id,substr(e.date,1,7) AS month,
+        SUM(${LedgerRepository.balanceEntryDeltaSql}) AS delta
+      FROM accounts a JOIN entries e
+        ON e.account_id=a.id OR e.target_account_id=a.id OR e.debt_account_id=a.id
+      WHERE a.currency=? GROUP BY a.id,month ORDER BY month,a.id
+    """,
+          variables: [Variable(currency)],
         )
         .get();
     final flows = await db
@@ -165,18 +166,61 @@ class FinanceExportRepository {
           variables: [Variable(currency), Variable(dateKey(end))],
         )
         .get();
-    final first =
-        start ??
-        (changes.isEmpty
-            ? DateTime(end.year, end.month - 1)
-            : parseDate('${changes.first.read<String>('month')}-01'));
+    DateTime? earliest;
+    if (start == null) {
+      final row = await db
+          .customSelect(
+            """
+        SELECT MIN(date) AS date FROM (
+          SELECT e.date FROM entries e JOIN accounts a ON a.id=e.account_id WHERE a.currency=? AND e.date<?
+          UNION ALL SELECT b.date FROM balance_adjustments b JOIN accounts a ON a.id=b.account_id WHERE a.currency=? AND b.date<?
+        )""",
+            variables: [
+              Variable(currency),
+              Variable(dateKey(end)),
+              Variable(currency),
+              Variable(dateKey(end)),
+            ],
+          )
+          .getSingle();
+      final date = row.readNullable<String>('date');
+      if (date != null) earliest = parseDate('${date.substring(0, 7)}-01');
+    }
+    final first = start ?? earliest ?? DateTime(end.year, end.month - 1);
     final count = (end.year - first.year) * 12 + end.month - first.month;
     if (first.day != 1 || end.day != 1 || count < 1 || count > 2412) {
       throw const FormatException('请选择有效月份范围，最多 201 年');
     }
-    final balances = {for (final a in accounts) a.id: a.openingBalance};
-    var changeIndex = 0;
-    final months = <FinanceMonth>[];
+    final monthlyDeltas = <String, Map<String, int>>{};
+    for (final row in changes) {
+      (monthlyDeltas[row.read<String>('month')] ??= {})[row.read<String>(
+        'id',
+      )] = row.read<int>(
+        'delta',
+      );
+    }
+    final periodBalances = <String, Map<String, int>>{};
+    final lastRequested = DateTime(end.year, end.month - 1);
+    var latest = DateTime(at.year, at.month);
+    if (lastRequested.isAfter(latest)) latest = lastRequested;
+    if (changes.isNotEmpty) {
+      final recorded = parseDate('${changes.last.read<String>('month')}-01');
+      if (recorded.isAfter(latest)) latest = recorded;
+    }
+    final rolling = Map<String, int>.of(balances);
+    // Undo every real transaction after each requested month, on every account
+    // touched by it. Entries outside the requested range also affect rollback.
+    for (
+      var month = latest;
+      !month.isBefore(first);
+      month = DateTime(month.year, month.month - 1)
+    ) {
+      final key = monthKey(month);
+      if (month.isBefore(end)) periodBalances[key] = Map.of(rolling);
+      for (final row in (monthlyDeltas[key] ?? const <String, int>{}).entries) {
+        rolling.update(row.key, (b) => b - row.value);
+      }
+    }
     final flowByMonth = <String, Map<String, Map<String, int>>>{};
     for (final row in flows) {
       final byKind = flowByMonth.putIfAbsent(
@@ -187,20 +231,13 @@ class FinanceExportRepository {
           {})[row.readNullable<String>('category_id') ?? 'uncategorized'] = row
           .read<int>('amount');
     }
+    final months = <FinanceMonth>[];
     for (var i = 0; i < count; i++) {
-      final date = DateTime(first.year, first.month + i);
-      final key = monthKey(date);
-      while (changeIndex < changes.length &&
-          changes[changeIndex].read<String>('month').compareTo(key) <= 0) {
-        final row = changes[changeIndex++];
-        balances.update(
-          row.read<String>('id'),
-          (b) => b + row.read<int>('delta'),
-        );
-      }
+      final date = DateTime(first.year, first.month + i), key = monthKey(date);
+      final atMonth = periodBalances[key]!;
       final assets = <String, int>{}, debt = <String, int>{};
       for (final a in accounts) {
-        final balance = assetBalance(a.channel, balances[a.id]!);
+        final balance = assetBalance(a.channel, atMonth[a.id]!);
         assets[a.id] = balance > 0 ? balance : 0;
         debt[a.id] = balance < 0 ? -balance : 0;
       }
@@ -237,6 +274,7 @@ class FinanceExportRepository {
     }
     return FinanceExportData(
       currency: currency,
+      balanceDate: balanceDate,
       months: months,
       incomeColumns: categories('income'),
       expenseColumns: categories('expense'),
@@ -286,6 +324,9 @@ String monthlyMarkdown(
   final text = StringBuffer('# ${monthKey(current.date)} 月度总结\n\n');
   text.writeln(
     '币种：${data.currency}；本月：${monthKey(current.date)}；上月：${monthKey(previous.date)}。\n',
+  );
+  text.writeln(
+    '资产与负债：以 ${dateKey(data.balanceDate)} 账户余额回滚估算；只撤销已生成流水，请先核对当前余额。\n',
   );
   text.writeln('# 总体概况\n');
   text.writeln('| 指标 | 本月 | 上月 | 增长率 (%) |');
@@ -358,7 +399,7 @@ String monthlyMarkdown(
     previous.totalIncome,
   );
   section(
-    '资产明细',
+    '资产明细（回滚估算）',
     '总资产',
     data.assetColumns,
     current.assets,
@@ -368,7 +409,7 @@ String monthlyMarkdown(
     asset: true,
   );
   section(
-    '负债明细',
+    '负债明细（回滚估算）',
     '总负债',
     data.debtColumns,
     current.debt,

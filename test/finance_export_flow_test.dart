@@ -228,6 +228,65 @@ void main() {
     },
   );
 
+  testWidgets(
+    'export balance check preserves privacy and calibrates without generating entries',
+    (t) async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(() => t.runAsync(db.close));
+      await t.runAsync(
+        () => LedgerRepository(db).saveAccount(
+          name: '合成核对账户',
+          kind: '资金账户',
+          channel: '现金',
+          currency: 'CNY',
+          openingBalance: 10000,
+        ),
+      );
+      final boundary = GlobalKey();
+      await _mount(t, db, _Delivery(), boundary: boundary);
+      await t.tap(find.text('核对当前账户余额'));
+      await helper.settle(t);
+      expect(find.text('当前余额 CNY 100.00'), findsOneWidget);
+      await t.tap(find.byTooltip('隐藏资产金额'));
+      await helper.settle(t);
+      expect(find.textContaining('100.00'), findsNothing);
+      expect(
+        t.widget<TextButton>(find.widgetWithText(TextButton, '调整余额')).onPressed,
+        isNull,
+      );
+      await helper.capture(t, boundary, 'export-balance-check-hidden');
+      await t.tap(find.byTooltip('显示资产金额'));
+      await helper.settle(t);
+      await t.tap(find.text('调整余额'));
+      await helper.settle(t);
+      expect(
+        t.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+        isFalse,
+      );
+      await t.enterText(
+        find.byWidgetPredicate(
+          (w) => w is TextField && w.decoration?.labelText == '实际余额',
+        ),
+        '80',
+      );
+      await t.tap(find.text('保存'));
+      await helper.settle(t);
+      expect(find.text('当前余额 CNY 80.00'), findsOneWidget);
+      await t.tap(find.text('完成核对'));
+      await helper.settle(t);
+      expect((await t.runAsync(() => db.select(db.entries).get()))!, isEmpty);
+      expect(
+        (await t.runAsync(() => db.select(db.balanceAdjustments).get()))!
+            .single
+            .delta,
+        -2000,
+      );
+      expect(t.takeException(), isNull);
+      await t.pumpWidget(const SizedBox.shrink());
+      await t.pump(const Duration(milliseconds: 1));
+    },
+  );
+
   for (final palette in AppPalette.values) {
     testWidgets(
       'export renders ${palette.name}, light/dark, narrow/large fonts',
