@@ -32,7 +32,7 @@ Flutter + Dart 的个人记账与物品管理应用，Android / iOS 共享代码
 
 ## 验证状态
 
-v2.0.2（2026-10-31）将资产／负债改为按账户类型固定归属，报销独立保留，统一“理财账户”界面名称。本地 361 项 Flutter 测试通过（Windows 跳过 1 项）、静态分析和 17 项 Python 测试通过。见 [验证记录](docs/engineering/validation-v2.0.2.md)及[更新说明](docs/releases/v2.0.2.md)。
+v2.0.2（2026-10-31）已发布：资产／负债按账户类型固定归属，报销独立保留，统一“理财账户”界面名称。本地 361 项 Flutter 测试通过（Windows 跳过 1 项），Linux CI 362 项测试、17 项 Python 测试、静态分析、数据库生成一致性及 Android/iOS 构建通过；20 个公开资产、正式签名和 v2.0.1 ARM64 增量重建已核验。见 [验证记录](docs/engineering/validation-v2.0.2.md)及[更新说明](docs/releases/v2.0.2.md)。
 
 v2.0.1（2026-10-31）已发布：修正资产／负债导出为「当前余额基准 − 后续已生成流水」，独立余额校准不参与回滚，新增余额核对入口。本地 358 项 Flutter 测试通过（Windows 跳过 1 项），Linux CI 359 项测试、17 项 Python 测试、静态分析、数据库生成一致性及 Android/iOS 构建通过；20 个公开资产、正式签名和 v2.0.0 ARM64 增量重建已核验。见 [验证记录](docs/engineering/validation-v2.0.1.md)及[更新说明](docs/releases/v2.0.1.md)。
 
