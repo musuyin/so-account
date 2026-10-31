@@ -13,6 +13,8 @@ const financeExportBasis =
     '资产、负债及净资产以导出日的账户余额（含归档账户）为基准，'
     '仅逆向撤销已记录的收支、转账、借贷、报销和投资流水，余额校准保留在基准中。'
     '请先核对当前余额；缺失转账或还款仍会影响历史结果，历史余额为回滚估算。'
+    '资产只含资金、充值、理财账户和借出债务；负债只含信贷账户和借入债务，报销单列不计总额。'
+    '账户归属不随余额正负变化，负余额保留在原组抵扣。'
     '各月按全部已生成流水的记账日期归属，未来月份仅反映已录条目。理财按买入成本，不代表实时净值。';
 
 class ExportColumn {
@@ -237,9 +239,15 @@ class FinanceExportRepository {
       final atMonth = periodBalances[key]!;
       final assets = <String, int>{}, debt = <String, int>{};
       for (final a in accounts) {
-        final balance = assetBalance(a.channel, atMonth[a.id]!);
-        assets[a.id] = balance > 0 ? balance : 0;
-        debt[a.id] = balance < 0 ? -balance : 0;
+        final amount = financeAccountAmount(a.kind, atMonth[a.id]!);
+        switch (financeAccountSide(a.kind, a.channel)) {
+          case FinanceAccountSide.asset:
+            assets[a.id] = amount;
+          case FinanceAccountSide.liability:
+            debt[a.id] = amount;
+          case FinanceAccountSide.excluded:
+            break;
+        }
       }
       months.add(
         FinanceMonth(
@@ -280,15 +288,13 @@ class FinanceExportRepository {
       expenseColumns: categories('expense'),
       assetColumns: [
         for (final a in accounts)
-          if ((a.kind != '信贷账户' && a.channel != '应付款') ||
-              months.any((m) => m.assets[a.id]! > 0))
+          if (financeAccountSide(a.kind, a.channel) == FinanceAccountSide.asset)
             columns[a.id]!,
       ],
       debtColumns: [
         for (final a in accounts)
-          if (a.kind == '信贷账户' ||
-              a.channel == '应付款' ||
-              months.any((m) => m.debt[a.id]! > 0))
+          if (financeAccountSide(a.kind, a.channel) ==
+              FinanceAccountSide.liability)
             columns[a.id]!,
       ],
     );

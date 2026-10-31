@@ -466,7 +466,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                             AssetLine(points: data.points, currency: currency),
                           const SizedBox(height: 8),
                           const Text(
-                            '按初始余额、历史收支和余额调整推算；借贷和转账不改变净资产。',
+                            '按初始余额、历史流水和余额调整推算；账户按固定类型归属，报销单列不计总额。',
                             style: TextStyle(fontSize: 12),
                           ),
                         ],

@@ -31,11 +31,7 @@ void main() {
   );
   Future<AssetSummary> summary() async {
     final balances = await repo.watchBalances().first;
-    return AssetSummary.calculate(
-      (await db.select(db.accounts).get()).map(
-        (a) => assetBalance(a.channel, balances[a.id]!),
-      ),
-    );
+    return AssetSummary.calculate(await db.select(db.accounts).get(), balances);
   }
 
   test(
@@ -216,12 +212,7 @@ void main() {
       expect(entries.singleWhere((e) => e.kind == 'repay').debtId, loan);
       final balances = await LedgerRepository(next).watchBalances().first;
       expect(balances[debt.id], 15000);
-      expect(
-        AssetSummary.calculate(
-          accounts.map((a) => assetBalance(a.channel, balances[a.id]!)),
-        ).net,
-        100000,
-      );
+      expect(AssetSummary.calculate(accounts, balances).net, 100000);
       await next.migrateDebtAccounts();
       expect((await next.select(next.accounts).get()).length, 2);
       expect(
@@ -232,5 +223,21 @@ void main() {
       await next.close();
       await directory.delete(recursive: true);
     }
+  });
+
+  test('asset overview uses fixed types and keeps negative values on their own side', () async {
+    await account('合成资金', '资金账户', '现金', 10000);
+    await account('合成负资金', '资金账户', '现金', -700);
+    await account('合成充值', '充值账户', '会员卡', -2000);
+    await account('合成理财', '投资理财', '基金', 1000);
+    await account('合成借出', '债务', '应收款', -3000);
+    await account('合成信贷', '信贷账户', '信用卡', 500);
+    await account('合成借入', '债务', '应付款', 4000);
+    await account('合成报销', '债务', '报销', 99999);
+    final result = await summary();
+    expect(result.assets, 5300);
+    expect(result.liabilities, 3500);
+    expect(result.net, 1800);
+    expect(accountKindLabel('投资理财'), '理财账户');
   });
 }

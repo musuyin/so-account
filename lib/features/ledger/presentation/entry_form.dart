@@ -963,7 +963,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                           if (accounts.any((a) => a.kind == group)) ...[
                             Padding(
                               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                              child: Text(group),
+                              child: Text(accountKindLabel(group)),
                             ),
                             for (final account in accounts.where(
                               (a) => a.kind == group,

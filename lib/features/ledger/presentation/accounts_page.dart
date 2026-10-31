@@ -145,9 +145,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
         int balance(Account a) => balances[a.id] ?? a.openingBalance;
         int sum(Iterable<Account> rows) =>
             rows.fold(0, (value, a) => value + balance(a));
-        final totals = AssetSummary.calculate(
-          accounts.map((a) => assetBalance(a.channel, balance(a))),
-        );
+        final totals = AssetSummary.calculate(accounts, balances);
         final receivable = sum(
           accounts.where((a) => a.kind == '债务' && a.channel == '应收款'),
         );
@@ -377,7 +375,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  kind,
+                                  accountKindLabel(kind),
                                   style: Theme.of(context).textTheme.titleSmall,
                                 ),
                               ),
@@ -729,7 +727,9 @@ class _AccountFormState extends ConsumerState<AccountForm> {
               color: accountChannelColor(context, channel ?? '自定义'),
             ),
             title: ParameterText(
-              kind == null || channel == null ? '选择账户类型' : '$channel · $kind',
+              kind == null || channel == null
+                  ? '选择账户类型'
+                  : '$channel · ${accountKindLabel(kind!)}',
             ),
             subtitle: balanceLocked ? const Text('已有流水或余额调整，账户类型及币种受保护') : null,
             trailing: widget.initialChannel == null

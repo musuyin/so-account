@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/providers.dart';
 import '../../../app/widgets.dart';
+import '../../ledger/domain/entry_kind.dart';
 import '../../ledger/presentation/account_avatar.dart';
 import '../../ledger/presentation/account_detail_page.dart';
 
@@ -40,7 +41,7 @@ class _ArchivedAccountsState extends ConsumerState<ArchivedAccountsPage> {
                         leading: AccountAvatar(account: account),
                         title: Text(account.name),
                         subtitle: ParameterText(
-                          '${account.kind} · ${account.channel == '自定义' ? account.customChannel : account.channel} · ${account.currency}',
+                          '${accountKindLabel(account.kind)} · ${account.channel == '自定义' ? account.customChannel : account.channel} · ${account.currency}',
                         ),
                         onTap: () => openForm(
                           context,

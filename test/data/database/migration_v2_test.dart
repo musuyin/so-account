@@ -71,11 +71,56 @@ void main() {
     },
   );
   test('net assets include receivables and liabilities without counting borrowing as income', () {
-    final summary = AssetSummary.calculate(
-      [10000, -2000],
-      receivable: 3000,
-      payable: 4000,
-    );
+    final summary = AssetSummary.calculate([
+      Account(
+        id: 'cash',
+        name: '合成现金',
+        kind: '资金账户',
+        channel: '现金',
+        currency: 'CNY',
+        openingBalance: 10000,
+        avatar: '',
+        bank: '',
+        customChannel: '',
+        isArchived: false,
+      ),
+      Account(
+        id: 'credit',
+        name: '合成信贷',
+        kind: '信贷账户',
+        channel: '信用卡',
+        currency: 'CNY',
+        openingBalance: -2000,
+        avatar: '',
+        bank: '',
+        customChannel: '',
+        isArchived: false,
+      ),
+      Account(
+        id: 'lend',
+        name: '合成借出',
+        kind: '债务',
+        channel: '应收款',
+        currency: 'CNY',
+        openingBalance: 3000,
+        avatar: '',
+        bank: '',
+        customChannel: '',
+        isArchived: false,
+      ),
+      Account(
+        id: 'borrow',
+        name: '合成借入',
+        kind: '债务',
+        channel: '应付款',
+        currency: 'CNY',
+        openingBalance: 4000,
+        avatar: '',
+        bank: '',
+        customChannel: '',
+        isArchived: false,
+      ),
+    ], {});
     expect(summary.assets, 13000);
     expect(summary.liabilities, 6000);
     expect(summary.net, 7000);

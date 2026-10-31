@@ -31,6 +31,29 @@ const accountTypes = <String, List<String>>{
   '债务': ['应付款', '应收款', '报销'],
 };
 const accountKinds = ['资金账户', '信贷账户', '充值账户', '投资理财', '债务'];
+
+String accountKindLabel(String kind) => kind == '投资理财' ? '理财账户' : kind;
+
+enum FinanceAccountSide { asset, liability, excluded }
+
+FinanceAccountSide financeAccountSide(String kind, String channel) =>
+    switch ((kind, channel)) {
+      ('资金账户' || '充值账户' || '投资理财' || '理财账户', _) ||
+      ('债务', '应收款') => FinanceAccountSide.asset,
+      ('信贷账户', _) || ('债务', '应付款') => FinanceAccountSide.liability,
+      _ => FinanceAccountSide.excluded,
+    };
+
+/// Keep a balance on its account's fixed side, including negative balances.
+int financeAccountAmount(String kind, int balance) =>
+    kind == '信贷账户' ? -balance : balance;
+
+/// The SQL equivalent of fixed account ownership, used for the net-assets plot.
+String financeNetValueSql(String balance) =>
+    '''CASE
+  WHEN a.kind IN ('资金账户','充值账户','投资理财','理财账户','信贷账户') OR (a.kind='债务' AND a.channel='应收款') THEN ($balance)
+  WHEN a.kind='债务' AND a.channel='应付款' THEN -($balance)
+  ELSE 0 END''';
 const accountChannels = [
   '现金',
   '支付宝',

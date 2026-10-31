@@ -65,7 +65,7 @@ class AccountTypePicker extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 10, bottom: 6),
                 child: Text(
-                  group.key,
+                  accountKindLabel(group.key),
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),
@@ -80,7 +80,7 @@ class AccountTypePicker extends StatelessWidget {
                         child: Semantics(
                           selected: kind == group.key && channel == value,
                           button: true,
-                          label: '${group.key} · $value',
+                          label: '${accountKindLabel(group.key)} · $value',
                           child: InkWell(
                             key: ValueKey('account-type-${group.key}-$value'),
                             borderRadius: BorderRadius.circular(12),

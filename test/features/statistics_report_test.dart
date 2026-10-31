@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:so_account/data/database/app_database.dart';
 import 'package:so_account/features/ledger/data/ledger_repository.dart';
 import 'package:so_account/features/ledger/domain/entry_kind.dart';
+import 'package:so_account/features/ledger/domain/asset_summary.dart';
 import 'package:so_account/features/statistics/data/statistics_repository.dart';
 import 'package:so_account/features/statistics/domain/report_range.dart';
 
@@ -183,4 +184,55 @@ void main() {
       expect(report.categories.single.growth, isNull);
     },
   );
+
+  test('net-assets plot follows fixed account ownership and excludes reimbursement', () async {
+    Future<String> add(String name, String kind, String channel, int balance) =>
+        ledger.saveAccount(
+          name: name,
+          kind: kind,
+          channel: channel,
+          currency: 'CNY',
+          openingBalance: balance,
+        );
+    await add('合成信贷盈余', '信贷账户', '信用卡', 2000);
+    await add('合成负资金', '资金账户', '现金', -3000);
+    await add('合成借入', '债务', '应付款', 4000);
+    await add('合成借出', '债务', '应收款', 6000);
+    final reimburse = await add('合成报销', '债务', '报销', 50000);
+    await ledger.saveEntry(
+      kind: EntryKind.transfer,
+      amount: 1000,
+      accountId: account,
+      targetAccountId: reimburse,
+      date: '2026-10-10',
+    );
+    await ledger.saveEntry(
+      kind: EntryKind.transfer,
+      amount: 500,
+      accountId: reimburse,
+      targetAccountId: account,
+      date: '2026-10-11',
+    );
+    await ledger.saveEntry(
+      kind: EntryKind.reimburse,
+      amount: 3000,
+      accountId: account,
+      date: '2026-10-12',
+      counterparty: '合成新报销',
+    );
+    final report = await stats.load(
+      ReportRange.at(ReportPeriod.month, DateTime(2026, 10)),
+      'CNY',
+    );
+    expect(report.income, 20000);
+    expect(report.expense, 3500);
+    expect(report.points.last.netAssets, 29500);
+    final accounts = (await db.select(db.accounts).get()).where(
+      (a) => a.currency == 'CNY',
+    );
+    expect(
+      report.points.last.netAssets,
+      AssetSummary.calculate(accounts, await ledger.balances()).net,
+    );
+  });
 }

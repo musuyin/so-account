@@ -164,10 +164,10 @@ void main() {
     final month = data.months.last;
     expect(month.totalIncome, 50300);
     expect(month.totalExpense, 10000);
-    expect(month.totalAssets, 182300);
+    expect(month.totalAssets, 178800);
     expect(month.totalDebt, 20000);
     // A direct correction stays in both baselines; it is not a monthly flow.
-    expect(month.netAssets - data.months.first.netAssets, 40300);
+    expect(month.netAssets - data.months.first.netAssets, 36800);
     final all = await exports.load(
       'CNY',
       DateTime(2026, 9),
@@ -178,13 +178,19 @@ void main() {
       (a) => a.currency == 'CNY',
     )) {
       final signed =
-          all.months.last.assets[a.id]! - all.months.last.debt[a.id]!;
-      expect(signed, a.channel == '应付款' ? -live[a.id]! : live[a.id]);
+          (all.months.last.assets[a.id] ?? 0) -
+          (all.months.last.debt[a.id] ?? 0);
+      expect(
+        signed,
+        financeAccountSide(a.kind, a.channel) == FinanceAccountSide.excluded
+            ? 0
+            : (a.channel == '应付款' ? -live[a.id]! : live[a.id]),
+      );
     }
   });
 
   test(
-    'account crossing zero appears on both sides without double counting',
+    'funding account stays only in assets when its history crosses zero',
     () async {
       final cash2 = await ledger.saveAccount(
         name: '跨零账户',
@@ -202,11 +208,11 @@ void main() {
       );
       final data = await comparison();
       expect(data.assetColumns.any((c) => c.id == cash2), isTrue);
-      expect(data.debtColumns.any((c) => c.id == cash2), isTrue);
+      expect(data.debtColumns.any((c) => c.id == cash2), isFalse);
       expect(data.months.first.assets[cash2], 200);
-      expect(data.months.first.debt[cash2], 0);
-      expect(data.months.last.assets[cash2], 0);
-      expect(data.months.last.debt[cash2], 300);
+      expect(data.months.first.debt.containsKey(cash2), isFalse);
+      expect(data.months.last.assets[cash2], -300);
+      expect(data.months.last.debt.containsKey(cash2), isFalse);
     },
   );
 
@@ -521,4 +527,47 @@ void main() {
       expect((await db.select(db.balanceAdjustments).get()).length, 1);
     },
   );
+
+  test('export columns have fixed ownership for positive credit and negative asset balances', () async {
+    Future<String> add(String name, String kind, String channel, int amount) =>
+        ledger.saveAccount(
+          name: name,
+          kind: kind,
+          channel: channel,
+          currency: 'CNY',
+          openingBalance: amount,
+        );
+    final negativeCash = await add('合成负资金', '资金账户', '现金', -500);
+    final prepaid = await add('合成负充值', '充值账户', '会员卡', -700);
+    final positiveCredit = await add('合成信贷盈余', '信贷账户', '信用卡', 500);
+    final lend = await add('合成借出', '债务', '应收款', -300);
+    final borrow = await add('合成借入', '债务', '应付款', -200);
+    final reimbursement = await add('合成报销', '债务', '报销', 50000);
+    final data = await comparison();
+    for (final id in [cash, negativeCash, prepaid, investment, lend]) {
+      expect(data.assetColumns.any((c) => c.id == id), isTrue);
+      expect(data.debtColumns.any((c) => c.id == id), isFalse);
+    }
+    for (final id in [credit, positiveCredit, borrow]) {
+      expect(data.debtColumns.any((c) => c.id == id), isTrue);
+      expect(data.assetColumns.any((c) => c.id == id), isFalse);
+    }
+    expect(data.assetColumns.any((c) => c.id == reimbursement), isFalse);
+    expect(data.debtColumns.any((c) => c.id == reimbursement), isFalse);
+    expect(data.months.last.assets[negativeCash], -500);
+    expect(data.months.last.assets[prepaid], -700);
+    expect(data.months.last.assets[lend], -300);
+    expect(data.months.last.debt[positiveCredit], -500);
+    expect(data.months.last.debt[borrow], -200);
+    final bytes = financeXlsx(data);
+    await Directory('.tooling/export-evidence').create(recursive: true);
+    await File('.tooling/export-evidence/fixed-types.xlsx').writeAsBytes(bytes);
+    final zip = ZipDecoder().decodeBytes(bytes);
+    final asset = utf8.decode(zip.find('xl/worksheets/sheet3.xml')!.content);
+    final debt = utf8.decode(zip.find('xl/worksheets/sheet4.xml')!.content);
+    expect(asset, isNot(contains('合成信贷盈余')));
+    expect(debt, isNot(contains('合成负资金')));
+    expect(asset, isNot(contains('合成报销')));
+    expect(debt, isNot(contains('合成报销')));
+  });
 }

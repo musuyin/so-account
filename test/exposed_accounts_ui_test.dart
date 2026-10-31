@@ -267,8 +267,9 @@ void main() {
         await settle(t);
         expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
         for (final kind in accountKinds) {
-          expect(find.text(kind), findsOneWidget);
+          expect(find.text(accountKindLabel(kind)), findsOneWidget);
         }
+        expect(find.text('投资理财'), findsNothing);
         await capture(t, boundary, 'account-types-$suffix');
         await show(t, key('account-type-信贷账户-信用卡'));
         await t.tap(key('account-type-信贷账户-信用卡'));
@@ -297,9 +298,11 @@ void main() {
           palette: scenario.$1,
           boundary: boundary,
         );
-        expect(find.text('2355.00'), findsOneWidget);
+        expect(find.text('2235.00'), findsOneWidget);
         expect(t.takeException(), isNull);
         await capture(t, boundary, 'asset-overview-$suffix');
+        await show(t, find.text('理财账户'));
+        await capture(t, boundary, 'asset-investment-group-$suffix');
         await mount(
           t,
           db,
@@ -375,14 +378,14 @@ void main() {
         await t.tap(find.byType(BackButton));
         await settle(t);
         await show(t, find.byTooltip('隐藏金额'));
-        await t.longPress(find.text('2355.00'));
+        await t.longPress(find.text('2235.00'));
         await t.pumpAndSettle();
         await t.tap(find.byTooltip('隐藏金额'));
         await t.pumpAndSettle();
         expect(find.textContaining(RegExp(r'\d+\.\d{2}')), findsNothing);
         expect(
           t.getSemantics(find.byType(Scaffold).first).toStringDeep(),
-          isNot(contains('2355.00')),
+          isNot(contains('2235.00')),
         );
         await t.tap(key('asset-currency'));
         await t.pumpAndSettle();
@@ -392,7 +395,7 @@ void main() {
         await t.tap(find.byTooltip('显示金额'));
         await t.pumpAndSettle();
         expect(find.text('90.00'), findsWidgets);
-        expect(find.text('2355.00'), findsNothing);
+        expect(find.text('2235.00'), findsNothing);
         expect(t.takeException(), isNull);
         await t.pumpWidget(const SizedBox.shrink());
         await t.pump(const Duration(milliseconds: 1));
