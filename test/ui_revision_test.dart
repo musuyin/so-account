@@ -56,8 +56,8 @@ void main() {
           }
           await t.tap(find.text('导出'));
           await helper.settle(t);
-          expect(find.text('保存 CSV'), findsOneWidget);
-          Navigator.of(t.element(find.text('保存 CSV'))).pop();
+          expect(find.text('复制 Markdown'), findsOneWidget);
+          Navigator.of(t.element(find.text('复制 Markdown'))).pop();
           await helper.settle(t);
         }
         if (name == 'entry') {

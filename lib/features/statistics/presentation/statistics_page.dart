@@ -10,6 +10,7 @@ import '../../../core/time/business_date.dart';
 import '../domain/report_range.dart';
 import '../data/statistics_repository.dart';
 import 'report_charts.dart';
+import 'finance_export_page.dart';
 
 final reportProvider =
     StreamProvider.family<FinanceReport, (String, String, String, String)>(
@@ -93,6 +94,14 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
       appBar: AppBar(
         title: const Text('统计'),
         actions: [
+          IconButton(
+            tooltip: '导出总结与汇总',
+            onPressed: () => openForm(
+              context,
+              ExportPage(initialMonth: anchor, initialCurrency: currency),
+            ),
+            icon: const Icon(Icons.file_download_outlined),
+          ),
           DropdownButton<String>(
             key: const ValueKey('statistics-currency'),
             value: currency,

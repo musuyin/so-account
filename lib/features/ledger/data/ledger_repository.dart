@@ -773,14 +773,19 @@ class LedgerRepository {
         );
   }
 
-  Selectable<QueryRow> _balanceRows() => db.customSelect(
-    '''
-    SELECT a.id, a.opening_balance + COALESCE((SELECT SUM(b.delta) FROM balance_adjustments b WHERE b.account_id=a.id),0) + COALESCE(SUM(
+  // Shared by live balances and historical monthly exports.
+  static const balanceEntryDeltaSql = '''
       CASE WHEN e.debt_account_id = a.id THEN CASE WHEN e.kind IN ('borrow','lend','reimburse') THEN e.amount ELSE -e.amount END
       WHEN e.target_account_id = a.id THEN CASE WHEN e.kind='redeem' THEN -e.amount WHEN a.kind='债务' AND a.channel='应付款' THEN -e.amount ELSE e.amount END
       WHEN a.kind='债务' AND a.channel='应付款' THEN e.amount
       WHEN e.kind IN ('income', 'borrow', 'collect', 'reimbursement', 'redeem') THEN e.amount
-      ELSE -e.amount END), 0) AS balance
+      ELSE -e.amount END
+  ''';
+
+  Selectable<QueryRow> _balanceRows() => db.customSelect(
+    '''
+    SELECT a.id, a.opening_balance + COALESCE((SELECT SUM(b.delta) FROM balance_adjustments b WHERE b.account_id=a.id),0) + COALESCE(SUM(
+      $balanceEntryDeltaSql), 0) AS balance
     FROM accounts a LEFT JOIN entries e ON e.account_id = a.id OR e.target_account_id = a.id OR e.debt_account_id = a.id
     GROUP BY a.id
   ''',
