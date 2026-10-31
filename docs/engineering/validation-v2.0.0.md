@@ -21,7 +21,25 @@
 
 本地完整 Flutter 回归 352 项通过，Windows 跳过 1 项既有符号链接用例；静态分析无问题，格式与 `git diff --check` 通过，17 项 Python 构建工具测试通过。
 
-正式构建与公开发布结果完成后追加。
+## 本地正式构建
+
+通用、ARM64、ARM32、x86_64 四个 APK 构建成功，逐包核对包名 `dev.soaccount.so_account`、版本 2.0.0/build 25，签名 SHA-256 `f0db22ad213879a06fcc7e55a40dd80fa230725ab52f230e77c5d55fd1469634` 与既有正式版本相同。包内导入模板和图标与源资产一致。
+
+本地通用 APK SHA-256 `06e66e9e3c33c2d4b297d96d8756f1d47fdf829e8f29d52a4db9771b5e9dc15a`。不同主机不假定产生同一构建摘要。
+
+发布源码 `243293ed143c2b0132990d6e3fc56ac9f2cefddd`，标签 `v2.0.0`。
+
+## CI 与公开发布
+
+- [正式发布流水线 41190996718](https://github.com/musuyin/so-account/actions/runs/41190996718) 成功：353 项 Flutter 测试、17 项 Python 测试、格式、静态分析、通用／三架构签名包、增量生成与发布全部通过。
+- [Mobile checks 41190993027](https://github.com/musuyin/so-account/actions/runs/41190993027) 成功：Android 353 项测试、数据库生成一致性和调试构建通过，iOS 模拟器构建通过。device-recovery 按配置跳过。
+- 已读取两条 Android 作业日志，核对 `+353: All tests passed!` 和 17 项 Python 测试，工作流 head SHA 均与发布源码一致。发布截图 artifact `13038124927`，构建日志 artifact `13039405443`。
+- [公开 v2.0.0](https://github.com/musuyin/so-account/releases/tag/v2.0.0) 为正式最新版，包含 20 个资产。更新清单、四个 APK 和全部增量文件的大小、SHA-256、校验和文件与 GitHub 资产摘要一致。
+- 实际下载公开 ARM64 APK：2.0.0/build 25，35,802,638 字节，SHA-256 `a6694a200ea61255242e7bbc9bfda00a4008aa0d94e88df134a5c601356c9c19`，包名、正式签名、图标和包内模板核验通过。
+- 实际下载 v1.9.0 ARM64 差分并重建，与公开新签名 APK 的摘要完全一致。
+- 真实 AppUpdateService 联网验证：build 24 可发现 build 25，通用／三架构选择正确；ARM64 下载 4,225,186 字节差分、合成并校验成功，没有整包回退；build 25 显示已是最新版。
+
+结构化证据见 [public-release.json](evidence/v2.0.0/public-release.json)。
 
 ## 真机验收边界
 
