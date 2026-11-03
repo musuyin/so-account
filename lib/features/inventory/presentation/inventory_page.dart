@@ -13,6 +13,7 @@ import '../../../core/time/business_date.dart';
 import '../../../data/database/app_database.dart';
 import '../domain/item_cost.dart';
 import '../domain/item_categories.dart';
+import '../domain/inventory_sort.dart';
 import 'item_form.dart';
 
 class InventoryPage extends ConsumerStatefulWidget {
@@ -24,11 +25,8 @@ class InventoryPage extends ConsumerStatefulWidget {
 class _InventoryPageState extends ConsumerState<InventoryPage> {
   final Set<String> selectedCategories = {};
   bool filtersExpanded = true;
-  String search = '',
-      useType = '',
-      status = 'all',
-      currency = 'CNY',
-      sort = 'recent';
+  String search = '', useType = '', status = 'all', currency = 'CNY';
+  bool savingSort = false;
   @override
   void initState() {
     super.initState();
@@ -69,6 +67,9 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
     ),
     body: DataView(
       builder: (data) {
+        final sort = parseInventorySort(
+          data.preference(inventorySortKey, 'recent'),
+        );
         final all = data.items.where((i) => i.currency == currency).toList();
         final categories = data.itemCategoryNames;
         final items =
@@ -146,16 +147,23 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                   '${items.length} 件物品',
                   style: Theme.of(context).textTheme.labelLarge,
                 ),
-                DropdownButton<String>(
-                  value: sort,
-                  underline: const SizedBox.shrink(),
-                  items: const [
-                    DropdownMenuItem(value: 'recent', child: Text('最近添加')),
-                    DropdownMenuItem(value: 'name', child: Text('按名称')),
-                    DropdownMenuItem(value: 'price', child: Text('价格从高到低')),
-                  ],
-                  onChanged: (v) => setState(() => sort = v!),
-                ),
+                for (final option in inventorySortOptions.entries)
+                  ChoiceChip(
+                    label: Text(option.value),
+                    selected: sort == option.key,
+                    onSelected: savingSort
+                        ? null
+                        : (_) async {
+                            setState(() => savingSort = true);
+                            await perform(
+                              context,
+                              () => ref
+                                  .read(inventoryProvider)
+                                  .saveSort(option.key),
+                            );
+                            if (mounted) setState(() => savingSort = false);
+                          },
+                  ),
               ],
             ),
             Row(

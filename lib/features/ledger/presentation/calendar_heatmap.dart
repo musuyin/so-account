@@ -41,7 +41,7 @@ class LedgerCalendar extends StatelessWidget {
         // the selected date and tooltip always retain exact income and expense.
         final dateHeight = scaler.scale(13) * 1.2;
         final amountHeight = scaler.scale(10) * 1.2;
-        final available = side - 8;
+        final available = side - 12;
         final showBoth = dateHeight + amountHeight * 2 <= available;
         final showNet = dateHeight + amountHeight <= available;
         return Column(
@@ -114,76 +114,84 @@ class LedgerCalendar extends StatelessWidget {
                                         maximum,
                                       ),
                                       borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    foregroundDecoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
                                         color: selected == date
                                             ? colors.primary
+                                            : today
+                                            ? colors.onSurfaceVariant
                                             : Colors.transparent,
-                                        width: 2,
+                                        width: selected == date
+                                            ? 3
+                                            : today
+                                            ? 1
+                                            : 0,
                                       ),
                                     ),
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.start,
-                                      children: [
-                                        Stack(
-                                          alignment: Alignment.center,
-                                          children: [
-                                            SizedBox(
-                                              width: double.infinity,
-                                              child: Text(
-                                                '${index - offset + 1}',
-                                                textAlign: TextAlign.center,
-                                                softWrap: false,
-                                                maxLines: 1,
-                                                style: const TextStyle(
-                                                  fontSize: 13,
-                                                  height: 1.2,
-                                                ),
+                                    padding: const EdgeInsets.all(4),
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(3),
+                                        border: today && selected == date
+                                            ? Border.all(
+                                                color: colors.onSurfaceVariant,
+                                              )
+                                            : null,
+                                      ),
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.start,
+                                        children: [
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: Text(
+                                              '${index - offset + 1}',
+                                              textAlign: TextAlign.center,
+                                              softWrap: false,
+                                              maxLines: 1,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                height: 1.2,
+                                                fontWeight: today
+                                                    ? FontWeight.bold
+                                                    : FontWeight.normal,
                                               ),
                                             ),
-                                            if (today)
-                                              Positioned(
-                                                right: 0,
-                                                top: 1,
-                                                child: Icon(
-                                                  Icons.circle,
-                                                  size: 4,
-                                                  color: colors.primary,
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                        if (showBoth) ...[
-                                          if (out != 0)
-                                            amount(
-                                              out,
-                                              '-',
-                                              calendarExpenseColor(
-                                                colors.brightness,
-                                              ),
-                                            ),
-                                          if (inc != 0)
-                                            amount(
-                                              inc,
-                                              '+',
-                                              calendarIncomeColor(
-                                                colors.brightness,
-                                              ),
-                                            ),
-                                        ] else if (showNet &&
-                                            (inc != 0 || out != 0))
-                                          amount(
-                                            net.abs(),
-                                            net < 0 ? '-' : '+',
-                                            net < 0
-                                                ? calendarExpenseColor(
-                                                    colors.brightness,
-                                                  )
-                                                : calendarIncomeColor(
-                                                    colors.brightness,
-                                                  ),
                                           ),
-                                      ],
+                                          if (showBoth) ...[
+                                            if (out != 0)
+                                              amount(
+                                                out,
+                                                '-',
+                                                calendarExpenseColor(
+                                                  colors.brightness,
+                                                ),
+                                              ),
+                                            if (inc != 0)
+                                              amount(
+                                                inc,
+                                                '+',
+                                                calendarIncomeColor(
+                                                  colors.brightness,
+                                                ),
+                                              ),
+                                          ] else if (showNet &&
+                                              (inc != 0 || out != 0))
+                                            amount(
+                                              net.abs(),
+                                              net < 0 ? '-' : '+',
+                                              net < 0
+                                                  ? calendarExpenseColor(
+                                                      colors.brightness,
+                                                    )
+                                                  : calendarIncomeColor(
+                                                      colors.brightness,
+                                                    ),
+                                            ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -265,7 +273,31 @@ class CalendarHeatLegend extends StatelessWidget {
         spacing: 12,
         runSpacing: 2,
         crossAxisAlignment: WrapCrossAlignment.center,
-        children: [scale('日净支出', -1), scale('日净收入', 1)],
+        children: [
+          scale('日净支出', -1),
+          scale('日净收入', 1),
+          for (final marker in [('今日细框', 1.0), ('选中粗框', 3.0)])
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 14,
+                  height: 14,
+                  margin: const EdgeInsets.only(right: 4),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(3),
+                    border: Border.all(
+                      color: marker.$2 == 1
+                          ? colors.onSurfaceVariant
+                          : colors.primary,
+                      width: marker.$2,
+                    ),
+                  ),
+                ),
+                Text(marker.$1, style: Theme.of(context).textTheme.labelSmall),
+              ],
+            ),
+        ],
       ),
     );
   }

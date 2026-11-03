@@ -25,6 +25,8 @@ class Accounts extends Table {
   IntColumn get openingBalance => integer().withDefault(const Constant(0))();
   BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
   IntColumn get creditLimit => integer().nullable()();
+  IntColumn get currentValue => integer().nullable()();
+  IntColumn get valuedAt => integer().nullable()();
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -196,7 +198,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   Future<void> migrateDebtAccounts() async {
     for (final account in await select(accounts).get()) {
@@ -323,6 +325,11 @@ class AppDatabase extends _$AppDatabase {
       await seedDefaults();
     },
     onUpgrade: (m, from, to) async {
+      // Add before historical migrations read accounts using the current model.
+      if (from < 11) {
+        await m.addColumn(accounts, accounts.currentValue);
+        await m.addColumn(accounts, accounts.valuedAt);
+      }
       if (from < 10) {
         await m.addColumn(accounts, accounts.creditLimit);
         await m.createTable(investmentProducts);

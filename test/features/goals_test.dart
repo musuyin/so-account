@@ -259,6 +259,10 @@ void main() {
         await old.customStatement('ALTER TABLE entries DROP COLUMN unit_price');
         await old.customStatement('DROP TABLE investment_products');
         await old.customStatement(
+          'ALTER TABLE accounts DROP COLUMN current_value',
+        );
+        await old.customStatement('ALTER TABLE accounts DROP COLUMN valued_at');
+        await old.customStatement(
           'ALTER TABLE accounts DROP COLUMN credit_limit',
         );
         await old.customStatement('PRAGMA user_version=6');

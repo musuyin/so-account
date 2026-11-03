@@ -14,6 +14,7 @@ import 'balance_adjustment_form.dart';
 import 'entry_form.dart';
 import 'account_actions.dart';
 import 'finance_page.dart';
+import 'investment_value_form.dart';
 
 class AccountDetailPage extends ConsumerStatefulWidget {
   const AccountDetailPage({super.key, required this.id});
@@ -166,7 +167,7 @@ class _AccountDetailState extends ConsumerState<AccountDetailPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('账面余额'),
+                      Text(account.kind == '投资理财' ? '买入成本' : '账面余额'),
                       if (account.creditLimit != null) ...[
                         ParameterRow([
                           '信贷额度',
@@ -198,6 +199,10 @@ class _AccountDetailState extends ConsumerState<AccountDetailPage> {
                         '交易净变动  ${display(transactionTotal, account.currency)}',
                       ),
                       Text('余额调整  ${display(corrections, account.currency)}'),
+                      if (account.kind == '投资理财') ...[
+                        const SizedBox(height: 12),
+                        InvestmentValueSummary(account: account),
+                      ],
                     ],
                   ),
                 ),

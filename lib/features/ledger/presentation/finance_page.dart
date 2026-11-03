@@ -10,6 +10,7 @@ import '../domain/account_activity.dart';
 import '../domain/entry_kind.dart';
 import 'accounts_page.dart';
 import 'entry_form.dart';
+import 'investment_value_form.dart';
 
 class FinancePage extends ConsumerWidget {
   const FinancePage({
@@ -85,7 +86,7 @@ class FinancePage extends ConsumerWidget {
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       ParameterRow([
-                        investment ? '账户持有成本' : '账户待收合计',
+                        investment ? '买入成本' : '账户待收合计',
                         amount(
                           account.openingBalance +
                               data.entries.fold<int>(
@@ -97,6 +98,7 @@ class FinancePage extends ConsumerWidget {
                                   .fold<int>(0, (s, a) => s + a.delta),
                         ),
                       ]),
+                      if (investment) InvestmentValueSummary(account: account),
                       if (account.openingBalance != 0)
                         ParameterRow([
                           investment ? '期初成本' : '期初待收',

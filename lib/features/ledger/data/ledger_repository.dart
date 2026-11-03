@@ -111,6 +111,10 @@ class LedgerRepository {
         if (old.isArchived) {
           throw const FormatException('账户已归档，请先在设置中恢复');
         }
+        if (old.currentValue != null &&
+            (kind != '投资理财' || currency != old.currency)) {
+          throw const FormatException('已记录当前资产，不能改变账户类型或币种；请先清除当前资产');
+        }
         final products = await (db.select(
           db.investmentProducts,
         )..where((p) => p.accountId.equals(id))).get();
@@ -164,6 +168,49 @@ class LedgerRepository {
   }
 
   Future<void> archiveAccount(String id) => _setArchived(id, true);
+
+  static void validateValuation(Account account) {
+    if ((account.currentValue == null) != (account.valuedAt == null) ||
+        (account.currentValue != null &&
+            (account.kind != '投资理财' ||
+                account.currentValue! < 0 ||
+                account.currentValue! > 999999999999 ||
+                account.valuedAt! < 0 ||
+                account.valuedAt! > 8640000000000000))) {
+      throw const FormatException('当前资产须为非负有效金额，且仅适用于理财账户');
+    }
+  }
+
+  Future<void> updateInvestmentValue({
+    required String accountId,
+    required String expectedCurrency,
+    required int? currentValue,
+  }) => db.transaction(() async {
+    final account = await (db.select(
+      db.accounts,
+    )..where((a) => a.id.equals(accountId))).getSingleOrNull();
+    if (account == null || account.isArchived || account.kind != '投资理财') {
+      throw const FormatException('请选择可用的理财账户');
+    }
+    if (account.currency != expectedCurrency) {
+      throw const FormatException('账户币种已变化，请重新打开后更新');
+    }
+    final valuedAt = currentValue == null
+        ? null
+        : DateTime.now().millisecondsSinceEpoch;
+    validateValuation(
+      account.copyWith(
+        currentValue: Value(currentValue),
+        valuedAt: Value(valuedAt),
+      ),
+    );
+    await (db.update(db.accounts)..where((a) => a.id.equals(accountId))).write(
+      AccountsCompanion(
+        currentValue: Value(currentValue),
+        valuedAt: Value(valuedAt),
+      ),
+    );
+  });
 
   Future<void> restoreAccount(String id) => _setArchived(id, false);
 

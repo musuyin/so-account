@@ -35,6 +35,10 @@ void main() {
   testWidgets(
     'loaded Noto font keeps tabular digits and full large compact amounts',
     (t) async {
+      t.view.physicalSize = const Size(390, 900);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.resetPhysicalSize);
+      addTearDown(t.view.resetDevicePixelRatio);
       await t.pumpWidget(
         MaterialApp(
           theme: appTheme(Brightness.light),
@@ -75,7 +79,15 @@ void main() {
       expect(
         find.descendant(
           of: find.byKey(ValueKey('calendar-$today')),
-          matching: find.byIcon(Icons.circle),
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is Container &&
+                w.foregroundDecoration is BoxDecoration &&
+                ((w.foregroundDecoration as BoxDecoration).border as Border?)
+                        ?.top
+                        .width ==
+                    3,
+          ),
         ),
         findsOneWidget,
       );

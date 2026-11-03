@@ -477,8 +477,20 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                                                 account.customChannel.isNotEmpty
                                             ? account.customChannel
                                             : account.channel,
-                                        if (account.kind == '投资理财') '按买入成本',
+                                        if (account.kind == '投资理财') '买入成本',
                                       ]),
+                                      if (account.kind == '投资理财')
+                                        ParameterRow([
+                                          '当前资产',
+                                          account.currentValue == null
+                                              ? '未更新'
+                                              : hidden
+                                              ? '••••'
+                                              : decimalMoney(
+                                                  account.currentValue!,
+                                                  currency,
+                                                ),
+                                        ]),
                                       if (account.creditLimit != null)
                                         ParameterRow([
                                           '额度',

@@ -122,6 +122,8 @@ void main() {
         'ALTER TABLE entries DROP COLUMN investment_product_id',
         'ALTER TABLE entries DROP COLUMN unit_price',
         'DROP TABLE investment_products',
+        'ALTER TABLE accounts DROP COLUMN current_value',
+        'ALTER TABLE accounts DROP COLUMN valued_at',
         'ALTER TABLE accounts DROP COLUMN credit_limit',
         'PRAGMA user_version=9',
       ]) {
@@ -152,7 +154,7 @@ void main() {
               .data
               .values
               .single,
-          10,
+          11,
         );
       } finally {
         await upgraded.close();

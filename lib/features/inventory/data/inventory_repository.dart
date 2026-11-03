@@ -7,10 +7,22 @@ import '../../../core/time/business_date.dart';
 import '../../../data/category_settings_store.dart';
 import '../../../data/database/app_database.dart';
 import '../domain/item_categories.dart';
+import '../domain/inventory_sort.dart';
 
 class InventoryRepository {
   InventoryRepository(this.db);
   final AppDatabase db;
+  Future<void> saveSort(String value) async {
+    if (!inventorySortOptions.containsKey(value)) {
+      throw const FormatException('无效的物品排序方式');
+    }
+    await db
+        .into(db.preferences)
+        .insertOnConflictUpdate(
+          PreferencesCompanion.insert(key: inventorySortKey, value: value),
+        );
+  }
+
   Stream<List<Item>> watchItems() => (db.select(
     db.items,
   )..orderBy([(i) => OrderingTerm.desc(i.createdAt)])).watch();

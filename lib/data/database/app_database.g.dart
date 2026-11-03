@@ -142,6 +142,28 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _currentValueMeta = const VerificationMeta(
+    'currentValue',
+  );
+  @override
+  late final GeneratedColumn<int> currentValue = GeneratedColumn<int>(
+    'current_value',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _valuedAtMeta = const VerificationMeta(
+    'valuedAt',
+  );
+  @override
+  late final GeneratedColumn<int> valuedAt = GeneratedColumn<int>(
+    'valued_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -156,6 +178,8 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     openingBalance,
     isArchived,
     creditLimit,
+    currentValue,
+    valuedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -257,6 +281,21 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         ),
       );
     }
+    if (data.containsKey('current_value')) {
+      context.handle(
+        _currentValueMeta,
+        currentValue.isAcceptableOrUnknown(
+          data['current_value']!,
+          _currentValueMeta,
+        ),
+      );
+    }
+    if (data.containsKey('valued_at')) {
+      context.handle(
+        _valuedAtMeta,
+        valuedAt.isAcceptableOrUnknown(data['valued_at']!, _valuedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -314,6 +353,14 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         DriftSqlType.int,
         data['${effectivePrefix}credit_limit'],
       ),
+      currentValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}current_value'],
+      ),
+      valuedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}valued_at'],
+      ),
     );
   }
 
@@ -336,6 +383,8 @@ class Account extends DataClass implements Insertable<Account> {
   final int openingBalance;
   final bool isArchived;
   final int? creditLimit;
+  final int? currentValue;
+  final int? valuedAt;
   const Account({
     required this.id,
     required this.name,
@@ -349,6 +398,8 @@ class Account extends DataClass implements Insertable<Account> {
     required this.openingBalance,
     required this.isArchived,
     this.creditLimit,
+    this.currentValue,
+    this.valuedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -368,6 +419,12 @@ class Account extends DataClass implements Insertable<Account> {
     map['is_archived'] = Variable<bool>(isArchived);
     if (!nullToAbsent || creditLimit != null) {
       map['credit_limit'] = Variable<int>(creditLimit);
+    }
+    if (!nullToAbsent || currentValue != null) {
+      map['current_value'] = Variable<int>(currentValue);
+    }
+    if (!nullToAbsent || valuedAt != null) {
+      map['valued_at'] = Variable<int>(valuedAt);
     }
     return map;
   }
@@ -390,6 +447,12 @@ class Account extends DataClass implements Insertable<Account> {
       creditLimit: creditLimit == null && nullToAbsent
           ? const Value.absent()
           : Value(creditLimit),
+      currentValue: currentValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(currentValue),
+      valuedAt: valuedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(valuedAt),
     );
   }
 
@@ -411,6 +474,8 @@ class Account extends DataClass implements Insertable<Account> {
       openingBalance: serializer.fromJson<int>(json['openingBalance']),
       isArchived: serializer.fromJson<bool>(json['isArchived']),
       creditLimit: serializer.fromJson<int?>(json['creditLimit']),
+      currentValue: serializer.fromJson<int?>(json['currentValue']),
+      valuedAt: serializer.fromJson<int?>(json['valuedAt']),
     );
   }
   @override
@@ -429,6 +494,8 @@ class Account extends DataClass implements Insertable<Account> {
       'openingBalance': serializer.toJson<int>(openingBalance),
       'isArchived': serializer.toJson<bool>(isArchived),
       'creditLimit': serializer.toJson<int?>(creditLimit),
+      'currentValue': serializer.toJson<int?>(currentValue),
+      'valuedAt': serializer.toJson<int?>(valuedAt),
     };
   }
 
@@ -445,6 +512,8 @@ class Account extends DataClass implements Insertable<Account> {
     int? openingBalance,
     bool? isArchived,
     Value<int?> creditLimit = const Value.absent(),
+    Value<int?> currentValue = const Value.absent(),
+    Value<int?> valuedAt = const Value.absent(),
   }) => Account(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -458,6 +527,8 @@ class Account extends DataClass implements Insertable<Account> {
     openingBalance: openingBalance ?? this.openingBalance,
     isArchived: isArchived ?? this.isArchived,
     creditLimit: creditLimit.present ? creditLimit.value : this.creditLimit,
+    currentValue: currentValue.present ? currentValue.value : this.currentValue,
+    valuedAt: valuedAt.present ? valuedAt.value : this.valuedAt,
   );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
@@ -481,6 +552,10 @@ class Account extends DataClass implements Insertable<Account> {
       creditLimit: data.creditLimit.present
           ? data.creditLimit.value
           : this.creditLimit,
+      currentValue: data.currentValue.present
+          ? data.currentValue.value
+          : this.currentValue,
+      valuedAt: data.valuedAt.present ? data.valuedAt.value : this.valuedAt,
     );
   }
 
@@ -498,7 +573,9 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('unitPrice: $unitPrice, ')
           ..write('openingBalance: $openingBalance, ')
           ..write('isArchived: $isArchived, ')
-          ..write('creditLimit: $creditLimit')
+          ..write('creditLimit: $creditLimit, ')
+          ..write('currentValue: $currentValue, ')
+          ..write('valuedAt: $valuedAt')
           ..write(')'))
         .toString();
   }
@@ -517,6 +594,8 @@ class Account extends DataClass implements Insertable<Account> {
     openingBalance,
     isArchived,
     creditLimit,
+    currentValue,
+    valuedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -533,7 +612,9 @@ class Account extends DataClass implements Insertable<Account> {
           other.unitPrice == this.unitPrice &&
           other.openingBalance == this.openingBalance &&
           other.isArchived == this.isArchived &&
-          other.creditLimit == this.creditLimit);
+          other.creditLimit == this.creditLimit &&
+          other.currentValue == this.currentValue &&
+          other.valuedAt == this.valuedAt);
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
@@ -549,6 +630,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<int> openingBalance;
   final Value<bool> isArchived;
   final Value<int?> creditLimit;
+  final Value<int?> currentValue;
+  final Value<int?> valuedAt;
   final Value<int> rowid;
   const AccountsCompanion({
     this.id = const Value.absent(),
@@ -563,6 +646,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.openingBalance = const Value.absent(),
     this.isArchived = const Value.absent(),
     this.creditLimit = const Value.absent(),
+    this.currentValue = const Value.absent(),
+    this.valuedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   AccountsCompanion.insert({
@@ -578,6 +663,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.openingBalance = const Value.absent(),
     this.isArchived = const Value.absent(),
     this.creditLimit = const Value.absent(),
+    this.currentValue = const Value.absent(),
+    this.valuedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -597,6 +684,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<int>? openingBalance,
     Expression<bool>? isArchived,
     Expression<int>? creditLimit,
+    Expression<int>? currentValue,
+    Expression<int>? valuedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -612,6 +701,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (openingBalance != null) 'opening_balance': openingBalance,
       if (isArchived != null) 'is_archived': isArchived,
       if (creditLimit != null) 'credit_limit': creditLimit,
+      if (currentValue != null) 'current_value': currentValue,
+      if (valuedAt != null) 'valued_at': valuedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -629,6 +720,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Value<int>? openingBalance,
     Value<bool>? isArchived,
     Value<int?>? creditLimit,
+    Value<int?>? currentValue,
+    Value<int?>? valuedAt,
     Value<int>? rowid,
   }) {
     return AccountsCompanion(
@@ -644,6 +737,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       openingBalance: openingBalance ?? this.openingBalance,
       isArchived: isArchived ?? this.isArchived,
       creditLimit: creditLimit ?? this.creditLimit,
+      currentValue: currentValue ?? this.currentValue,
+      valuedAt: valuedAt ?? this.valuedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -687,6 +782,12 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (creditLimit.present) {
       map['credit_limit'] = Variable<int>(creditLimit.value);
     }
+    if (currentValue.present) {
+      map['current_value'] = Variable<int>(currentValue.value);
+    }
+    if (valuedAt.present) {
+      map['valued_at'] = Variable<int>(valuedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -708,6 +809,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('openingBalance: $openingBalance, ')
           ..write('isArchived: $isArchived, ')
           ..write('creditLimit: $creditLimit, ')
+          ..write('currentValue: $currentValue, ')
+          ..write('valuedAt: $valuedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5369,6 +5472,8 @@ typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   Value<int> openingBalance,
   Value<bool> isArchived,
   Value<int?> creditLimit,
+  Value<int?> currentValue,
+  Value<int?> valuedAt,
   Value<int> rowid,
 });
 typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
@@ -5384,6 +5489,8 @@ typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<int> openingBalance,
   Value<bool> isArchived,
   Value<int?> creditLimit,
+  Value<int?> currentValue,
+  Value<int?> valuedAt,
   Value<int> rowid,
 });
 
@@ -5500,6 +5607,16 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<int> get creditLimit => $composableBuilder(
     column: $table.creditLimit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get currentValue => $composableBuilder(
+    column: $table.currentValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get valuedAt => $composableBuilder(
+    column: $table.valuedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5622,6 +5739,16 @@ class $$AccountsTableOrderingComposer
     column: $table.creditLimit,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get currentValue => $composableBuilder(
+    column: $table.currentValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get valuedAt => $composableBuilder(
+    column: $table.valuedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AccountsTableAnnotationComposer
@@ -5676,6 +5803,14 @@ class $$AccountsTableAnnotationComposer
     column: $table.creditLimit,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get currentValue => $composableBuilder(
+    column: $table.currentValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get valuedAt =>
+      $composableBuilder(column: $table.valuedAt, builder: (column) => column);
 
   Expression<T> investmentProductsRefs<T extends Object>(
     Expression<T> Function($$InvestmentProductsTableAnnotationComposer a) f,
@@ -5773,6 +5908,8 @@ class $$AccountsTableTableManager
                 Value<int> openingBalance = const Value.absent(),
                 Value<bool> isArchived = const Value.absent(),
                 Value<int?> creditLimit = const Value.absent(),
+                Value<int?> currentValue = const Value.absent(),
+                Value<int?> valuedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsCompanion(
                 id: id,
@@ -5787,6 +5924,8 @@ class $$AccountsTableTableManager
                 openingBalance: openingBalance,
                 isArchived: isArchived,
                 creditLimit: creditLimit,
+                currentValue: currentValue,
+                valuedAt: valuedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -5803,6 +5942,8 @@ class $$AccountsTableTableManager
                 Value<int> openingBalance = const Value.absent(),
                 Value<bool> isArchived = const Value.absent(),
                 Value<int?> creditLimit = const Value.absent(),
+                Value<int?> currentValue = const Value.absent(),
+                Value<int?> valuedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsCompanion.insert(
                 id: id,
@@ -5817,6 +5958,8 @@ class $$AccountsTableTableManager
                 openingBalance: openingBalance,
                 isArchived: isArchived,
                 creditLimit: creditLimit,
+                currentValue: currentValue,
+                valuedAt: valuedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

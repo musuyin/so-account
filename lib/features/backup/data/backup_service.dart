@@ -14,6 +14,7 @@ import '../../../platform/media/media_store.dart';
 import '../../goals/data/goals_repository.dart';
 import '../../inventory/data/inventory_repository.dart';
 import '../../inventory/domain/item_categories.dart';
+import '../../inventory/domain/inventory_sort.dart';
 import '../../ledger/data/ledger_repository.dart';
 import '../../ledger/domain/entry_kind.dart';
 import '../domain/backup_codec.dart';
@@ -91,6 +92,7 @@ class BackupService {
           .write(const AccountsCompanion(isArchived: Value(false)));
       final ledger = LedgerRepository(stage);
       for (final a in snapshot.accounts) {
+        LedgerRepository.validateValuation(a);
         if (a.openingBalance.abs() > 999999999999) {
           throw const FormatException('账户余额超出上限');
         }
@@ -199,6 +201,12 @@ class BackupService {
         );
       }
       for (final pref in snapshot.preferences) {
+        if (pref.key == inventorySortKey) {
+          if (!inventorySortOptions.containsKey(pref.value)) {
+            throw const FormatException('无效的物品排序方式');
+          }
+          continue;
+        }
         if (pref.key.startsWith('recent_account_')) {
           // Deleted categories/accounts can leave a stale hint. It is harmless:
           // the composer only recalls live accounts in the current currency.
