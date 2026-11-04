@@ -246,7 +246,7 @@ void main() {
       await _mount(t, db, _Delivery(), boundary: boundary);
       await t.tap(find.text('核对当前账户余额'));
       await helper.settle(t);
-      expect(find.text('当前余额 CNY 100.00'), findsOneWidget);
+      expect(find.text('当前余额 100.00'), findsOneWidget);
       await t.tap(find.byTooltip('隐藏资产金额'));
       await helper.settle(t);
       expect(find.textContaining('100.00'), findsNothing);
@@ -271,7 +271,7 @@ void main() {
       );
       await t.tap(find.text('保存'));
       await helper.settle(t);
-      expect(find.text('当前余额 CNY 80.00'), findsOneWidget);
+      expect(find.text('当前余额 80.00'), findsOneWidget);
       await t.tap(find.text('完成核对'));
       await helper.settle(t);
       expect((await t.runAsync(() => db.select(db.entries).get()))!, isEmpty);

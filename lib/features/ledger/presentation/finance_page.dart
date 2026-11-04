@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/providers.dart';
 import '../../../app/widgets.dart';
+import '../../../app/currency_button.dart';
 import '../../../core/money/money.dart';
 import '../../../data/database/app_database.dart';
 import '../domain/debt_relationship.dart';
@@ -12,7 +13,7 @@ import 'accounts_page.dart';
 import 'entry_form.dart';
 import 'investment_value_form.dart';
 
-class FinancePage extends ConsumerWidget {
+class FinancePage extends ConsumerStatefulWidget {
   const FinancePage({
     super.key,
     required this.investment,
@@ -24,10 +25,20 @@ class FinancePage extends ConsumerWidget {
   final String? accountId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => DataView(
+  ConsumerState<FinancePage> createState() => _FinancePageState();
+}
+
+class _FinancePageState extends ConsumerState<FinancePage> {
+  late String currency = widget.currency;
+  late String? accountId = widget.accountId;
+  bool get investment => widget.investment;
+
+  @override
+  Widget build(BuildContext context) => DataView(
     builder: (data) {
       final hidden = ref.watch(assetAmountsHiddenProvider);
-      String amount(int value) => hidden ? '••••' : money(value, currency);
+      String amount(int value) =>
+          hidden ? '••••' : decimalMoney(value, currency);
       final accounts = data.accounts
           .where(
             (a) =>
@@ -40,8 +51,25 @@ class FinancePage extends ConsumerWidget {
           .toList();
       return Scaffold(
         appBar: AppBar(
-          title: Text(investment ? '理财管理' : '报销管理'),
+          toolbarHeight:
+              MediaQuery.sizeOf(context).width < 360 &&
+                  MediaQuery.textScalerOf(context).scale(22) > 28
+              ? MediaQuery.textScalerOf(context).scale(22) * 2 + 16
+              : null,
+          title: Text(
+            investment ? '理财管理' : '报销管理',
+            softWrap: true,
+            maxLines: 2,
+          ),
           actions: [
+            CurrencyButton(
+              key: const ValueKey('finance-currency'),
+              value: currency,
+              onChanged: (value) => setState(() {
+                currency = value;
+                accountId = null;
+              }),
+            ),
             IconButton(
               tooltip: hidden ? '显示金额' : '隐藏金额',
               onPressed: () =>
@@ -70,10 +98,7 @@ class FinancePage extends ConsumerWidget {
                 ),
               ),
             if (accounts.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('暂无账户，请先添加。'),
-              ),
+              const Padding(padding: EdgeInsets.all(16), child: Text('暂无账户')),
             for (final account in accounts)
               Card(
                 child: Padding(
@@ -268,7 +293,7 @@ class FinancePage extends ConsumerWidget {
                         if (!data.investmentProducts.any(
                           (p) => p.accountId == account.id,
                         ))
-                          const Text('暂无产品。期初持有成本仍保留在账户余额中。'),
+                          const Text('暂无产品'),
                       ] else ...[
                         for (final entry in data.entries.where(
                           (e) =>
@@ -345,7 +370,7 @@ class FinancePage extends ConsumerWidget {
                               e.debtAccountId == account.id &&
                               ['reimburse', 'lend'].contains(e.kind),
                         ))
-                          const Text('暂无报销条目。期初待报销款可继续通过原有转账或余额调整处理。'),
+                          const Text('暂无报销条目'),
                       ],
                     ],
                   ),

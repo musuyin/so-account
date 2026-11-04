@@ -60,7 +60,6 @@ void main() {
                       selected: selected,
                       onSelected: (date) => update(() => selected = date),
                     ),
-                    const CalendarHeatLegend(),
                   ],
                 ),
               ),
@@ -169,7 +168,7 @@ void main() {
         await t.enterText(support.field('当前资产'), '613.25');
         await t.tap(find.text('保存'));
         await support.settle(t);
-        expect(find.text('CNY 613.25'), findsOneWidget);
+        expect(find.text('613.25'), findsOneWidget);
         expect(find.text('500.00'), findsOneWidget);
         await support.capture(
           t,
@@ -192,7 +191,7 @@ void main() {
         await t.enterText(support.field('当前资产'), '0');
         await t.tap(find.text('保存'));
         await support.settle(t);
-        expect(find.text('CNY 0.00'), findsOneWidget);
+        expect(find.text('0.00'), findsOneWidget);
         await t.tap(find.text('更新当前资产'));
         await t.pumpAndSettle();
         await support.show(t, find.text('清除当前资产记录'));
@@ -213,7 +212,7 @@ void main() {
           brightness: brightness,
           boundary: boundary,
         );
-        expect(find.text('CNY 613.25'), findsOneWidget);
+        expect(find.text('613.25'), findsOneWidget);
         await support.capture(
           t,
           boundary,

@@ -27,7 +27,7 @@ class InvestmentValueSummary extends ConsumerWidget {
               ? '未更新'
               : hidden
               ? '••••'
-              : money(account.currentValue!, account.currency),
+              : decimalMoney(account.currentValue!, account.currency),
         ]),
         if (account.valuedAt != null)
           Text(
@@ -101,15 +101,11 @@ class _InvestmentValueFormState extends ConsumerState<InvestmentValueForm> {
     onSave: save,
     children: [
       Text(widget.account.name, style: Theme.of(context).textTheme.titleLarge),
-      const Text('填入理财平台显示的账户总资产。买入成本单独保留，资产总览仍按成本汇总。'),
       TextField(
         controller: amount,
         enabled: !saving,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: const InputDecoration(
-          labelText: '当前资产',
-          helperText: '可填写 0；以账户币种为准。',
-        ),
+        decoration: const InputDecoration(labelText: '当前资产'),
       ),
       if (widget.account.valuedAt != null)
         Text('上次更新 ${valuationTime(widget.account.valuedAt!)}'),

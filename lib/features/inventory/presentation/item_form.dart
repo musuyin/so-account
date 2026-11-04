@@ -236,10 +236,7 @@ class _ItemFormState extends ConsumerState<ItemForm> {
           TextField(
             controller: price,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: '购入价格（可留空）',
-              helperText: '填写这件物品自己的价格；关联账目不会自动分摊或覆盖价格。',
-            ),
+            decoration: const InputDecoration(labelText: '购入价格（可留空）'),
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -264,7 +261,7 @@ class _ItemFormState extends ConsumerState<ItemForm> {
           ),
           if (widget.item?.price != null && widget.item?.purchasedOn != null)
             ParameterText(
-              '记录日均 $currency ${(dailyCost(widget.item!.price, widget.item!.purchasedOn, widget.item!.archivedOn, DateTime.now())! / (currency == 'JPY' ? 1 : 100)).toStringAsFixed(2)}${widget.item!.archivedOn == null ? '' : ' · 截止归档日'}',
+              '记录日均 ${(dailyCost(widget.item!.price, widget.item!.purchasedOn, widget.item!.archivedOn, DateTime.now())! / (currency == 'JPY' ? 1 : 100)).toStringAsFixed(2)}${widget.item!.archivedOn == null ? '' : ' · 截止归档日'}',
             ),
           if (photo != null)
             ref
@@ -317,7 +314,7 @@ class _ItemFormState extends ConsumerState<ItemForm> {
             decoration: const InputDecoration(labelText: '备注'),
           ),
           Text('关联购买支出（可多选）', style: Theme.of(context).textTheme.titleMedium),
-          if (expenses.isEmpty) const Text('暂无同币种支出，物品也可以独立保存。'),
+          if (expenses.isEmpty) const Text('暂无同币种支出'),
           for (final entry in expenses)
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,

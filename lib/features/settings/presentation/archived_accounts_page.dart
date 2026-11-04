@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/providers.dart';
 import '../../../app/widgets.dart';
+import '../../../app/currency_button.dart';
 import '../../ledger/domain/entry_kind.dart';
 import '../../ledger/presentation/account_avatar.dart';
 import '../../ledger/presentation/account_detail_page.dart';
@@ -16,14 +17,27 @@ class ArchivedAccountsPage extends ConsumerStatefulWidget {
 
 class _ArchivedAccountsState extends ConsumerState<ArchivedAccountsPage> {
   final restoring = <String>{};
+  String currency = 'CNY';
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('归档账户')),
+    appBar: AppBar(
+      title: const Text('归档账户'),
+      actions: [
+        CurrencyButton(
+          key: const ValueKey('archive-currency'),
+          value: currency,
+          onChanged: (value) => setState(() => currency = value),
+        ),
+      ],
+    ),
     body: DataView(
       builder: (data) {
-        final accounts = data.accounts.where((a) => a.isArchived).toList()
-          ..sort((a, b) => a.name.compareTo(b.name));
+        final accounts =
+            data.accounts
+                .where((a) => a.isArchived && a.currency == currency)
+                .toList()
+              ..sort((a, b) => a.name.compareTo(b.name));
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
@@ -41,7 +55,7 @@ class _ArchivedAccountsState extends ConsumerState<ArchivedAccountsPage> {
                         leading: AccountAvatar(account: account),
                         title: Text(account.name),
                         subtitle: ParameterText(
-                          '${accountKindLabel(account.kind)} · ${account.channel == '自定义' ? account.customChannel : account.channel} · ${account.currency}',
+                          '${accountKindLabel(account.kind)} · ${account.channel == '自定义' ? account.customChannel : account.channel}',
                         ),
                         onTap: () => openForm(
                           context,

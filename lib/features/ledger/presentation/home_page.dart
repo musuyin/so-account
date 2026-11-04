@@ -232,7 +232,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                 onSelected: (value) =>
                     setState(() => day = day == value ? null : value),
               ),
-              const CalendarHeatLegend(),
             ],
             const SizedBox(height: 2),
             ClearableSearch(

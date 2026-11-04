@@ -743,7 +743,6 @@ class _AccountFormState extends ConsumerState<AccountForm> {
                   ? '选择账户类型'
                   : '$channel · ${accountKindLabel(kind!)}',
             ),
-            subtitle: balanceLocked ? const Text('已有流水或余额调整，账户类型及币种受保护') : null,
             trailing: widget.initialChannel == null
                 ? TextButton(
                     onPressed: () =>
@@ -817,9 +816,6 @@ class _AccountFormState extends ConsumerState<AccountForm> {
         ),
         decoration: InputDecoration(
           labelText: kind == '投资理财' ? '买入价 / 期初持有成本' : '初始余额',
-          helperText: kind == '债务'
-              ? '填待收或待还金额，通常填正数；无期初债务填 0。'
-              : '必填；无余额请填 0，信贷欠款填负数。已有流水后可使用余额调整。',
         ),
       ),
       if (kind == '信贷账户')
@@ -832,10 +828,7 @@ class _AccountFormState extends ConsumerState<AccountForm> {
         TextField(
           controller: unitPrice,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: '买入单价（选填）',
-            helperText: '最多 8 位小数',
-          ),
+          decoration: const InputDecoration(labelText: '买入单价（选填）'),
         ),
     ],
   );

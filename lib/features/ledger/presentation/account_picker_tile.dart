@@ -56,7 +56,7 @@ class AccountPickerTile extends StatelessWidget {
                 ],
               ),
               Text(
-                '${account.channel} · ${account.currency}',
+                account.channel,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),

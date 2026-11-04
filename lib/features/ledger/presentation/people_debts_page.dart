@@ -144,13 +144,6 @@ class _DebtAccountsState extends ConsumerState<PeopleDebtsPage> {
                             ],
                           ),
                         ),
-                      if (!data.entries.any(
-                        (e) => e.debtAccountId == account.id,
-                      ))
-                        const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Text('期初债务可通过转账偿还或收回；有分笔借贷时请选择对应记录结算。'),
-                        ),
                     ],
                   ),
                 ),

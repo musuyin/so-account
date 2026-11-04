@@ -111,7 +111,7 @@ void main() {
         expect(find.byTooltip('编辑账户'), findsNothing);
         expect(find.byTooltip('余额调整'), findsNothing);
         expect(find.text('记一笔'), findsNothing);
-        expect(find.textContaining('历史记录只读'), findsOneWidget);
+        expect(find.text('账户已归档'), findsOneWidget);
         await qa.capture(t, boundary, 'account-archived-detail-$suffix');
         await t.tap(find.text('全部时间'));
         await qa.settle(t);
@@ -135,7 +135,7 @@ void main() {
         expect(find.text('95.00'), findsNothing);
         await t.tap(find.text('历史明细'));
         await qa.settle(t);
-        expect(find.textContaining('历史记录只读'), findsOneWidget);
+        expect(find.text('账户已归档'), findsOneWidget);
         await t.tap(find.byType(BackButton));
         await qa.settle(t);
         await t.tap(find.text('恢复账户'));

@@ -54,7 +54,8 @@ class _BalanceAdjustmentState extends ConsumerState<BalanceAdjustmentForm> {
       }
 
       return FormFrame(
-        title: '修改余额 · ${widget.account.currency}',
+        title: '修改余额',
+        currency: widget.account.currency,
         saving: saving,
         onSave: () async {
           setState(() => saving = true);
@@ -91,16 +92,11 @@ class _BalanceAdjustmentState extends ConsumerState<BalanceAdjustmentForm> {
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('生成收支条目'),
-            subtitle: widget.account.kind == '债务'
-                ? const Text('债务账户仅支持调整余额')
-                : null,
             value: createEntry,
             onChanged: saving || widget.account.kind == '债务'
                 ? null
                 : (value) => setState(() => createEntry = value),
           ),
-          if (widget.account.kind == '债务')
-            const Text('调整债务账户只校正汇总余额，不改写各笔借贷的本金和已还金额。'),
           TextField(
             controller: amount,
             onChanged: (_) => setState(() {}),
@@ -108,10 +104,7 @@ class _BalanceAdjustmentState extends ConsumerState<BalanceAdjustmentForm> {
               decimal: true,
               signed: true,
             ),
-            decoration: const InputDecoration(
-              labelText: '实际余额',
-              helperText: '填写核对后的真实余额；支持零和负数。',
-            ),
+            decoration: const InputDecoration(labelText: '实际余额'),
           ),
           Text('本次变动 ${change()}'),
           TextField(

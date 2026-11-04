@@ -187,12 +187,10 @@ class _PurchaseItemDialogState extends ConsumerState<PurchaseItemDialog> {
                 ),
                 decoration: InputDecoration(
                   labelText: '物品价格（选填）',
-                  helperText: '${widget.currency} · 单独填写，不自动分配整笔支出',
                   helperMaxLines: 3,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text('确认后暂存，保存支出时一起创建物品并关联；购入日期与支出一致。'),
               if (error != null)
                 Text(
                   error!,

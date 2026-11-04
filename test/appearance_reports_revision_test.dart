@@ -349,7 +349,7 @@ void main() {
                   .get(),
         );
         expect(find.text('共 ${selected!.length} 笔'), findsOneWidget);
-        expect(find.text('仅收入与支出'), findsOneWidget);
+        expect(find.text('仅收入与支出'), findsNothing);
         Navigator.of(t.element(find.byType(ReportRecordsPage))).pop();
         await helper.settle(t);
         expect(

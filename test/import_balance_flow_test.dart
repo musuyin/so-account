@@ -79,7 +79,7 @@ void main() {
         if (adjust) {
           await tester.tap(find.text('核对并调整余额'));
           await settle(tester);
-          expect(find.text('当前余额 CNY 110.00'), findsOneWidget);
+          expect(find.text('当前余额 110.00'), findsOneWidget);
           await tester.tap(find.text('调整余额'));
           await settle(tester);
           final amount = find.byWidgetPredicate(
@@ -88,7 +88,7 @@ void main() {
           await tester.enterText(amount, '90');
           await tester.tap(find.text('保存'));
           await settle(tester);
-          expect(find.text('当前余额 CNY 90.00'), findsOneWidget);
+          expect(find.text('当前余额 90.00'), findsOneWidget);
           await tester.tap(find.text('完成核对'));
           await settle(tester);
         }

@@ -44,7 +44,6 @@ class _CsvExportPageState extends ConsumerState<CsvExportPage> {
     body: ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text('按币种分别统计，可保存或分享。'),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('按分类汇总'),
@@ -86,7 +85,6 @@ class _CsvExportPageState extends ConsumerState<CsvExportPage> {
             title: Text(
               period == ExportPeriod.month ? monthKey(date) : '${date.year} 年',
             ),
-            subtitle: const Text('点击选择日期以定位月份 / 年份'),
             trailing: const Icon(Icons.calendar_today),
             onTap: busy
                 ? null

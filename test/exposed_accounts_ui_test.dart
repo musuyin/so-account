@@ -334,7 +334,9 @@ void main() {
         await t.tap(find.text('今天'));
         await settle(t);
         final now = DateTime.now();
-        final day = dateKey(DateTime(now.year, now.month, 4));
+        final day = dateKey(
+          DateTime(now.year, now.month, now.day == 4 ? 6 : 4),
+        );
         await show(t, key('calendar-$day'));
         await t.tap(key('calendar-$day'));
         await t.pumpAndSettle();

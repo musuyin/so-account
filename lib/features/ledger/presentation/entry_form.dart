@@ -133,14 +133,24 @@ class _EntryFormState extends ConsumerState<EntryForm> {
       final historical = widget.entry ?? widget.initialDebt;
       if (historical != null && data.hasArchivedAccount(historical)) {
         return Scaffold(
-          appBar: AppBar(title: const Text('历史账目')),
+          appBar: AppBar(
+            title: const Text('历史账目'),
+            actions: [
+              Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Center(
+                  child: Text(data.account(historical.accountId).currency),
+                ),
+              ),
+            ],
+          ),
           body: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              const Text('关联账户已归档，历史记录只读。如需修改或结算，请先在设置 → 归档账户中恢复。'),
+              const Text('关联账户已归档'),
               const SizedBox(height: 16),
               ParameterText(
-                '${EntryKind.values.byName(historical.kind).label} · ${money(historical.amount, data.account(historical.accountId).currency)}',
+                '${EntryKind.values.byName(historical.kind).label} · ${decimalMoney(historical.amount, data.account(historical.accountId).currency)}',
               ),
               Text(historical.date),
               Text('账户：${data.account(historical.accountId).name}'),
@@ -169,7 +179,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
           body: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              const Text('所选账户已归档。请重新选择账户，或在设置 → 归档账户中恢复。'),
+              const Text('所选账户已归档'),
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: () => setState(() {
@@ -360,7 +370,7 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                                       : e.counterparty,
                                 ),
                                 subtitle: ParameterText(
-                                  '${e.date} · 剩余 ${money(debtRemaining(e, data.entries, excludingId: widget.entry?.id), account.currency)}${e.note.isEmpty ? '' : ' · ${e.note}'}',
+                                  '${e.date} · 剩余 ${decimalMoney(debtRemaining(e, data.entries, excludingId: widget.entry?.id), account.currency)}${e.note.isEmpty ? '' : ' · ${e.note}'}',
                                 ),
                                 selected: e.id == debtId,
                                 onTap: () => Navigator.pop(context, e.id),
@@ -626,8 +636,6 @@ class _EntryFormState extends ConsumerState<EntryForm> {
                             labelText: '当次单价 / 股价（选填）',
                           ),
                         ),
-                        if (kind == EntryKind.redeem)
-                          const Text('收回金额不能超过产品剩余投入。'),
                       ],
                       if (isDebt) ...[
                         Wrap(

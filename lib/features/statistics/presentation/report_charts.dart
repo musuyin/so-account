@@ -79,7 +79,7 @@ class _FlowBarsState extends State<FlowBars> {
     final maxValue = values.fold<int>(1, math.max);
     final point = selected == null ? null : points[selected!];
     String detail(ReportPoint p) =>
-        '${p.label} · ${widget.currency}\n收入 ${decimalMoney(p.income, widget.currency)} · 支出 ${decimalMoney(p.expense, widget.currency)} · 结余 ${decimalMoney(p.income - p.expense, widget.currency)}';
+        '${p.label}\n收入 ${decimalMoney(p.income, widget.currency)} · 支出 ${decimalMoney(p.expense, widget.currency)} · 结余 ${decimalMoney(p.income - p.expense, widget.currency)}';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -92,7 +92,7 @@ class _FlowBarsState extends State<FlowBars> {
             ],
           ),
         ParameterText(
-          '${widget.currency} · ${decimalMoney(minValue, widget.currency)} ～ ${decimalMoney(maxValue, widget.currency)}',
+          '${decimalMoney(minValue, widget.currency)} ～ ${decimalMoney(maxValue, widget.currency)}',
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 8),
@@ -201,7 +201,6 @@ class _FlowBarsState extends State<FlowBars> {
             );
           },
         ),
-        Text('零基线，点击图形查看数值', style: Theme.of(context).textTheme.bodySmall),
         if (point != null) ...[
           ParameterText(detail(point)),
           if (widget.onRecords != null)

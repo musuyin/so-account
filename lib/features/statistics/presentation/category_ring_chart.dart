@@ -161,7 +161,6 @@ class CategoryRingChart extends StatelessWidget {
                       style: amountStyle,
                       textAlign: TextAlign.center,
                     ),
-                    Text(currency, style: theme.textTheme.labelSmall),
                   ],
                 ),
               ),

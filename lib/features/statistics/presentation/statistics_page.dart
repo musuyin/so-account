@@ -464,11 +464,6 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                             const Text('资产金额已隐藏')
                           else
                             AssetLine(points: data.points, currency: currency),
-                          const SizedBox(height: 8),
-                          const Text(
-                            '按初始余额、历史流水和余额调整推算；账户按固定类型归属，报销单列不计总额。',
-                            style: TextStyle(fontSize: 12),
-                          ),
                         ],
                       ),
                     ),

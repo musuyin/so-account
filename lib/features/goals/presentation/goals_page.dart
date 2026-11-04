@@ -400,10 +400,7 @@ class _GoalFormState extends ConsumerState<GoalForm> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              decoration: const InputDecoration(
-                labelText: '已经攒下（选填）',
-                helperText: '仅记录进度，不改变账户余额',
-              ),
+              decoration: const InputDecoration(labelText: '已经攒下（选填）'),
             ),
           DropdownButtonFormField<int>(
             initialValue: priority,
@@ -738,7 +735,6 @@ class _ContributionState extends ConsumerState<ContributionForm> {
         maxLength: 500,
         decoration: const InputDecoration(labelText: '备注（选填）'),
       ),
-      const Text('这是一笔目标进度记录，不会执行转账或改变账户余额。'),
     ],
   );
 }

@@ -260,7 +260,6 @@ class _ExportPageState extends ConsumerState<ExportPage> {
               ],
             ),
           const SizedBox(height: 12),
-          const Text('资产与负债按当前余额回滚估算。请先核对当前余额；历史缺失的转账和还款无法自动补出。'),
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
@@ -280,10 +279,6 @@ class _ExportPageState extends ConsumerState<ExportPage> {
           ),
           const SizedBox(height: 8),
           if (format == _Format.markdown) ...[
-            Text(
-              '对比 ${monthKey(current)} 与 ${monthKey(DateTime(date.year, date.month - 1))}，包含总体概况与收支、资产、负债明细。',
-            ),
-            const SizedBox(height: 12),
             TextField(
               controller: notes,
               enabled: !busy,
@@ -298,7 +293,6 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                 border: OutlineInputBorder(),
               ),
             ),
-            if (hidden) const Text('资产金额已隐藏，预览与复制会同步隐藏资产数值、占比和增长率。'),
             report!.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (_, _) => TextButton(
@@ -328,10 +322,6 @@ class _ExportPageState extends ConsumerState<ExportPage> {
               ),
             ),
           ] else ...[
-            const Text(
-              'Income / Expense / Asset / Debt 四张表，每月一行，分类与账户按当前账本动态展开，包含归档账户。不同币种单独导出。',
-            ),
-            const SizedBox(height: 12),
             if (hidden) const Text('资产金额已隐藏，点击右上角显示金额后可导出 Excel。'),
             Wrap(
               spacing: 12,
@@ -355,13 +345,6 @@ class _ExportPageState extends ConsumerState<ExportPage> {
               padding: EdgeInsets.all(16),
               child: LinearProgressIndicator(),
             ),
-          const SizedBox(height: 20),
-          const Text('统计口径'),
-          const SizedBox(height: 6),
-          Text(
-            financeExportBasis,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
           const SizedBox(height: 12),
           Align(
             alignment: Alignment.centerLeft,

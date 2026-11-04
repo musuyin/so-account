@@ -157,7 +157,7 @@ class _AccountDetailState extends ConsumerState<AccountDetailPage> {
               if (account.isArchived)
                 const Padding(
                   padding: EdgeInsets.only(bottom: 12),
-                  child: Text('此账户已归档，历史记录只读。可通过右上角账户操作或设置中的归档账户恢复。'),
+                  child: Text('账户已归档'),
                 ),
               Card(
                 borderOnForeground: false,

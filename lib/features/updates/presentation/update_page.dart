@@ -45,7 +45,6 @@ class _UpdatePageState extends ConsumerState<UpdatePage> {
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('自动检查更新'),
-                subtitle: const Text('启动或返回应用时检查，每天最多一次；连接 GitHub，不会自动下载'),
                 value: controller.automatic,
                 onChanged: controller.supported && !controller.busy
                     ? controller.setAutomatic
@@ -78,7 +77,6 @@ class _UpdatePageState extends ConsumerState<UpdatePage> {
                         ParameterText(
                           'Android · ${update.abi} · 完整包 ${(update.apk.size / 1024 / 1024).toStringAsFixed(1)} MB',
                         ),
-                        const Text('优先匹配差分补丁；旧包不匹配或合成失败时自动下载完整包。'),
                         const SizedBox(height: 12),
                         SelectableText(
                           update.notes.isEmpty ? '此版本未填写更新说明。' : update.notes,
@@ -124,9 +122,6 @@ class _UpdatePageState extends ConsumerState<UpdatePage> {
                       onPressed: controller.download,
                       child: const Text('重新下载'),
                     ),
-                  const Text(
-                    '下载后校验 SHA-256；安装前校验应用标识、版本和签名。需要系统确认安装，不会清除账本数据。',
-                  ),
                 ] else
                   const Text('iOS 无法安装 APK。此处可查看更新说明，安装新版本需使用对应的 iOS 分发渠道。'),
               ],
@@ -135,10 +130,6 @@ class _UpdatePageState extends ConsumerState<UpdatePage> {
                 onPressed: controller.supported ? controller.openRelease : null,
                 icon: const Icon(Icons.open_in_new),
                 label: const Text('前往 GitHub Release'),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                '网络中断可重新下载。离开更新页面仍会继续下载；应用被系统关闭后需重新下载。建议更新前在“完整备份与恢复”中保存备份。',
               ),
             ],
           ),
