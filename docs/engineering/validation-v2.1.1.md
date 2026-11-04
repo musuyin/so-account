@@ -19,4 +19,10 @@
 
 ## 发布
 
-待记录 CI、公开附件、正式签名及增量包验证结果。
+发布源码：`3faa8bcb4769ccea3cd59db58f7381692abea82a`，标签 `v2.1.1`。
+
+- [正式发布工作流](https://github.com/musuyin/so-account/actions/runs/41750598668)成功；[Mobile checks](https://github.com/musuyin/so-account/actions/runs/41750594067)的 Android 和 iOS 模拟器构建成功。两条工作流的源码 SHA 与发布源码一致。
+- 已读取发布及 Android 作业日志，两者均为 396 项 Flutter 测试、17 项 Python 测试、静态分析通过；Android 作业同时完成数据库生成一致性检查。正式签名通用包及 ARM64 / ARM32 / x86_64 包构建、签名和增量还原检查全部通过。
+- CI 截图保存在 release-ui-evidence（13286225080）和 android-ui-evidence（13286350558）。
+- [公开 Release](https://github.com/musuyin/so-account/releases/tag/v2.1.1)已核对为 latest，20 个附件完整；更新清单、校验和、四个 APK 及全部补丁的大小和摘要与 GitHub 资产一致。
+- 已下载公开 ARM64 APK，核对版本 `2.1.1+29`、包名和上一版正式签名一致；下载的 v2.1.0 ARM64 增量补丁可精确还原新版 APK。结构化结果见 [public-release.json](evidence/v2.1.1/public-release.json)。

@@ -1,0 +1,20 @@
+{
+  "release": "https://github.com/musuyin/so-account/releases/tag/v2.1.1",
+  "version": "2.1.1",
+  "build": 29,
+  "assets": 20,
+  "arm64_sha256": "8b23e7f1123c9de6409bd4e742a452bf3b7b5e94d3a0122e2b235eafd5d8a5f5",
+  "arm64_size": 35802638,
+  "same_release_signer": true,
+  "schema": 11,
+  "template_packaged": true,
+  "category_account_memory_present": true,
+  "manual_investment_value_present": true,
+  "inventory_sort_memory_present": true,
+  "finance_schema_present": true,
+  "archive_schema_present": true,
+  "local_data_cleanup_present": true,
+  "plain_theme_assets_verified": true,
+  "delta_reconstructed": true,
+  "signer_sha256": "f0db22ad213879a06fcc7e55a40dd80fa230725ab52f230e77c5d55fd1469634"
+}
