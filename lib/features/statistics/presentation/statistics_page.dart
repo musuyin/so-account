@@ -42,6 +42,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
   ReportRange get range => ReportRange.at(
     period,
     anchor,
+    today: DateTime.now(),
     customStart: customStart,
     customEnd: customEnd,
   );
@@ -232,7 +233,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                           Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              '完整周期 ${r.days} 天，日均按该天数计算',
+                              '统计 ${r.days} 天，日均按该天数计算',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ),

@@ -9,6 +9,7 @@ class ReportRange {
   factory ReportRange.at(
     ReportPeriod period,
     DateTime anchor, {
+    DateTime? today,
     DateTime? customStart,
     DateTime? customEnd,
   }) => switch (period) {
@@ -19,7 +20,9 @@ class ReportRange {
     ),
     ReportPeriod.month => ReportRange(
       DateTime(anchor.year, anchor.month),
-      DateTime(anchor.year, anchor.month + 1),
+      today != null && today.year == anchor.year && today.month == anchor.month
+          ? DateTime(today.year, today.month, today.day + 1)
+          : DateTime(anchor.year, anchor.month + 1),
       period,
     ),
     ReportPeriod.year => ReportRange(

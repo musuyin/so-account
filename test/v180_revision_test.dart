@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:so_account/app/providers/providers.dart';
+import 'package:so_account/core/time/business_date.dart';
 import 'package:so_account/features/ledger/data/ledger_repository.dart';
 import 'package:so_account/features/ledger/domain/entry_kind.dart';
 import 'package:so_account/features/ledger/presentation/entry_form.dart';
@@ -189,8 +190,7 @@ void main() {
             accountId: (await db.select(db.accounts).get())
                 .firstWhere((a) => a.channel == '现金' && a.currency == 'CNY')
                 .id,
-            date:
-                '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-10',
+            date: dateKey(DateTime.now()),
           ),
         );
         await h.mount(

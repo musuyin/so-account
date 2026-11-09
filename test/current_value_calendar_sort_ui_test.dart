@@ -244,48 +244,79 @@ void main() {
     );
   }
 
-  testWidgets(
-    'inventory exposes sorting options and restores saved ordering on reopen',
-    (t) async {
-      final db = await support.seed(t);
-      await t.runAsync(() async {
-        final repo = InventoryRepository(db);
-        await repo.save(
-          name: 'Alpha',
-          category: '未分类',
-          currency: 'CNY',
-          price: 100,
+  for (final brightness in Brightness.values) {
+    testWidgets(
+      'inventory changes and remembers dropdown sorting in $brightness',
+      (t) async {
+        t.view.physicalSize = const Size(320, 900);
+        t.view.devicePixelRatio = 1;
+        t.platformDispatcher.textScaleFactorTestValue = 1.6;
+        addTearDown(t.view.resetPhysicalSize);
+        addTearDown(t.view.resetDevicePixelRatio);
+        addTearDown(t.platformDispatcher.clearTextScaleFactorTestValue);
+        await fonts();
+        final db = await support.seed(t);
+        await t.runAsync(() async {
+          final repo = InventoryRepository(db);
+          await repo.save(
+            name: 'Alpha',
+            category: '未分类',
+            currency: 'CNY',
+            price: 100,
+          );
+          await repo.save(
+            name: 'Beta',
+            category: '未分类',
+            currency: 'CNY',
+            price: 200,
+          );
+          await repo.saveSort('name');
+        });
+        final boundary = GlobalKey();
+        await support.mount(
+          t,
+          db,
+          const InventoryPage(),
+          brightness: brightness,
+          boundary: boundary,
         );
-        await repo.save(
-          name: 'Beta',
-          category: '未分类',
-          currency: 'CNY',
-          price: 200,
+        final dropdown = support.key('inventory-sort');
+        double top(String item) => t.getTopLeft(find.text(item)).dy;
+        expect(find.text('排序：按名称'), findsOneWidget);
+        await support.show(t, find.text('Beta'));
+        expect(top('Alpha'), lessThan(top('Beta')));
+        await support.show(t, dropdown);
+        await t.tap(dropdown);
+        await t.pumpAndSettle();
+        expect(find.text('最近添加'), findsOneWidget);
+        expect(find.text('按名称'), findsOneWidget);
+        expect(find.text('价格从高到低'), findsOneWidget);
+        await support.capture(
+          t,
+          boundary,
+          'v212-inventory-sort-${brightness.name}-320',
         );
-        await repo.saveSort('name');
-      });
-      await support.mount(t, db, const InventoryPage());
-      expect(
-        t.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '按名称')).selected,
-        isTrue,
-      );
-      await t.tap(find.text('价格从高到低'));
-      await support.settle(t);
-      await support.mount(t, db, const InventoryPage());
-      expect(
-        t
-            .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '价格从高到低'))
-            .selected,
-        isTrue,
-      );
-      await support.show(t, find.text('Alpha'));
-      expect(
-        t.getTopLeft(find.text('Beta')).dy,
-        lessThan(t.getTopLeft(find.text('Alpha')).dy),
-      );
-      expect(t.takeException(), isNull);
-      await t.pumpWidget(const SizedBox.shrink());
-      await t.pump(const Duration(milliseconds: 1));
-    },
-  );
+        await t.tapAt(const Offset(10, 40));
+        await t.pumpAndSettle();
+        expect(find.text('排序：按名称'), findsOneWidget);
+        await t.tap(dropdown);
+        await t.pumpAndSettle();
+        await t.tap(find.text('价格从高到低'));
+        await support.settle(t);
+        expect(find.text('排序：价格从高到低'), findsOneWidget);
+        await support.show(t, find.text('Alpha'));
+        expect(top('Beta'), lessThan(top('Alpha')));
+        await support.mount(
+          t,
+          db,
+          const InventoryPage(),
+          brightness: brightness,
+        );
+        expect(find.text('排序：价格从高到低'), findsOneWidget);
+        expect(t.takeException(), isNull);
+        await t.pumpWidget(const SizedBox.shrink());
+        await t.pump(const Duration(milliseconds: 1));
+      },
+    );
+  }
 }

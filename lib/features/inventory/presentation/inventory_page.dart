@@ -147,23 +147,42 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                   '${items.length} 件物品',
                   style: Theme.of(context).textTheme.labelLarge,
                 ),
-                for (final option in inventorySortOptions.entries)
-                  ChoiceChip(
-                    label: Text(option.value),
-                    selected: sort == option.key,
-                    onSelected: savingSort
-                        ? null
-                        : (_) async {
-                            setState(() => savingSort = true);
-                            await perform(
-                              context,
-                              () => ref
-                                  .read(inventoryProvider)
-                                  .saveSort(option.key),
-                            );
-                            if (mounted) setState(() => savingSort = false);
-                          },
-                  ),
+                DropdownButton<String>(
+                  key: const ValueKey('inventory-sort'),
+                  value: sort,
+                  itemHeight: null,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  selectedItemBuilder: (context) => [
+                    for (final label in inventorySortOptions.values)
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          minHeight: kMinInteractiveDimension,
+                        ),
+                        child: Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: Text('排序：$label'),
+                        ),
+                      ),
+                  ],
+                  items: [
+                    for (final option in inventorySortOptions.entries)
+                      DropdownMenuItem(
+                        value: option.key,
+                        child: Text(option.value),
+                      ),
+                  ],
+                  onChanged: savingSort
+                      ? null
+                      : (value) async {
+                          if (value == null || value == sort) return;
+                          setState(() => savingSort = true);
+                          await perform(
+                            context,
+                            () => ref.read(inventoryProvider).saveSort(value),
+                          );
+                          if (mounted) setState(() => savingSort = false);
+                        },
+                ),
               ],
             ),
             Row(

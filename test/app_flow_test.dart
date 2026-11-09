@@ -122,11 +122,11 @@ void main() {
               for (final period in ReportPeriod.values)
                 reportProvider((
                   period.name,
-                  dateKey(ReportRange.at(period, now).start),
-                  dateKey(ReportRange.at(period, now).end),
+                  dateKey(ReportRange.at(period, now, today: now).start),
+                  dateKey(ReportRange.at(period, now, today: now).end),
                   'CNY',
                 )).overrideWith((ref) {
-                  final range = ReportRange.at(period, now);
+                  final range = ReportRange.at(period, now, today: now);
                   return Stream.value(
                     FinanceReport(
                       range: range,
@@ -197,6 +197,8 @@ void main() {
             });
           }
           if (label == '统计') {
+            expect(find.text('$month-01 — ${dateKey(now)}'), findsOneWidget);
+            expect(find.text('统计 ${now.day} 天，日均按该天数计算'), findsOneWidget);
             for (final periodLabel in ['近7天', '年', '自定义', '月']) {
               await tester.tap(find.text(periodLabel).first);
               await tester.pumpAndSettle();

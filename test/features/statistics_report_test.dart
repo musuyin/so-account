@@ -94,6 +94,39 @@ void main() {
       );
     },
   );
+  test(
+    'current month includes today and excludes later transactions',
+    () async {
+      final today = DateTime(2026, 10, 5, 23, 45);
+      final range = ReportRange.at(
+        ReportPeriod.month,
+        DateTime(2026, 10, 20),
+        today: today,
+      );
+      final report = await stats.load(range, 'CNY');
+
+      expect(report.income, 20000);
+      expect(report.expense, 3000);
+      expect(report.dailyExpense, 600);
+      expect(report.previousExpense, 5000);
+      expect(report.points, hasLength(5));
+      expect(report.points.last.label, '2026-10-05');
+      expect(report.points.last.expense, 3000);
+      expect(report.categories.any((c) => c.id == 'expense-2'), isFalse);
+      expect(
+        range.intervalFor(report.points.last.label).$2,
+        DateTime(2026, 10, 6),
+      );
+
+      final historical = ReportRange.at(
+        ReportPeriod.month,
+        range.start,
+        today: DateTime(2026, 11, 1),
+      );
+      expect(historical.days, 31);
+      expect((await stats.load(historical, 'CNY')).expense, 3500);
+    },
+  );
   test('year compares previous year and reconstructs net assets without debt inflation', () async {
     final report = await stats.load(
       ReportRange.at(ReportPeriod.year, DateTime(2026, 10)),
