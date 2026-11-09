@@ -26,6 +26,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
   final Set<String> selectedCategories = {};
   bool filtersExpanded = true;
   String search = '', useType = '', status = 'all', currency = 'CNY';
+  String? appliedSort;
   bool savingSort = false;
   @override
   void initState() {
@@ -42,6 +43,21 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
           );
         }
       });
+    });
+  }
+
+  Future<void> applySort(String value) async {
+    if (savingSort) return;
+    setState(() => savingSort = true);
+    final saved = await perform(
+      context,
+      () => ref.read(inventoryProvider).saveSort(value),
+    );
+    if (!mounted) return;
+    setState(() {
+      // The item snapshot may still contain the previous preference.
+      if (saved) appliedSort = value;
+      savingSort = false;
     });
   }
 
@@ -67,9 +83,9 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
     ),
     body: DataView(
       builder: (data) {
-        final sort = parseInventorySort(
-          data.preference(inventorySortKey, 'recent'),
-        );
+        final sort =
+            appliedSort ??
+            parseInventorySort(data.preference(inventorySortKey, 'recent'));
         final all = data.items.where((i) => i.currency == currency).toList();
         final categories = data.itemCategoryNames;
         final items =
@@ -173,14 +189,8 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                   ],
                   onChanged: savingSort
                       ? null
-                      : (value) async {
-                          if (value == null || value == sort) return;
-                          setState(() => savingSort = true);
-                          await perform(
-                            context,
-                            () => ref.read(inventoryProvider).saveSort(value),
-                          );
-                          if (mounted) setState(() => savingSort = false);
+                      : (value) {
+                          if (value != null && value != sort) applySort(value);
                         },
                 ),
               ],

@@ -1,15 +1,23 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:so_account/app/app.dart';
+import 'package:so_account/app/providers/providers.dart';
 import 'package:so_account/core/appearance.dart';
 import 'package:so_account/core/time/business_date.dart';
+import 'package:so_account/data/database/app_database.dart';
 import 'package:so_account/features/inventory/data/inventory_repository.dart';
+import 'package:so_account/features/inventory/domain/inventory_sort.dart';
 import 'package:so_account/features/inventory/presentation/inventory_page.dart';
 import 'package:so_account/features/ledger/data/ledger_repository.dart';
 import 'package:so_account/features/ledger/presentation/account_detail_page.dart';
 import 'package:so_account/features/ledger/presentation/accounts_page.dart';
 import 'package:so_account/features/ledger/presentation/calendar_heatmap.dart';
 import 'package:so_account/features/ledger/presentation/finance_page.dart';
+import 'package:so_account/platform/media/media_store.dart';
 
 import 'exposed_accounts_ui_test.dart' as support;
 
@@ -319,4 +327,79 @@ void main() {
       },
     );
   }
+
+  testWidgets('inventory applies saved sorting before the snapshot refreshes', (
+    t,
+  ) async {
+    t.view.physicalSize = const Size(390, 900);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
+    await fonts();
+    final db = await support.seed(t);
+    final snapshot = (await t.runAsync(() async {
+      final repo = InventoryRepository(db);
+      for (final (name, price) in [
+        ('Beta', 300),
+        ('Alpha', 100),
+        ('Gamma', 200),
+      ]) {
+        await repo.save(
+          name: name,
+          category: '未分类',
+          currency: 'CNY',
+          price: price,
+        );
+      }
+      await repo.saveSort('name');
+      return AppSnapshot([], [], [], [], await db.select(db.items).get(), [], [
+        const Preference(key: inventorySortKey, value: 'name'),
+      ]);
+    }))!;
+    final boundary = GlobalKey();
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          snapshotProvider.overrideWith((ref) => Stream.value(snapshot)),
+          mediaProvider.overrideWith(
+            (ref) async => MediaStore(Directory.systemTemp),
+          ),
+        ],
+        child: RepaintBoundary(key: boundary, child: const SoAccountApp()),
+      ),
+    );
+    await support.settle(t);
+    await t.tap(find.text('物品').last);
+    await support.settle(t);
+    await t.tap(find.text('收起筛选'));
+    await support.settle(t);
+    final dropdown = support.key('inventory-sort');
+    expect(find.text('排序：按名称'), findsOneWidget);
+    await t.tap(dropdown);
+    await t.pumpAndSettle();
+    await t.tap(find.text('价格从高到低'));
+    await support.settle(t);
+    final preferences = (await t.runAsync(
+      () => db.select(db.preferences).get(),
+    ))!;
+    expect(
+      preferences.singleWhere((p) => p.key == inventorySortKey).value,
+      'price',
+    );
+    expect(find.text('排序：价格从高到低'), findsOneWidget);
+    double top(String item) => t.getTopLeft(find.text(item)).dy;
+    expect(top('Beta'), lessThan(top('Gamma')));
+    expect(top('Gamma'), lessThan(top('Alpha')));
+    await support.capture(t, boundary, 'v213-inventory-price-sort');
+    await t.tap(dropdown);
+    await t.pumpAndSettle();
+    await t.tap(find.text('按名称'));
+    await support.settle(t);
+    expect(find.text('排序：按名称'), findsOneWidget);
+    expect(top('Alpha'), lessThan(top('Beta')));
+    expect(top('Beta'), lessThan(top('Gamma')));
+    await t.pumpWidget(const SizedBox.shrink());
+    await t.pump(const Duration(milliseconds: 1));
+  });
 }
