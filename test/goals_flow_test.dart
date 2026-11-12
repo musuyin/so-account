@@ -53,7 +53,8 @@ void main() {
       await settle(t);
       await t.tap(find.text('新增目标'));
       await settle(t);
-      await t.tap(find.text('攒钱'));
+      expect(find.text('攒钱'), findsNothing);
+      expect(find.text('全部类型'), findsNothing);
       await enter(t, '目标名称', '旅行基金');
       await enter(t, '目标金额', '1000');
       await enter(t, '已经攒下（选填）', '100');
@@ -81,13 +82,13 @@ void main() {
       final goals = await t.runAsync(() => db.select(db.wishGoals).get());
       expect(goalSaved(goals!.single.id, rows!), 35000);
       await contribution('存入', '850');
-      await t.ensureVisible(find.text('完成攒钱目标'));
-      await t.tap(find.text('完成攒钱目标'));
+      await t.ensureVisible(find.text('标记已实现'));
+      await t.tap(find.text('标记已实现'));
       await settle(t);
       expect(find.text('恢复进行中'), findsOneWidget);
       await t.tap(find.text('恢复进行中'));
       await settle(t);
-      expect(find.text('完成攒钱目标'), findsOneWidget);
+      expect(find.text('标记已实现'), findsOneWidget);
       expect(await t.runAsync(() => db.select(db.entries).get()), isEmpty);
       expect(t.takeException(), isNull);
       await t.pumpWidget(const SizedBox.shrink());

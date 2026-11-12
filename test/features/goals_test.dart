@@ -108,26 +108,30 @@ void main() {
       expect((await records()).length, 1);
     },
   );
-  test('completed savings require target; wish can be fulfilled without creating a purchase', () async {
-    final id = await create(initial: 1000);
-    await expectLater(repo.setStatus(id, 'completed'), throwsFormatException);
-    await repo.contribute(goalId: id, amount: 10000, date: today);
-    await repo.setStatus(id, 'completed');
-    await expectLater(
-      repo.contribute(goalId: id, amount: -1, date: today),
-      throwsFormatException,
-    );
-    await repo.setStatus(id, 'active');
-    await repo.contribute(goalId: id, amount: -1000, date: today);
-    await repo.setStatus(id, 'archived');
-    await expectLater(
-      repo.contribute(goalId: id, amount: 1, date: today),
-      throwsFormatException,
-    );
-    final wish = await create(kind: 'wish');
-    await repo.setStatus(wish, 'completed');
-    expect(await db.select(db.entries).get(), isEmpty);
-  });
+  test(
+    'all goals can be fulfilled manually without creating a purchase',
+    () async {
+      final id = await create(initial: 1000);
+      await repo.setStatus(id, 'completed');
+      await repo.setStatus(id, 'active');
+      await repo.contribute(goalId: id, amount: 10000, date: today);
+      await repo.setStatus(id, 'completed');
+      await expectLater(
+        repo.contribute(goalId: id, amount: -1, date: today),
+        throwsFormatException,
+      );
+      await repo.setStatus(id, 'active');
+      await repo.contribute(goalId: id, amount: -1000, date: today);
+      await repo.setStatus(id, 'archived');
+      await expectLater(
+        repo.contribute(goalId: id, amount: 1, date: today),
+        throwsFormatException,
+      );
+      final wish = await create(kind: 'wish');
+      await repo.setStatus(wish, 'completed');
+      expect(await db.select(db.entries).get(), isEmpty);
+    },
+  );
   test('a stale currency on the contribution form cannot save a mislabelled amount', () async {
     final id = await create();
     await repo.save(

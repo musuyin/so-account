@@ -42,7 +42,7 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
   }
 
   late String currency = widget.initialCurrency;
-  String status = 'active', kind = '', search = '', sort = 'priority';
+  String status = 'active', search = '', sort = 'priority';
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -89,11 +89,7 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
             ifAbsent: () => row.amount,
           );
         }
-        final all = data.goals
-            .where(
-              (g) => g.currency == currency && (kind.isEmpty || g.kind == kind),
-            )
-            .toList();
+        final all = data.goals.where((g) => g.currency == currency).toList();
         final active = all.where((g) => g.status == 'active');
         final target = active.fold(0, (int sum, g) => sum + g.target);
         final saved = active.fold(0, (int sum, g) => sum + (totals[g.id] ?? 0));
@@ -166,17 +162,6 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
             Wrap(
               spacing: 8,
               children: [
-                for (final entry in {'': '全部类型', ...goalKinds}.entries)
-                  ChoiceChip(
-                    label: Text(entry.value),
-                    selected: kind == entry.key,
-                    onSelected: (_) => setState(() => kind = entry.key),
-                  ),
-              ],
-            ),
-            Wrap(
-              spacing: 8,
-              children: [
                 for (final entry in {...goalStatuses, 'all': '全部状态'}.entries)
                   ChoiceChip(
                     label: Text(entry.value),
@@ -243,7 +228,6 @@ class GoalProgress extends StatelessWidget {
           spacing: 12,
           runSpacing: 4,
           children: [
-            Text(goalKinds[goal.kind]!),
             Text(goalStatuses[goal.status]!),
             Text(goalPriorities[goal.priority]!),
           ],
@@ -309,8 +293,7 @@ class _GoalFormState extends ConsumerState<GoalForm> {
   );
   late final note = TextEditingController(text: widget.goal?.note);
   final initial = TextEditingController();
-  late String kind = widget.goal?.kind ?? 'wish',
-      currency = widget.goal?.currency ?? widget.initialCurrency;
+  late String currency = widget.goal?.currency ?? widget.initialCurrency;
   late String? deadline = widget.goal?.deadline;
   late int priority = widget.goal?.priority ?? 1;
   bool saving = false;
@@ -339,7 +322,7 @@ class _GoalFormState extends ConsumerState<GoalForm> {
                 .save(
                   id: widget.goal?.id,
                   name: name.text,
-                  kind: kind,
+                  kind: widget.goal?.kind ?? 'wish',
                   currency: currency,
                   target: parseMoney(target.text, currency),
                   deadline: deadline,
@@ -357,38 +340,30 @@ class _GoalFormState extends ConsumerState<GoalForm> {
           }
         },
         children: [
-          Wrap(
-            spacing: 12,
-            children: [
-              for (final entry in goalKinds.entries)
-                ChoiceChip(
-                  label: Text(entry.value),
-                  selected: kind == entry.key,
-                  onSelected: saving
-                      ? null
-                      : (_) => setState(() => kind = entry.key),
-                ),
-            ],
-          ),
           TextField(
             controller: name,
             maxLength: 100,
-            decoration: const InputDecoration(labelText: '目标名称'),
-          ),
-          DropdownButtonFormField<String>(
-            initialValue: currency,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: '币种',
-              helperText: locked ? '已有攒钱记录，币种不可更改' : null,
+            decoration: const InputDecoration(
+              labelText: '目标名称',
+              hintText: '例如：要攒10000元、买相机',
             ),
-            items: currencies
-                .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-                .toList(),
-            onChanged: locked || saving
-                ? null
-                : (v) => setState(() => currency = v!),
           ),
+          const Text('币种'),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final code in currencies)
+                ChoiceChip(
+                  label: Text(code),
+                  selected: currency == code,
+                  onSelected: locked || saving
+                      ? null
+                      : (_) => setState(() => currency = code),
+                ),
+            ],
+          ),
+          if (locked) const Text('已有攒钱记录，币种不可更改'),
           TextField(
             controller: target,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -402,16 +377,20 @@ class _GoalFormState extends ConsumerState<GoalForm> {
               ),
               decoration: const InputDecoration(labelText: '已经攒下（选填）'),
             ),
-          DropdownButtonFormField<int>(
-            initialValue: priority,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: '优先级'),
-            items: goalPriorities.entries
-                .map(
-                  (e) => DropdownMenuItem(value: e.key, child: Text(e.value)),
-                )
-                .toList(),
-            onChanged: saving ? null : (v) => setState(() => priority = v!),
+          const Text('优先级'),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final entry in goalPriorities.entries)
+                ChoiceChip(
+                  label: Text(entry.value),
+                  selected: priority == entry.key,
+                  onSelected: saving
+                      ? null
+                      : (_) => setState(() => priority = entry.key),
+                ),
+            ],
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -581,7 +560,7 @@ class _GoalDetailState extends ConsumerState<GoalDetailPage> {
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
-                onPressed: busy || goal.kind == 'saving' && saved < goal.target
+                onPressed: busy
                     ? null
                     : () => action(
                         () => ref
@@ -589,7 +568,7 @@ class _GoalDetailState extends ConsumerState<GoalDetailPage> {
                             .setStatus(goal.id, 'completed'),
                       ),
                 icon: const Icon(Icons.check_circle_outline),
-                label: Text(goal.kind == 'wish' ? '标记已实现' : '完成攒钱目标'),
+                label: const Text('标记已实现'),
               ),
             ] else
               FilledButton.tonalIcon(

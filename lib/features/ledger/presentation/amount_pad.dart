@@ -98,68 +98,68 @@ class AmountPad extends StatelessWidget {
   );
 
   @override
-  Widget build(BuildContext context) => Column(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Row(
-        children: [
-          if (leading != null) Expanded(flex: 2, child: leading!),
-          Expanded(
-            flex: 3,
-            child: Semantics(
-              label: '金额',
-              child: TextField(
-                key: const ValueKey('entry-amount'),
-                controller: controller,
-                readOnly: true,
-                showCursor: true,
-                textAlign: TextAlign.right,
-                style: Theme.of(context).textTheme.headlineSmall,
-                decoration: InputDecoration(
-                  hintText: '0.00',
-                  suffixIcon: IconButton(
-                    tooltip: '计算结果',
-                    onPressed: saving ? null : () => keyPress(context, '='),
-                    icon: const Text('='),
+  Widget build(BuildContext context) =>
+      ValueListenableBuilder<TextEditingValue>(
+        valueListenable: controller,
+        builder: (context, value, _) {
+          final calculating = RegExp(r'[+×÷*/-]').hasMatch(value.text);
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  if (leading != null) Expanded(flex: 2, child: leading!),
+                  Expanded(
+                    flex: 3,
+                    child: Semantics(
+                      label: '金额',
+                      child: TextField(
+                        key: const ValueKey('entry-amount'),
+                        controller: controller,
+                        readOnly: true,
+                        showCursor: true,
+                        textAlign: TextAlign.right,
+                        style: Theme.of(context).textTheme.headlineSmall,
+                        decoration: const InputDecoration(hintText: '0.00'),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ),
-          ),
-        ],
-      ),
-      ?toolbar,
-      for (final row in [
-        ['1', '2', '3', '⌫'],
-        ['4', '5', '6', '+-'],
-        ['7', '8', '9', '×÷'],
-        ['再记', '0', '.', '保存'],
-      ])
-        Row(
-          children: [
-            for (final key in row)
-              if (key == '+-' || key == '×÷')
-                Expanded(
-                  child: Row(
-                    children: [
-                      for (final operator in key.split(''))
-                        button(context, operator),
-                    ],
-                  ),
-                )
-              else
-                button(
-                  context,
-                  key,
-                  primary: key == '保存',
-                  action: key == '保存'
-                      ? onSave
-                      : key == '再记'
-                      ? onSaveAnother
-                      : null,
+              ?toolbar,
+              for (final row in [
+                ['1', '2', '3', '⌫'],
+                ['4', '5', '6', '+-'],
+                ['7', '8', '9', '×÷'],
+                ['再记', '0', '.', calculating ? '=' : '保存'],
+              ])
+                Row(
+                  children: [
+                    for (final key in row)
+                      if (key == '+-' || key == '×÷')
+                        Expanded(
+                          child: Row(
+                            children: [
+                              for (final operator in key.split(''))
+                                button(context, operator),
+                            ],
+                          ),
+                        )
+                      else
+                        button(
+                          context,
+                          key,
+                          primary: key == '保存' || key == '=',
+                          action: key == '保存'
+                              ? onSave
+                              : key == '再记'
+                              ? onSaveAnother
+                              : null,
+                        ),
+                  ],
                 ),
-          ],
-        ),
-    ],
-  );
+            ],
+          );
+        },
+      );
 }

@@ -77,11 +77,6 @@ class GoalsRepository {
         throw const FormatException('取出金额超过已攒金额，或累计金额超出上限');
       }
     }
-    if (goal.kind == 'saving' &&
-        goal.status == 'completed' &&
-        saved < goal.target) {
-      throw const FormatException('攒钱目标尚未达成，请先恢复为进行中');
-    }
   }
 
   Future<WishGoal> _goal(String id) async {
