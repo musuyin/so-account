@@ -35,6 +35,8 @@ Flutter + Dart 的个人记账与物品管理应用，Android / iOS 共享代码
 
 ## 验证状态
 
+v2.2.3（2026-11-12）已发布：统一心愿与攒钱目标，记账键盘根据算式切换等号和保存。本地 401 项 Flutter 测试通过（Windows 跳过 1 项），CI 402 项测试、17 项工具测试、Android/iOS 构建通过；20 个公开附件、正式签名及 v2.1.3 ARM64 增量还原已核验。见 [验证记录](docs/engineering/validation-v2.2.3.md)及[更新说明](docs/releases/v2.2.3.md)。
+
 v2.1.1（2026-11-04）已发布：统一精简常驻说明和重复币种，理财、报销及余额核对支持顶部货币切换。本地 395 项 Flutter 测试通过（Windows 跳过 1 项），CI 396 项 Flutter 测试、17 项工具测试和 Android/iOS 构建通过；20 个公开附件、正式签名及 v2.1.0 ARM64 增量还原已核验。见 [验证记录](docs/engineering/validation-v2.1.1.md)及[更新说明](docs/releases/v2.1.1.md)。
 
 v2.0.2（2026-10-31）已发布：资产／负债按账户类型固定归属，报销独立保留，统一“理财账户”界面名称。本地 361 项 Flutter 测试通过（Windows 跳过 1 项），Linux CI 362 项测试、17 项 Python 测试、静态分析、数据库生成一致性及 Android/iOS 构建通过；20 个公开资产、正式签名和 v2.0.1 ARM64 增量重建已核验。见 [验证记录](docs/engineering/validation-v2.0.2.md)及[更新说明](docs/releases/v2.0.2.md)。

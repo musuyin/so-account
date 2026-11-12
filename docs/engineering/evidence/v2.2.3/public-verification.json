@@ -1,0 +1,112 @@
+{
+  "tag": "v2.2.3",
+  "url": "https://github.com/musuyin/so-account/releases/tag/v2.2.3",
+  "latest": "v2.2.3",
+  "assets": 20,
+  "version": "2.2.3",
+  "build": 32,
+  "arm64Sha256": "9eb2dcf60cb2fb0d9627af54a6868c5b4e35769db199ab5ff84e4709a67e11d7",
+  "deltaFromV213Verified": true,
+  "assetsMetadata": [
+    {
+      "name": "SHA256SUMS.txt",
+      "size": 2145,
+      "digest": "sha256:61a64ad4fd700381d6fdc1992ad0d4adc24cf965550aa07da5e40e4efaf0a96a"
+    },
+    {
+      "name": "so-account-update.json",
+      "size": 7731,
+      "digest": "sha256:8a10ce7c6dbac13e70cb6eab7dea2acef93e2df250c5deca387c64c863e1dbf3"
+    },
+    {
+      "name": "SoAccount-v2.2.3-android.apk",
+      "size": 83294706,
+      "digest": "sha256:798d86a3ba8ae12d376b4b5698966a549abcf15415571e3dd75a56db2cecae7a"
+    },
+    {
+      "name": "SoAccount-v2.2.3-arm64-v8a.apk",
+      "size": 35802638,
+      "digest": "sha256:9eb2dcf60cb2fb0d9627af54a6868c5b4e35769db199ab5ff84e4709a67e11d7"
+    },
+    {
+      "name": "SoAccount-v2.2.3-armeabi-v7a.apk",
+      "size": 33838214,
+      "digest": "sha256:e5af70b24c07b40c004b6008b8f405748d0f235665bce357dc55a70763a88420"
+    },
+    {
+      "name": "SoAccount-v2.2.3-from-v2.1.2-arm64-v8a-9b41d0c4f048.sodelta",
+      "size": 4208060,
+      "digest": "sha256:d4a436dd4c23b97de897dd5dc0fef89466995ba7618b641cb3dd637d23246a27"
+    },
+    {
+      "name": "SoAccount-v2.2.3-from-v2.1.2-arm64-v8a-dde90ce95682.sodelta",
+      "size": 4208054,
+      "digest": "sha256:d9dc659bb612e7fc3cc863cfe4b133794aa6e85522dbc34e88f5568a9f77e447"
+    },
+    {
+      "name": "SoAccount-v2.2.3-from-v2.1.2-armeabi-v7a-c8c2cfa75c4f.sodelta",
+      "size": 4713680,
+      "digest": "sha256:20f5e28511827908c891eb3243a164b75ab4d71a4c5c3eb8b0c56127a2caf719"
+    },
+    {
+      "name": "SoAccount-v2.2.3-from-v2.1.2-armeabi-v7a-dde90ce95682.sodelta",
+      "size": 4713690,
+      "digest": "sha256:5d4624046a31802734167fdb3114c83b420aeb44aa357ad90c3f3e2a073e6b20"
+    },
+    {
+      "name": "SoAccount-v2.2.3-from-v2.1.2-universal-dde90ce95682.sodelta",
+      "size": 13147569,
+      "digest": "sha256:dd4134878097d812fb9781d495b3662697edebf155846f8fe8c9bbe31d4c711d"
+    },
+    {
+      "name": "SoAccount-v2.2.3-from-v2.1.2-x86_64-2a3bd5ebd2b3.sodelta",
+      "size": 4246275,
+      "digest": "sha256:d1f7a546a72798c44695e5c0815398a1a412b4be4f842a26f35e1b4d13c93b34"
+    },
+    {
+      "name": "SoAccount-v2.2.3-from-v2.1.2-x86_64-dde90ce95682.sodelta",
+      "size": 4246269,
+      "digest": "sha256:a613039a08b9bd0f42ad115e1f6a5de761a459196d653b75f4b8f86adf68e68a"
+    },
+    {
+      "name": "SoAccount-v2.2.3-from-v2.1.3-arm64-v8a-ab270c8ac0d0.sodelta",
+      "size": 4222287,
+      "digest": "sha256:26790550c9bdd3a573d75c889069a4c5115bcb403210aae5d914e385883f5bd8"
+    },
+    {
+      "name": "SoAccount-v2.2.3-from-v2.1.3-arm64-v8a-b376609275e5.sodelta",
+      "size": 4222291,
+      "digest": "sha256:dcec25ed669d56f7f7bb5e3eb16c0b2ff53d613e40c2ad30bb789e0dbd96761d"
+    },
+    {
+      "name": "SoAccount-v2.2.3-from-v2.1.3-armeabi-v7a-a187a032de30.sodelta",
+      "size": 4727993,
+      "digest": "sha256:5080df54e17682e67dec42932ec5031d1a497471e2bf7268dd6da92c30785c2b"
+    },
+    {
+      "name": "SoAccount-v2.2.3-from-v2.1.3-armeabi-v7a-ab270c8ac0d0.sodelta",
+      "size": 4728000,
+      "digest": "sha256:f4c93beef2d5be09bcc1d7aaebdcba8c2409e29eb7a9c321e43d31c9979f285c"
+    },
+    {
+      "name": "SoAccount-v2.2.3-from-v2.1.3-universal-ab270c8ac0d0.sodelta",
+      "size": 13191039,
+      "digest": "sha256:41edd6becd5abae267a2e2f3edbef963607b1e56022609dbfab250a207cbc5d3"
+    },
+    {
+      "name": "SoAccount-v2.2.3-from-v2.1.3-x86_64-40a267441deb.sodelta",
+      "size": 4260621,
+      "digest": "sha256:e48c056a5d63b2aaca7c2fb8e4c26be6046e111bca2c7c9e350bcd63799d30b5"
+    },
+    {
+      "name": "SoAccount-v2.2.3-from-v2.1.3-x86_64-ab270c8ac0d0.sodelta",
+      "size": 4260615,
+      "digest": "sha256:dca1c67468e63488d9c41bc27b41c53c094a587700f1a0bcef71ff8870ff1e4c"
+    },
+    {
+      "name": "SoAccount-v2.2.3-x86_64.apk",
+      "size": 37320618,
+      "digest": "sha256:ac15b7fd1e266f7b5d3ee023c74580272d6068ec26aa8da4171eb66a624a667a"
+    }
+  ]
+}
